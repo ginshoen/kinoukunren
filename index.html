@@ -1,0 +1,2802 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+:root {
+  /* Primary — 銀松苑グリーン */
+  --green: #176b52;
+  --green-dark: #0d4c3a;
+  --green-l1: #82d9b8;
+  --green-l2: #49ad86;
+  --green-l3: #9fd8c1;
+  --green-l4: #d4ebe1;
+  /* 訓練モード */
+  --purple: #5b5ea6;
+  --purple-dark: #43468c;
+  --purple-pale: #efeffa;
+  /* アラート */
+  --alert: #d5688e;
+  --alert-bg: #fbeff3;
+  --alert-border: #f0cbd8;
+  --alert-text: #8a4560;
+  /* 背景 */
+  --page: #f1f4ef;
+  --card-face: #fbfcfa;
+  --input-bg: #f1f5f0;
+  --subtle-bg: #fcfdfb;
+  --sidebar: #142d24;
+  --camera: #12231d;
+  /* ボーダー */
+  --border: #dce5db;
+  --border-success: #bfdcbe;
+  --border-undone: #c9d5c8;
+  /* テキスト */
+  --text: #14231d;
+  --text-sub: #354b41;
+  --text-aux: #52665c;
+  --text-success: #4a6b4d;
+  --text-disabled: #9aa89c;
+  /* 成功背景 */
+  --success-bg: #e3f1e1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: radial-gradient(circle at 12% -10%, rgba(130,217,184,.2), transparent 32rem), var(--page);
+  font-family: 'Zen Kaku Gothic New', sans-serif;
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--green);
+}
+a:hover {
+  color: var(--green-dark);
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+}
+
+input,
+textarea,
+select {
+  font-family: inherit;
+  color: inherit;
+}
+
+/* ---------- モバイル画面フレーム(390px カード) ---------- */
+.phone-wrap {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px 12px 48px;
+}
+
+.phone {
+  width: 100%;
+  max-width: 390px;
+  background: var(--card-face);
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(31, 42, 34, 0.14);
+  border: 1px solid var(--border);
+}
+
+@media (max-width: 430px) {
+  .phone-wrap {
+    padding: 0;
+  }
+  .phone {
+    max-width: none;
+    border-radius: 0;
+    border: none;
+    min-height: 100dvh;
+  }
+}
+
+.phone-header {
+  background: var(--green);
+  color: #fff;
+  padding: 18px 20px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.phone-header.training {
+  background: var(--purple);
+  padding: 16px 20px;
+}
+
+.phone-header.compact {
+  padding: 16px 20px;
+}
+
+.phone-header .logo {
+  height: 34px;
+  width: 34px;
+  background: #fff;
+  border-radius: 99px;
+  padding: 2px;
+  object-fit: contain;
+}
+
+.phone-header .back-btn {
+  font-size: 22px;
+  color: #fff;
+  line-height: 1;
+  padding: 4px 6px;
+  margin-left: -6px;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.phone-header .h-sub {
+  font-size: 12px;
+  opacity: 0.85;
+}
+.phone-header .h-title {
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.phone-header .h-right {
+  margin-left: auto;
+  text-align: right;
+}
+
+.pill-badge {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 99px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.qr-read-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.35;
+}
+
+.phone-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---------- カメラビュー ---------- */
+.camera-view {
+  background: var(--camera);
+  border-radius: 20px;
+  height: 280px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.camera-view video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-dim {
+  position: absolute;
+  inset: 44px 64px;
+  border-radius: 16px;
+  box-shadow: 0 0 0 3000px rgba(0, 0, 0, 0.35);
+}
+
+.camera-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+}
+.camera-corner.tl {
+  top: 44px;
+  left: 64px;
+  border-top: 4px solid var(--green-l1);
+  border-left: 4px solid var(--green-l1);
+  border-radius: 6px 0 0 0;
+}
+.camera-corner.tr {
+  top: 44px;
+  right: 64px;
+  border-top: 4px solid var(--green-l1);
+  border-right: 4px solid var(--green-l1);
+  border-radius: 0 6px 0 0;
+}
+.camera-corner.bl {
+  bottom: 44px;
+  left: 64px;
+  border-bottom: 4px solid var(--green-l1);
+  border-left: 4px solid var(--green-l1);
+  border-radius: 0 0 0 6px;
+}
+.camera-corner.br {
+  bottom: 44px;
+  right: 64px;
+  border-bottom: 4px solid var(--green-l1);
+  border-right: 4px solid var(--green-l1);
+  border-radius: 0 0 6px 0;
+}
+
+.camera-hint {
+  color: #b7c9b8;
+  font-size: 15px;
+  font-weight: 700;
+  position: relative;
+  text-align: center;
+  padding: 0 24px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+
+.capture-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 14px;
+  display: flex;
+  justify-content: center;
+  z-index: 2;
+}
+
+.capture-btn {
+  background: var(--green);
+  color: #fff;
+  border-radius: 99px;
+  min-height: 48px;
+  padding: 0 24px;
+  font-size: 16px;
+  font-weight: 900;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+.capture-btn:active {
+  background: var(--green-dark);
+}
+
+/* ---------- トースト ---------- */
+.toast-success {
+  background: var(--success-bg);
+  border: 1px solid var(--border-success);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+}
+
+.toast-success .check-circle {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 99px;
+  background: var(--green);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.toast-success .t-title {
+  font-size: 17px;
+  font-weight: 900;
+}
+.toast-success .t-sub {
+  font-size: 13px;
+  color: var(--text-success);
+}
+
+.toast-error {
+  background: var(--alert-bg);
+  border: 1px solid var(--alert-border);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.toast-error .x-circle {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 99px;
+  background: var(--alert);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.toast-error .t-title {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--alert-text);
+}
+.toast-error .t-sub {
+  font-size: 13px;
+  color: var(--alert-text);
+}
+
+/* ---------- リスト ---------- */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+.section-note {
+  font-size: 13px;
+  color: var(--text-aux);
+}
+
+.row-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.person-row {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+
+.person-row.pending {
+  border: 1px dashed var(--border-undone);
+  opacity: 0.65;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 99px;
+  background: var(--green);
+}
+.person-row.pending .status-dot {
+  background: var(--border-undone);
+}
+
+.person-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+.person-care {
+  font-size: 12px;
+  color: var(--text-aux);
+}
+.person-time {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--text-success);
+  font-weight: 700;
+}
+.person-row.pending .person-time {
+  color: var(--text-disabled);
+  font-weight: 400;
+}
+
+/* ---------- カード ---------- */
+.card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.card-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-sub);
+}
+.card-label .unit {
+  font-weight: 400;
+  color: var(--text-aux);
+}
+
+/* ---------- バイタル入力 ---------- */
+.bp-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.bp-title {
+  font-size: 15px;
+  font-weight: 900;
+}
+.bp-unit {
+  font-size: 12px;
+  color: var(--text-aux);
+}
+.bp-prev {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-aux);
+}
+
+.bp-inputs {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.bp-slash {
+  color: var(--text-disabled);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.num-box {
+  flex: 1;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  text-align: center;
+}
+.num-box:focus-within {
+  border: 2px solid var(--green);
+  padding: 7px;
+}
+.num-box .nb-label {
+  font-size: 11px;
+  color: var(--text-aux);
+}
+.num-box input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 900;
+  padding: 0;
+  color: var(--text);
+}
+.num-box input::placeholder {
+  color: var(--text-disabled);
+  font-weight: 700;
+}
+
+.vitals-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.vital-cell {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+.vital-cell:focus-within {
+  border: 2px solid var(--green);
+  padding: 11px 13px;
+}
+.vital-cell input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 28px;
+  font-weight: 900;
+  padding: 0;
+  color: var(--text);
+}
+.vital-cell input::placeholder {
+  color: var(--text-disabled);
+  font-weight: 700;
+}
+.vital-prev {
+  font-size: 11px;
+  color: var(--text-aux);
+}
+
+/* ---------- アラート ---------- */
+.alert-banner {
+  background: var(--alert-bg);
+  border: 1px solid var(--alert-border);
+  border-radius: 14px;
+  padding: 10px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.alert-dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 99px;
+  background: var(--alert);
+}
+.alert-text {
+  font-size: 13px;
+  color: var(--alert-text);
+  font-weight: 700;
+}
+
+/* ---------- ボタン ---------- */
+.btn-row {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-outline {
+  flex: 1;
+  background: #fff;
+  border: 2px solid var(--green);
+  color: var(--green);
+  border-radius: 14px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 900;
+}
+.btn-outline:active {
+  background: var(--input-bg);
+}
+
+.btn-primary {
+  flex: 2;
+  background: var(--green);
+  color: #fff;
+  border-radius: 14px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  font-weight: 900;
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.3);
+}
+.btn-primary:active {
+  background: var(--green-dark);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.btn-training {
+  background: var(--purple);
+  color: #fff;
+  border-radius: 14px;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow: 0 6px 16px rgba(91, 94, 166, 0.3);
+  width: 100%;
+}
+.btn-training:active {
+  background: var(--purple-dark);
+}
+.btn-training:disabled {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.link-plain {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  text-align: center;
+  padding: 8px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+}
+
+/* ---------- セグメント選択 ---------- */
+.segment-row {
+  display: flex;
+  gap: 8px;
+}
+
+.segment {
+  flex: 1;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  background: var(--input-bg);
+  color: var(--text);
+}
+.segment.small {
+  font-size: 15px;
+}
+.segment.selected {
+  border: 2px solid var(--purple);
+  background: var(--purple-pale);
+  color: var(--purple-dark);
+  font-weight: 900;
+}
+
+/* ---------- テキストエリア ---------- */
+.note-area {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  min-height: 64px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: var(--subtle-bg);
+  resize: vertical;
+  outline: none;
+}
+.note-area:focus {
+  border: 2px solid var(--purple);
+  padding: 9px 11px;
+}
+.note-area::placeholder {
+  color: var(--text-aux);
+}
+
+/* ---------- 実施状況リスト ---------- */
+.exercise-row {
+  background: var(--success-bg);
+  border: 1px solid var(--border-success);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+}
+.exercise-row .check {
+  color: var(--green);
+  font-weight: 900;
+}
+.exercise-row .ex-name {
+  font-size: 14px;
+  font-weight: 700;
+}
+.exercise-row .ex-summary {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-success);
+}
+
+.exercise-row.undone {
+  background: #fff;
+  border: 1px dashed var(--border-undone);
+  opacity: 0.7;
+}
+.exercise-row.undone .check {
+  color: var(--text-disabled);
+  font-weight: 400;
+}
+.exercise-row.undone .ex-summary {
+  color: var(--text-disabled);
+}
+
+/* ---------- モーダル(手動選択フォールバック) ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 42, 34, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+}
+.modal-sheet {
+  background: var(--card-face);
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-width: 430px;
+  max-height: 70dvh;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.modal-title {
+  font-size: 16px;
+  font-weight: 900;
+}
+.modal-row {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  width: 100%;
+  text-align: left;
+  font-size: 15px;
+  font-weight: 700;
+}
+.modal-row:active {
+  background: var(--input-bg);
+}
+
+/* ---------- 管理者 PC 画面 ---------- */
+.admin-wrap {
+  min-height: 100dvh;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.admin-frame {
+  width: 100%;
+  max-width: 1180px;
+  background: var(--card-face);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(31, 42, 34, 0.14);
+  border: 1px solid var(--border);
+  display: flex;
+  min-height: 720px;
+}
+
+.admin-sidebar {
+  width: 220px;
+  flex: none;
+  background: var(--sidebar);
+  color: var(--border);
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 16px;
+}
+.admin-sidebar .brand img {
+  height: 30px;
+  width: 30px;
+  background: #fff;
+  border-radius: 99px;
+  padding: 2px;
+  object-fit: contain;
+}
+.admin-sidebar .brand-name {
+  font-size: 15px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.nav-item {
+  padding: 10px 12px;
+  font-size: 14px;
+  border-radius: 10px;
+  color: var(--border);
+  text-align: left;
+  width: 100%;
+}
+.nav-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.nav-item.active {
+  background: var(--green);
+  color: #fff;
+  font-weight: 700;
+}
+
+.admin-staff {
+  margin-top: auto;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #8fa491;
+}
+
+.admin-content {
+  flex: 1;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+.admin-page-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.breadcrumb {
+  font-size: 13px;
+  color: var(--text-aux);
+}
+.admin-h1 {
+  font-size: 24px;
+  font-weight: 900;
+}
+.admin-h1 .attrs {
+  font-size: 14px;
+  color: var(--text-aux);
+  font-weight: 700;
+}
+
+.admin-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.select-plain {
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+}
+
+.btn-csv {
+  background: var(--green);
+  color: #fff;
+  border-radius: 10px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+}
+.btn-csv:hover {
+  background: var(--green-dark);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 18px;
+}
+@media (max-width: 900px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+  .admin-frame {
+    flex-direction: column;
+  }
+  .admin-sidebar {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .admin-staff {
+    margin-top: 0;
+    margin-left: auto;
+  }
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 18px 20px;
+}
+
+.panel-title {
+  font-size: 15px;
+  font-weight: 900;
+  margin-bottom: 12px;
+}
+.panel-title .sub {
+  font-size: 12px;
+  color: var(--text-aux);
+  font-weight: 400;
+}
+
+.legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-sub);
+  flex-wrap: wrap;
+}
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend .chip {
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+/* 横棒グラフ */
+.bar-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bar-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 30px;
+  gap: 10px;
+  align-items: center;
+}
+.bar-label {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bar-track {
+  background: var(--page);
+  border-radius: 6px;
+  height: 18px;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.4s ease;
+}
+.bar-count {
+  font-size: 13px;
+  font-weight: 900;
+  text-align: right;
+}
+
+/* 日別テーブル */
+.day-table {
+  display: grid;
+  grid-template-columns: 90px 70px 110px 1fr 1fr;
+  font-size: 13px;
+}
+.day-table .th {
+  padding: 8px 10px;
+  font-weight: 700;
+  color: var(--text-aux);
+  border-bottom: 2px solid var(--border);
+}
+.day-table .td {
+  padding: 10px;
+  border-bottom: 1px solid var(--page);
+}
+.day-table .td.date {
+  font-weight: 700;
+}
+.day-table .td.note {
+  color: var(--text-sub);
+}
+.day-table .td.last {
+  border-bottom: none;
+}
+
+.flag-mark {
+  color: var(--alert);
+  font-weight: 900;
+}
+
+/* 汎用テーブル(本日の記録一覧など) */
+.gen-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.gen-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-weight: 700;
+  color: var(--text-aux);
+  border-bottom: 2px solid var(--border);
+}
+.gen-table td {
+  padding: 10px;
+  border-bottom: 1px solid var(--page);
+}
+
+/* QR発行カード */
+.qr-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+.qr-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+}
+.qr-card img {
+  width: 120px;
+  height: 120px;
+}
+.qr-card .qr-name {
+  font-size: 15px;
+  font-weight: 900;
+}
+.qr-card .qr-sub {
+  font-size: 12px;
+  color: var(--text-aux);
+}
+
+.empty-note {
+  font-size: 13px;
+  color: var(--text-aux);
+  padding: 8px 0;
+}
+
+@media print {
+  .admin-sidebar,
+  .admin-page-head .admin-actions,
+  .no-print {
+    display: none !important;
+  }
+  .admin-wrap {
+    padding: 0;
+  }
+  .admin-frame {
+    box-shadow: none;
+    border: none;
+  }
+}
+
+/* 2026 interface refresh */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid rgba(23,107,82,.3);
+  outline-offset: 3px;
+}
+.phone-wrap { padding: 32px 16px 64px; }
+.phone {
+  max-width: 480px;
+  border-radius: 30px;
+  border-color: rgba(20,35,29,.09);
+  box-shadow: 0 24px 64px rgba(20,45,36,.14), 0 2px 8px rgba(20,45,36,.05);
+}
+.phone-header {
+  min-height: 84px;
+  padding: 18px 24px;
+  background: linear-gradient(135deg,#0f513e,var(--green) 68%,#238363);
+}
+.phone-header.training { background: linear-gradient(135deg,#3f3d7f,var(--purple) 72%,#716ebd); }
+.phone-header .logo { width: 42px; height: 42px; border: 2px solid rgba(255,255,255,.6); }
+.phone-header .h-title { font-size: 20px; }
+.phone-body { padding: 22px 24px 28px; gap: 18px; }
+.workflow-steps { display:grid; grid-template-columns:repeat(3,1fr); padding:4px 2px 14px; position:relative; }
+.workflow-steps:before { content:''; position:absolute; top:18px; left:16.66%; right:16.66%; height:2px; background:var(--border); }
+.workflow-step { z-index:1; display:flex; flex-direction:column; align-items:center; gap:6px; color:var(--text-disabled); font-size:11px; font-weight:700; }
+.workflow-number { width:30px; height:30px; border-radius:999px; display:grid; place-items:center; background:#fff; border:2px solid var(--border); font-size:12px; }
+.workflow-step.done,.workflow-step.current { color:var(--green-dark); }
+.workflow-step.done .workflow-number { border-color:var(--green-l3); background:#e4f5ed; color:var(--green-dark); }
+.workflow-step.current .workflow-number { border-color:var(--green); background:var(--green); color:#fff; box-shadow:0 0 0 5px rgba(23,107,82,.1); }
+.screen-intro { margin-top:-2px; }
+.screen-intro .eyebrow,.eyebrow { display:block; color:var(--green); font-size:10px; font-weight:900; letter-spacing:.14em; text-transform:uppercase; margin-bottom:5px; }
+.screen-intro h1 { margin:0; color:var(--text); font-size:22px; line-height:1.35; }
+.screen-intro p { margin:5px 0 0; color:var(--text-aux); font-size:13px; line-height:1.65; }
+.compact-intro h1 { font-size:20px; }
+.training-intro .eyebrow { color:var(--purple); }
+.modal-head { display:flex; align-items:flex-start; justify-content:space-between; }
+.modal-close { width:42px; height:42px; display:grid; place-items:center; border-radius:999px; background:var(--input-bg); color:var(--text-sub); font-size:24px; }
+.search-box { min-height:50px; display:flex; align-items:center; gap:9px; padding:0 14px; border:1px solid var(--border); border-radius:14px; background:#fff; color:var(--text-aux); }
+.search-box input { width:100%; border:0; outline:0; background:transparent; font-size:16px; }
+.camera-view {
+  height: 292px;
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 25%,rgba(130,217,184,.08),transparent 45%),var(--camera);
+  box-shadow: 0 8px 28px rgba(20,45,36,.1);
+}
+.camera-hint {
+  max-width: 310px;
+  color: #d7e5df;
+  font-size: 14px;
+  line-height: 1.6;
+  transform: translateY(-28px);
+}
+.capture-wrap { bottom: 24px; }
+.capture-btn {
+  min-height: 52px;
+  padding: 0 26px;
+  border-radius: 15px;
+  background: #fff;
+  color: var(--green-dark);
+  box-shadow: 0 9px 24px rgba(0,0,0,.28);
+}
+.card,.vital-cell,.panel { border-radius: 18px; box-shadow: 0 3px 14px rgba(20,45,36,.04); }
+.person-row,.exercise-row { min-height: 52px; border-radius: 14px; }
+.person-row.pending,.exercise-row.undone { opacity: 1; background: rgba(255,255,255,.7); }
+.btn-primary,.btn-outline,.btn-training { min-height: 56px; border-radius: 15px; }
+.btn-primary { background: linear-gradient(135deg,var(--green-dark),var(--green)); }
+.btn-training { background: linear-gradient(135deg,var(--purple-dark),var(--purple)); }
+.segment { min-height: 54px; border-radius: 14px; }
+.safety-confirm {
+  min-height: 62px; display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  border: 1px solid var(--alert-border); border-radius: 15px; background: #fff9fb; cursor: pointer;
+}
+.safety-confirm input { width: 23px; height: 23px; accent-color: var(--alert-text); }
+.safety-confirm strong,.safety-confirm small { display: block; }
+.safety-confirm strong { font-size: 13px; color: var(--alert-text); }
+.safety-confirm small { margin-top: 2px; color: var(--text-aux); font-size: 11px; }
+.modal-backdrop { background: rgba(8,25,19,.62); backdrop-filter: blur(5px); }
+.modal-sheet { max-width: 460px; border-radius: 24px 24px 0 0; box-shadow: 0 30px 80px rgba(8,25,19,.28); }
+.admin-wrap { padding: 32px; }
+.admin-frame { max-width: 1240px; border-radius: 24px; box-shadow: 0 24px 70px rgba(20,45,36,.12); }
+.admin-sidebar { width: 238px; padding: 24px 18px; background: radial-gradient(circle at 20% 0%,rgba(130,217,184,.12),transparent 26rem),var(--sidebar); }
+.nav-item { min-height: 44px; border-radius: 12px; }
+.nav-item.active { background: rgba(130,217,184,.15); color: #c8f2e2; box-shadow: inset 3px 0 0 #82d9b8; }
+.admin-content { padding: 30px 32px; gap: 22px; }
+.admin-h1 { font-size: 26px; letter-spacing: -.02em; }
+@media (max-width: 520px) {
+  .phone-wrap { padding: 0; }
+  .phone { max-width: none; min-height: 100dvh; border: 0; border-radius: 0; box-shadow: none; }
+  .phone-header { padding-top: max(16px,env(safe-area-inset-top)); }
+  .phone-body { padding: 20px 18px max(30px,env(safe-area-inset-bottom)); }
+  .camera-view { height: min(67vw,292px); min-height: 250px; }
+}
+@media (max-width: 390px) { .vitals-grid { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+
+/* ---------- 追加UI: スナックバー・保存ヒント・infoトースト ---------- */
+.snackbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--sidebar);
+  color: #fff;
+  border-radius: 14px;
+  padding: 12px 14px;
+  box-shadow: 0 6px 16px rgba(31, 42, 34, 0.3);
+  animation: slide-in 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+.snack-text { font-size: 14px; font-weight: 700; flex: 1; }
+.snack-undo {
+  color: #ffd98e;
+  font-size: 14px;
+  font-weight: 900;
+  min-height: 44px;
+  padding: 0 10px;
+}
+.snack-close { color: #8fa491; font-size: 14px; min-height: 44px; min-width: 44px; }
+
+.save-hint {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-aux);
+  text-align: center;
+  min-height: 18px;
+}
+
+.toast-success.toast-info { background: #e7f0f7; border-color: #c3d8e8; }
+.toast-success.toast-info .check-circle { background: #38648c; }
+.toast-success.toast-info .t-sub { color: #38648c; }
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+}
+\n
+/* ---------- ライブ読取: 検出フィードバック ---------- */
+.camera-view.detected .camera-corner {
+  border-color: #fff;
+  filter: drop-shadow(0 0 6px rgba(123, 198, 126, 0.9));
+}
+.camera-view.detected {
+  box-shadow: inset 0 0 0 4px var(--green-l1);
+}
+.detected-badge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--green);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+  padding: 12px 22px;
+  border-radius: 99px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  z-index: 3;
+  animation: badge-pop 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+@keyframes badge-pop {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+}
+\n</style>
+
+  </head>
+  <body>
+    <div id="app">
+      <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
+        読み込み中…
+      </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+/* 銀松苑 機能訓練記録アプリ — クライアント(GAS HtmlService 用 SPA) */
+'use strict';
+
+var LOGO = 'data:image/png;base64,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';
+var LOAD_OPTIONS = ['軽い', 'ふつう', '強い'];
+var WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+
+// ホスティング版の接続設定: ファイル編集不要。画面の「接続設定」から入力し端末に保存される
+window.GAS_API_URL = window.GAS_API_URL || localStorage.getItem('gasApiUrl') || '';
+window.GAS_API_TOKEN = window.GAS_API_TOKEN || localStorage.getItem('gasApiToken') || '';
+/** GAS iframe 外で動作しているか(=ホスティング/プレビュー) */
+function isStandalone() {
+  return !(window.google && google.script && google.script.run);
+}
+
+// ---------------------------------------------------------------- RPC
+
+function rpc(name) {
+  var args = [].slice.call(arguments, 1);
+  // ホスティング版: GAS の /exec を JSON API として呼ぶ(iOSライブカメラ対応構成)
+  if (window.GAS_API_URL) {
+    return fetch(window.GAS_API_URL, {
+      method: 'POST',
+      // Content-Type を text/plain のままにして CORS プリフライトを回避する
+      body: JSON.stringify({ fn: name, args: args, token: window.GAS_API_TOKEN || '' }),
+    }).then(function (r) {
+      if (!r.ok) throw new Error('通信エラー(' + r.status + ')');
+      return r.json();
+    }).then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'サーバーエラー');
+      return res.data;
+    });
+  }
+  if (window.google && google.script && google.script.run) {
+    return new Promise(function (resolve, reject) {
+      var runner = google.script.run
+        .withSuccessHandler(resolve)
+        .withFailureHandler(function (e) { reject(e); });
+      runner[name].apply(runner, args);
+    });
+  }
+  return Mock.call(name, args); // ローカルプレビュー用モック
+}
+
+// ---------------------------------------------------------------- 状態
+
+var S = {
+  ready: false,
+  users: [],
+  exercises: [],
+  today: '',
+  staff: '',
+  todayCheckins: [],
+  currentUserId: sessionStorage.getItem('currentUserId') || '',
+  toast: null,          // {type:'success'|'error', title, sub, userId}
+  toastTimer: null,
+  vDraft: null,         // バイタル下書き
+  prevVital: null,
+  vitalConfirmed: false,
+  exDraft: null,        // 訓練記録下書き {amount, load, note}
+  admin: { userId: '', month: '' },
+};
+
+function currentUser() {
+  for (var i = 0; i < S.users.length; i++) if (S.users[i].id === S.currentUserId) return S.users[i];
+  return null;
+}
+function exerciseById(id) {
+  for (var i = 0; i < S.exercises.length; i++) if (S.exercises[i].id === id) return S.exercises[i];
+  return null;
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function timeKey(t) { return ('00000' + t).slice(-5); }
+function shortDate(date) {
+  var p = date.split('-');
+  return Number(p[1]) + '/' + Number(p[2]);
+}
+function dayLabel(date) {
+  var d = new Date(date + 'T00:00:00');
+  return (d.getMonth() + 1) + '/' + d.getDate() + '(' + WEEKDAYS[d.getDay()] + ')';
+}
+function monthLabel(m) {
+  var p = m.split('-');
+  return p[0] + '年' + Number(p[1]) + '月';
+}
+function nowClock() {
+  var d = new Date();
+  return {
+    date: (d.getMonth() + 1) + '月' + d.getDate() + '日(' + WEEKDAYS[d.getDay()] + ')',
+    time: d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2),
+  };
+}
+
+// バイタル閾値判定(サーバーと同一ロジック。ライブ表示用)
+function evaluateVitalAlerts(draft, prev) {
+  var alerts = [];
+  var sys = Number(draft.systolic);
+  if (draft.systolic !== '' && !isNaN(sys)) {
+    if (sys >= 160) alerts.push('収縮期血圧が高値です(160以上)。運動可否を看護師に確認してください');
+    else if (prev && sys - prev.systolic >= 20) alerts.push('収縮期血圧が前回より高めです。運動前に再測定を推奨');
+  }
+  var spo2 = Number(draft.spo2);
+  if (draft.spo2 !== '' && !isNaN(spo2) && spo2 <= 92) alerts.push('SpO2が低めです(92%以下)。安静にして再測定してください');
+  var temp = Number(draft.temp);
+  if (draft.temp !== '' && !isNaN(temp) && temp >= 37.5) alerts.push('体温が高めです(37.5℃以上)。本日の運動可否を確認してください');
+  return alerts;
+}
+
+var VITAL_LIMITS = {
+  systolic: [60, 250], diastolic: [30, 150], pulse: [30, 220],
+  temp: [30, 45], spo2: [50, 100], weight: [20, 250],
+};
+function vitalValidationErrors(draft) {
+  var labels = { systolic: '収縮期血圧', diastolic: '拡張期血圧', pulse: '脈拍', temp: '体温', spo2: 'SpO2', weight: '体重' };
+  var errors = [];
+  Object.keys(VITAL_LIMITS).forEach(function (key) {
+    if (draft[key] === '') return;
+    var value = Number(draft[key]);
+    var range = VITAL_LIMITS[key];
+    if (!isFinite(value) || value < range[0] || value > range[1]) {
+      errors.push(labels[key] + 'は' + range[0] + '〜' + range[1] + 'の範囲で入力してください');
+    }
+  });
+  if (draft.systolic && draft.diastolic && Number(draft.diastolic) >= Number(draft.systolic)) {
+    errors.push('下の血圧は上の血圧より小さい値にしてください');
+  }
+  return errors;
+}
+
+// ---------------------------------------------------------------- QRスキャナー
+
+var Scanner = {
+  stream: null, timer: null, video: null, lastValue: '', lastAt: 0, paused: false,
+  onDetect: null, generation: 0, scanning: false,
+  start: function (onDetect) {
+    var self = this;
+    var generation = ++self.generation;
+    self.onDetect = onDetect;
+    var view = document.getElementById('camera-view');
+    self.bindCapture();
+    // まずライブカメラを試行し、起動できた端末は連続読取。
+    // GAS iframe で拒否される端末(iOS等)は撮影ボタンに自動フォールバックする。
+    if (!view || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      self.fail(); return;
+    }
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: false,
+    })
+      .then(function (stream) {
+        if (generation !== self.generation) {
+          stream.getTracks().forEach(function (t) { t.stop(); });
+          return null;
+        }
+        self.stream = stream;
+        var video = document.createElement('video');
+        video.muted = true;
+        video.setAttribute('playsinline', '');
+        video.setAttribute('autoplay', '');
+        video.srcObject = stream;
+        view.insertBefore(video, view.firstChild);
+        self.video = video;
+        return video.play();
+      })
+      .then(function () {
+        if (generation !== self.generation || !self.video) return;
+        // ライブ読取が使える端末では撮影ボタンを控えめにし、ヒントを更新
+        var hintEl = document.getElementById('camera-hint');
+        if (hintEl) hintEl.textContent = 'QRコードを枠内にかざしてください';
+        var canvas = document.createElement('canvas');
+        var detector = window.BarcodeDetector ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
+        self.timer = setInterval(function () {
+          var v = self.video;
+          if (!v || v.readyState < 2 || self.paused || self.scanning) return;
+          self.scanning = true;
+          var handle = function (value) {
+            var now = Date.now();
+            if (value === self.lastValue && now - self.lastAt < 2000) return;
+            self.lastValue = value; self.lastAt = now;
+            self.flash();
+            onDetect(value);
+          };
+          var decodeWithJsQr = function () {
+            var w = v.videoWidth, h = v.videoHeight;
+            if (!w || !h || typeof jsQR !== 'function') return;
+            canvas.width = w; canvas.height = h;
+            var ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (!ctx) return;
+            ctx.drawImage(v, 0, 0, w, h);
+            var code = jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'attemptBoth' });
+            if (code && code.data) handle(code.data);
+          };
+          if (detector) {
+            detector.detect(v).then(function (codes) {
+              if (codes.length) handle(codes[0].rawValue);
+              else decodeWithJsQr();
+            }).catch(function () {
+              detector = null;
+              decodeWithJsQr();
+            }).then(function () { self.scanning = false; });
+            return;
+          }
+          try { decodeWithJsQr(); } finally { self.scanning = false; }
+        }, 350);
+      })
+      .catch(function () { if (generation === self.generation) self.fail(); });
+  },
+  /**
+   * ライブカメラ不可時のフォールバック。
+   * GAS のウェブアプリは sandbox 付き iframe で配信されるため getUserMedia が
+   * ブロックされる(Safari/Chrome共通)。その場で「撮影→写真をjsQRで解読」する
+   * file capture 方式は iframe 内でも動作する。
+   */
+  fail: function () {
+    var hint = document.getElementById('camera-hint');
+    if (hint) hint.textContent = 'ライブ映像を使えないため、QRコードを撮影してください';
+    this.bindCapture();
+  },
+  bindCapture: function () {
+    var self = this;
+    var input = document.getElementById('capture-input');
+    var button = document.getElementById('capture-btn');
+    var hint = document.getElementById('camera-hint');
+    if (!input || !button || input.getAttribute('data-bound') === 'true') return;
+    input.setAttribute('data-bound', 'true');
+    button.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+      var file = input.files && input.files[0];
+      input.value = '';
+      if (!file || !self.onDetect) return;
+      if (hint) hint.textContent = '読み取り中…';
+      decodeQrFromFile(file).then(function (value) {
+        if (value) {
+          self.flash();
+          self.onDetect(value);
+        } else if (hint) {
+          hint.textContent = 'QRを読み取れませんでした。枠いっぱいに写るよう撮り直してください';
+        }
+      });
+    });
+  },
+  /**
+   * 読取成功の瞬間に映像を静止し、「✓ 読み取りました」を表示する。
+   * 成功時は画面遷移で自動的に解除、エラー時は resume() で再開する。
+   */
+  flash: function () {
+    if (this.video) { try { this.video.pause(); } catch (e) {} }
+    this.paused = true;
+    var view = document.getElementById('camera-view');
+    if (view && !view.querySelector('.detected-badge')) {
+      view.classList.add('detected');
+      var badge = document.createElement('div');
+      badge.className = 'detected-badge';
+      badge.textContent = '✓ 読み取りました';
+      view.appendChild(badge);
+    }
+    if (navigator.vibrate) navigator.vibrate(80);
+  },
+  resume: function () {
+    var view = document.getElementById('camera-view');
+    if (view) {
+      view.classList.remove('detected');
+      var badge = view.querySelector('.detected-badge');
+      if (badge) badge.remove();
+    }
+    this.paused = false;
+    if (this.video) { try { this.video.play(); } catch (e) {} }
+  },
+  stop: function () {
+    this.generation += 1;
+    if (this.timer) clearInterval(this.timer);
+    if (this.stream) this.stream.getTracks().forEach(function (t) { t.stop(); });
+    this.timer = null; this.stream = null; this.video = null; this.paused = false; this.scanning = false;
+  },
+};
+
+/** 撮影した写真からQRを解読(複数スケールで試行) */
+function decodeQrFromFile(file) {
+  return new Promise(function (resolve) {
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      var scales = [1000, 1600, 640];
+      var result = null;
+      for (var i = 0; i < scales.length && !result; i++) {
+        var max = scales[i];
+        var ratio = Math.min(1, max / Math.max(img.width, img.height));
+        var w = Math.round(img.width * ratio);
+        var h = Math.round(img.height * ratio);
+        var canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        var ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          var code = typeof jsQR === 'function' && jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'attemptBoth' });
+          if (code && code.data) result = code.data;
+        } catch (e) {}
+      }
+      URL.revokeObjectURL(url);
+      resolve(result);
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      resolve(null);
+    };
+    img.src = url;
+  });
+}
+
+function cameraHtml(hint) {
+  return (
+    '<div class="camera-view" id="camera-view">' +
+    '<div class="camera-dim"></div>' +
+    '<div class="camera-corner tl"></div><div class="camera-corner tr"></div>' +
+    '<div class="camera-corner bl"></div><div class="camera-corner br"></div>' +
+    '<div class="camera-hint" id="camera-hint">' + esc(hint) + '</div>' +
+    '<div class="capture-wrap"><button class="capture-btn" id="capture-btn">カメラでQRを撮影</button>' +
+    '<input type="file" accept="image/*" capture="environment" id="capture-input" style="display:none;"></div>' +
+    '</div>'
+  );
+}
+
+/** 直前保存の取り消しスナックバー */
+function snackbarHtml() {
+  if (!S.lastSaved) return '';
+  return (
+    '<div class="snackbar" id="snackbar" role="status">' +
+    '<span class="snack-text">✓ ' + esc(S.lastSaved.label) + '</span>' +
+    '<button class="snack-undo" onclick="Actions.undoLast()">取り消す</button>' +
+    '<button class="snack-close" onclick="Actions.dismissSnackbar()" aria-label="閉じる">✕</button>' +
+    '</div>'
+  );
+}
+
+/** 保存失敗をアプリ内バナーで表示(GAS iframe では alert が抑止されることがある) */
+function showSaveError(message) {
+  var box = document.getElementById('save-error');
+  if (!box) { window.alert(message); return; }
+  box.innerHTML =
+    '<div class="toast-error" role="alert"><span class="x-circle">✕</span><span>' +
+    '<span class="t-title" style="display:block;">保存エラー</span>' +
+    '<span class="t-sub">' + esc(message) + '(入力内容は保持されています)</span></span></div>';
+  box.scrollIntoView({ block: 'nearest' });
+}
+
+// ---------------------------------------------------------------- ルーター
+
+function go(hash) { location.hash = hash; }
+
+window.addEventListener('hashchange', render);
+
+function render() {
+  Scanner.stop();
+  if (S.toastTimer) { clearTimeout(S.toastTimer); S.toastTimer = null; }
+  if (S.pollTimer) { clearInterval(S.pollTimer); S.pollTimer = null; }
+  if (!S.ready) return;
+  var h = location.hash.replace(/^#\/?/, '');
+  var app = document.getElementById('app');
+  if (h === 'vitals') return renderVitals(app);
+  if (h === 'exercise') return renderExerciseScan(app);
+  if (h.indexOf('exercise/') === 0) return renderExerciseForm(app, h.slice(9));
+  if (h === 'admin') return renderAdminResults(app);
+  if (h === 'admin/today') return renderAdminToday(app);
+  if (h === 'admin/master') return renderAdminMaster(app);
+  if (h === 'admin/monthly') return renderAdminMonthly(app);
+  return renderCheckin(app);
+}
+
+function loadingHtml() {
+  return '<div style="padding:48px;text-align:center;color:#7A8A7D;font-weight:700;">読み込み中…</div>';
+}
+
+// ---------------------------------------------------------------- 1a 来所受付
+
+function renderCheckin(app) {
+  var clock = nowClock();
+  var checkedIds = {};
+  S.todayCheckins.forEach(function (c) { checkedIds[c.userId] = c.time; });
+  var todayWeekday = WEEKDAYS[new Date().getDay()];
+  var scheduled = S.users.filter(function (u) { return String(u.scheduleLabel || '').indexOf(todayWeekday) >= 0; });
+  var pending = scheduled.filter(function (u) { return !checkedIds[u.id]; });
+
+  var toastHtml = '';
+  if (S.toast && (S.toast.type === 'success' || S.toast.type === 'info')) {
+    toastHtml =
+      '<button class="toast-success' + (S.toast.type === 'info' ? ' toast-info' : '') + '"' +
+      ' onclick="Actions.goVitals(\'' + S.toast.userId + '\')">' +
+      '<span class="check-circle">' + (S.toast.type === 'info' ? 'ℹ' : '✓') + '</span><span>' +
+      '<span class="t-title" style="display:block;">' + esc(S.toast.title) + '</span>' +
+      '<span class="t-sub">' + esc(S.toast.sub) + '</span></span></button>';
+  } else if (S.toast && S.toast.type === 'error') {
+    toastHtml =
+      '<div class="toast-error" role="alert"><span class="x-circle">✕</span><span>' +
+      '<span class="t-title" style="display:block;">' + esc(S.toast.title) + '</span>' +
+      '<span class="t-sub">' + esc(S.toast.sub) + '</span></span></div>';
+  }
+
+  var rows = S.todayCheckins.map(function (c) {
+    var u = null;
+    S.users.forEach(function (x) { if (x.id === c.userId) u = x; });
+    if (!u) return '';
+    return (
+      '<div class="person-row"><span class="status-dot"></span>' +
+      '<span class="person-name">' + esc(u.name) + '</span>' +
+      '<span class="person-care">' + esc(u.careLevel) + '</span>' +
+      '<span class="person-time">' + esc(c.time) + '</span></div>'
+    );
+  }).join('') + pending.map(function (u) {
+    return (
+      '<div class="person-row pending"><span class="status-dot"></span>' +
+      '<span class="person-name">' + esc(u.name) + '</span>' +
+      '<span class="person-care">' + esc(u.careLevel) + '</span>' +
+      '<span class="person-time">未着</span></div>'
+    );
+  }).join('');
+
+  app.innerHTML =
+    '<div class="phone-wrap"><div class="phone">' +
+    '<header class="phone-header">' +
+    '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ">' +
+    '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">来所受付</div></div>' +
+    '<div class="h-right"><div class="h-sub" id="clock-date">' + clock.date + '</div>' +
+    '<div style="font-size:16px;font-weight:700;" id="clock-time">' + clock.time + '</div></div>' +
+    '</header>' +
+    '<div class="phone-body">' +
+    '<nav class="workflow-steps" aria-label="記録の進み具合"><div class="workflow-step current" aria-current="step"><span class="workflow-number">1</span><span>受付</span></div><div class="workflow-step upcoming"><span class="workflow-number">2</span><span>バイタル</span></div><div class="workflow-step upcoming"><span class="workflow-number">3</span><span>機能訓練</span></div></nav>' +
+    '<div class="screen-intro"><span class="eyebrow">STEP 1</span><h1>利用者カードを読み取る</h1><p>緑の枠にQRコードを合わせてください。</p></div>' +
+    cameraHtml('利用者のQRカードをかざしてください') +
+    toastHtml +
+    '<div><div class="section-head"><span class="section-title">本日の来所状況</span>' +
+    '<span class="section-note">' + S.todayCheckins.length + '名 / 予定' + scheduled.length + '名</span></div>' +
+    '<div class="row-list">' + rows + '</div></div>' +
+    '<button class="link-plain" onclick="Actions.openPicker()">QRを読み取れない場合は名前から選択 ›</button>' +
+    (isStandalone() && !window.GAS_API_URL
+      ? '<div class="toast-error" role="alert"><span class="x-circle">!</span><span>' +
+        '<span class="t-title" style="display:block;">デモモードで動作中(記録は保存されません)</span>' +
+        '<span class="t-sub">GASと接続するには下の「接続設定」からURLを貼り付けてください</span></span></div>'
+      : '') +
+    (isStandalone()
+      ? '<button class="link-plain" onclick="Actions.openSettings()">⚙ 接続設定</button>'
+      : '') +
+    '</div></div></div>' +
+    '<div id="picker"></div>';
+
+  Scanner.start(function (value) {
+    var user = null;
+    S.users.forEach(function (u) { if (u.qrCode === value.trim()) user = u; });
+    if (!user) {
+      S.toast = { type: 'error', title: '読み取りエラー', sub: '未登録のQRコードです。カードをご確認のうえ再度お試しください' };
+      render();
+      return;
+    }
+    Actions.checkin(user.id);
+  });
+
+  if (S.toast && S.toast.type === 'success') Scanner.paused = true;
+
+  // 他端末のチェックイン反映と日付跨ぎ検知(受付タブレット常時起動運用向け)
+  S.pollTimer = setInterval(function () {
+    rpc('apiRefreshToday').then(function (res) {
+      if (res.today !== S.today) { location.reload(); return; }
+      if (JSON.stringify(res.todayCheckins) !== JSON.stringify(S.todayCheckins)) {
+        S.todayCheckins = res.todayCheckins;
+        render();
+      }
+    }).catch(function () { /* 一時的な通信断は次回ポーリングで回復 */ });
+  }, 60000);
+}
+
+// ---------------------------------------------------------------- 1b バイタル記録
+
+function renderVitals(app) {
+  var user = currentUser();
+  if (!user) return go('');
+  app.innerHTML = loadingHtml();
+
+  rpc('apiGetVitalContext', user.id).then(function (ctx) {
+    S.prevVital = ctx.prev;
+    if (!S.vDraft) S.vDraft = { systolic: '', diastolic: '', pulse: '', temp: '', spo2: '', weight: '' };
+    var prev = S.prevVital;
+    var d = S.vDraft;
+
+    function cell(key, label, unit, prevValue) {
+      return (
+        '<label class="vital-cell"><span class="card-label">' + label +
+        ' <span class="unit">' + unit + '</span>' +
+        (prevValue != null ? '<span class="vital-prev">(前回 ' + prevValue + ')</span>' : '') +
+        '</span><input inputmode="decimal" placeholder="--" value="' + esc(d[key]) + '"' +
+        ' oninput="Actions.vInput(\'' + key + '\', this.value)" aria-label="' + label + '"></label>'
+      );
+    }
+
+    app.innerHTML =
+      '<div class="phone-wrap"><div class="phone">' +
+      '<header class="phone-header compact">' +
+      '<button class="back-btn" onclick="Actions.backToCheckin()" aria-label="戻る">‹</button>' +
+      '<div><div class="h-sub">バイタル記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
+      '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
+      '</header>' +
+      '<div class="phone-body" style="gap:12px;">' +
+      '<nav class="workflow-steps" aria-label="記録の進み具合"><div class="workflow-step done"><span class="workflow-number">✓</span><span>受付</span></div><div class="workflow-step current" aria-current="step"><span class="workflow-number">2</span><span>バイタル</span></div><div class="workflow-step upcoming"><span class="workflow-number">3</span><span>機能訓練</span></div></nav>' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">STEP 2</span><h1>バイタルを記録</h1><p>血圧・脈拍・体温は必須です(SpO2・体重は任意)。</p></div>' +
+      '<div class="card"><div class="bp-head"><span class="bp-title">血圧</span><span class="bp-unit">mmHg</span>' +
+      '<span class="bp-prev">' + (prev ? '前回 ' + prev.systolic + ' / ' + prev.diastolic : '前回記録なし') + '</span></div>' +
+      '<div class="bp-inputs">' +
+      '<label class="num-box"><span class="nb-label">収縮期(上)</span>' +
+      '<input inputmode="decimal" placeholder="---" value="' + esc(d.systolic) + '" oninput="Actions.vInput(\'systolic\', this.value)" aria-label="収縮期血圧"></label>' +
+      '<span class="bp-slash">/</span>' +
+      '<label class="num-box"><span class="nb-label">拡張期(下)</span>' +
+      '<input inputmode="decimal" placeholder="---" value="' + esc(d.diastolic) + '" oninput="Actions.vInput(\'diastolic\', this.value)" aria-label="拡張期血圧"></label>' +
+      '</div></div>' +
+      '<div class="vitals-grid">' +
+      cell('pulse', '脈拍', 'bpm', prev ? String(prev.pulse) : null) +
+      cell('temp', '体温', '℃', prev ? prev.temp.toFixed(1) : null) +
+      cell('spo2', 'SpO2(任意)', '%', prev && prev.spo2 != null ? String(prev.spo2) : null) +
+      cell('weight', '体重(任意)', 'kg', prev && prev.weight != null ? prev.weight.toFixed(1) : null) +
+      '</div>' +
+      '<div id="v-alerts"></div>' +
+      '<div id="save-error"></div>' +
+      '<div class="save-hint" id="v-hint"></div>' +
+      '<div class="btn-row">' +
+      '<button class="btn-outline" onclick="Actions.vReset()">再測定</button>' +
+      '<button class="btn-primary" id="v-save" onclick="Actions.vSave()">保存して訓練へ</button>' +
+      '</div></div></div></div>';
+
+    Actions.vRefresh();
+  });
+}
+
+// ---------------------------------------------------------------- 1c 機能訓練
+
+function progressHtml(planned, records, pickable) {
+  var doneCount = 0;
+  var latest = {};
+  records.forEach(function (r) { latest[r.exerciseId] = r; });
+  planned.forEach(function (ex) { if (latest[ex.id]) doneCount++; });
+
+  var rows = planned.map(function (ex) {
+    var rec = latest[ex.id];
+    if (rec) {
+      return (
+        '<div class="exercise-row"><span class="check">✓</span>' +
+        '<span class="ex-name">' + esc(ex.name) + '</span>' +
+        '<span class="ex-summary">' + esc(rec.time) + ' · ' + esc(rec.amount) + '</span></div>'
+      );
+    }
+    var tag = pickable ? 'button' : 'div';
+    var attr = pickable ? ' style="width:100%;text-align:left;" onclick="Actions.pickExercise(\'' + ex.id + '\')"' : '';
+    return (
+      '<' + tag + ' class="exercise-row undone"' + attr + '><span class="check">○</span>' +
+      '<span class="ex-name">' + esc(ex.name) + '</span>' +
+      '<span class="ex-summary">未実施</span></' + tag + '>'
+    );
+  }).join('');
+
+  return (
+    '<div><div class="section-head" style="margin-bottom:8px;"><span class="section-title">' +
+    '本日の実施状況(' + planned.length + '種目中' + doneCount + '種目完了)</span></div>' +
+    '<div class="row-list">' + rows + '</div></div>'
+  );
+}
+
+function plannedExercises(user) {
+  return user.plan.map(exerciseById).filter(Boolean);
+}
+
+function renderExerciseScan(app) {
+  var user = currentUser();
+  if (!user) return go('');
+  app.innerHTML = loadingHtml();
+
+  rpc('apiGetTodayExercises', user.id).then(function (records) {
+    var errHtml = '';
+    if (S.toast && S.toast.type === 'error') {
+      errHtml =
+        '<div class="toast-error" role="alert"><span class="x-circle">✕</span><span>' +
+        '<span class="t-title" style="display:block;">' + esc(S.toast.title) + '</span>' +
+        '<span class="t-sub">' + esc(S.toast.sub) + '</span></span></div>';
+    }
+    app.innerHTML =
+      '<div class="phone-wrap"><div class="phone">' +
+      '<header class="phone-header training">' +
+      '<button class="back-btn" onclick="Actions.backToCheckin()" aria-label="受付へ戻る">‹</button>' +
+      '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
+      '<div class="h-title">種目QRを読取</div></div>' +
+      '</header>' +
+      '<div class="phone-body" style="gap:14px;">' +
+      '<nav class="workflow-steps" aria-label="記録の進み具合"><div class="workflow-step done"><span class="workflow-number">✓</span><span>受付</span></div><div class="workflow-step done"><span class="workflow-number">✓</span><span>バイタル</span></div><div class="workflow-step current" aria-current="step"><span class="workflow-number">3</span><span>機能訓練</span></div></nav>' +
+      '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">STEP 3</span><h1>訓練種目を記録</h1><p>QRを読むか、下の予定から選んでください。</p></div>' +
+      snackbarHtml() +
+      cameraHtml('訓練機器のQRコードをかざしてください') +
+      errHtml +
+      '<div id="save-error"></div>' +
+      progressHtml(plannedExercises(user), records, true) +
+      '<button class="link-plain" onclick="Actions.backToCheckin()">対応を終了して受付に戻る</button>' +
+      '</div></div></div>';
+
+    Scanner.start(function (value) {
+      var ex = null;
+      S.exercises.forEach(function (e) { if (e.qrCode === value.trim()) ex = e; });
+      if (!ex) {
+        S.toast = { type: 'error', title: '読み取りエラー', sub: '未登録のQRコードです。機器のQRラベルをご確認ください' };
+        render();
+        return;
+      }
+      S.toast = null;
+      Actions.pickExercise(ex.id);
+    });
+  });
+}
+
+function renderExerciseForm(app, exerciseId) {
+  var user = currentUser();
+  if (!user) return go('');
+  var ex = exerciseById(exerciseId);
+  if (!ex) return go('exercise');
+  if (!S.exDraft || S.exDraft.exerciseId !== exerciseId) {
+    S.exDraft = { exerciseId: exerciseId, amount: '', load: '', note: '' };
+  }
+  app.innerHTML = loadingHtml();
+
+  rpc('apiGetTodayExercises', user.id).then(function (records) {
+    var d = S.exDraft;
+    function segs(options, key, small) {
+      return options.map(function (opt) {
+        var sel = d[key] === opt ? ' selected' : '';
+        return (
+          '<button class="segment' + (small ? ' small' : '') + sel + '" data-seg="' + key + '" data-val="' + esc(opt) + '"' +
+          ' onclick="Actions.exSeg(\'' + key + '\', \'' + esc(opt) + '\')">' + esc(opt) + '</button>'
+        );
+      }).join('');
+    }
+
+    app.innerHTML =
+      '<div class="phone-wrap"><div class="phone">' +
+      '<header class="phone-header training">' +
+      '<button class="back-btn" onclick="Actions.backToScan()" aria-label="戻る">‹</button>' +
+      '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
+      '<div class="h-title">' + esc(ex.name) + '</div></div>' +
+      '<div class="h-right"><span class="qr-read-badge">QR<br>読取済</span></div>' +
+      '</header>' +
+      '<div class="phone-body" style="gap:14px;">' +
+      '<div class="card"><div class="card-label" style="margin-bottom:8px;">' + esc(ex.amountLabel) + '</div>' +
+      '<div class="segment-row">' + segs(ex.amountOptions, 'amount', false) + '</div></div>' +
+      '<div class="card"><div class="card-label" style="margin-bottom:8px;">負荷レベル</div>' +
+      '<div class="segment-row">' + segs(LOAD_OPTIONS, 'load', true) + '</div></div>' +
+      '<div class="card"><div class="card-label" style="margin-bottom:8px;">スタッフ所見(任意)</div>' +
+      '<textarea class="note-area" maxlength="200" placeholder="例: ペース安定。息切れなし。" oninput="Actions.exNote(this.value)">' + esc(d.note) + '</textarea></div>' +
+      '<div id="save-error"></div>' +
+      '<button class="btn-training" id="ex-save" disabled onclick="Actions.exSave()">この内容で記録する</button>' +
+      progressHtml(plannedExercises(user), records, false) +
+      '</div></div></div>';
+
+    Actions.exRefresh();
+  });
+}
+
+// ---------------------------------------------------------------- 管理画面 共通
+
+var NAV_ITEMS = [
+  ['admin', '利用者別 実績'],
+  ['admin/today', '本日の記録一覧'],
+  ['admin/master', '種目マスタ / QR発行'],
+  ['admin/monthly', '月次レポート'],
+];
+
+function adminShell(active, contentHtml) {
+  var nav = NAV_ITEMS.map(function (item) {
+    var cls = 'nav-item' + (item[0] === active ? ' active' : '');
+    return '<button class="' + cls + '" onclick="go(\'' + item[0] + '\')">' + item[1] + '</button>';
+  }).join('');
+  return (
+    '<div class="admin-wrap"><div class="admin-frame">' +
+    '<nav class="admin-sidebar">' +
+    '<div class="brand"><img src="' + LOGO + '" alt="銀松苑ロゴ"><span class="brand-name">銀松苑 管理</span></div>' +
+    nav +
+    '<button class="nav-item" style="font-size:13px;color:#8FA491;" onclick="go(\'\')">‹ 受付画面へ</button>' +
+    '<div class="admin-staff">スタッフ:' + esc(S.staff) + '</div>' +
+    '</nav><main class="admin-content">' + contentHtml + '</main></div></div>'
+  );
+}
+
+function exerciseLabel(rec) {
+  var ex = exerciseById(rec.exerciseId);
+  if (!ex) return '?';
+  return /分$/.test(rec.amount) ? ex.shortName + rec.amount : ex.shortName;
+}
+
+// ---------------------------------------------------------------- 1d 利用者別 実績
+
+function vitalsChartSvg(recordsAll) {
+  var recent = recordsAll.slice(-8);
+  var n = recent.length;
+  function x(i) { return n <= 1 ? 270 : 60 + (i * 420) / (n - 1); }
+  function y(v) {
+    var c = Math.max(55, Math.min(145, v));
+    return 150 - ((c - 60) * 90) / 80;
+  }
+  function pts(pick) {
+    return recent.map(function (r, i) { return x(i) + ',' + y(pick(r)); }).join(' ');
+  }
+  var body = '';
+  if (n > 0) {
+    body =
+      '<polyline points="' + pts(function (r) { return r.systolic; }) + '" fill="none" stroke="#2E7D32" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>' +
+      '<polyline points="' + pts(function (r) { return r.diastolic; }) + '" fill="none" stroke="#5B5EA6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>' +
+      '<polyline points="' + pts(function (r) { return r.pulse; }) + '" fill="none" stroke="#D5688E" stroke-width="3" stroke-dasharray="1 7" stroke-linecap="round"></polyline>' +
+      '<text x="' + x(0) + '" y="170" font-size="11" fill="#7A8A7D">' + shortDate(recent[0].date) + '</text>' +
+      (n > 2 ? '<text x="' + x(Math.floor((n - 1) / 2)) + '" y="170" font-size="11" fill="#7A8A7D">' + shortDate(recent[Math.floor((n - 1) / 2)].date) + '</text>' : '') +
+      (n > 1 ? '<text x="' + x(n - 1) + '" y="170" font-size="11" fill="#7A8A7D" text-anchor="end">' + shortDate(recent[n - 1].date) + '</text>' : '');
+  } else {
+    body = '<text x="270" y="90" font-size="13" fill="#7A8A7D" text-anchor="middle">記録がありません</text>';
+  }
+  return (
+    '<svg viewBox="0 0 520 180" style="width:100%;height:auto;">' +
+    '<line x1="40" y1="20" x2="40" y2="150" stroke="#DCE5DB" stroke-width="1"></line>' +
+    '<line x1="40" y1="150" x2="510" y2="150" stroke="#DCE5DB" stroke-width="1"></line>' +
+    '<line x1="40" y1="60" x2="510" y2="60" stroke="#EDF1EC" stroke-width="1"></line>' +
+    '<line x1="40" y1="105" x2="510" y2="105" stroke="#EDF1EC" stroke-width="1"></line>' +
+    '<text x="34" y="64" font-size="11" fill="#7A8A7D" text-anchor="end">140</text>' +
+    '<text x="34" y="109" font-size="11" fill="#7A8A7D" text-anchor="end">100</text>' +
+    '<text x="34" y="154" font-size="11" fill="#7A8A7D" text-anchor="end">60</text>' +
+    body + '</svg>' +
+    '<div class="legend">' +
+    '<span><span class="chip" style="background:#2E7D32;"></span>収縮期血圧</span>' +
+    '<span><span class="chip" style="background:#5B5EA6;"></span>拡張期血圧</span>' +
+    '<span><span class="chip" style="background:#D5688E;"></span>脈拍</span></div>'
+  );
+}
+
+function barColor(ratio) {
+  if (ratio >= 0.85) return '#2E7D32';
+  if (ratio >= 0.6) return '#5B9E58';
+  if (ratio >= 0.4) return '#9CC29A';
+  return '#C4DAC2';
+}
+
+var lastResults = null; // CSV出力用キャッシュ
+
+function renderAdminResults(app) {
+  if (!S.admin.userId) S.admin.userId = S.users.length ? S.users[0].id : '';
+  if (!S.admin.month) S.admin.month = S.today.slice(0, 7);
+  app.innerHTML = adminShell('admin', loadingHtml());
+
+  rpc('apiGetUserResults', S.admin.userId, S.admin.month).then(function (res) {
+    lastResults = res;
+    var user = null;
+    S.users.forEach(function (u) { if (u.id === S.admin.userId) user = u; });
+    var months = res.months.length ? res.months : [S.admin.month];
+
+    // 種目別実施回数
+    var counts = {};
+    res.monthExercises.forEach(function (e) { counts[e.exerciseId] = (counts[e.exerciseId] || 0) + 1; });
+    var countRows = S.exercises
+      .map(function (ex) { return { ex: ex, count: counts[ex.id] || 0 }; })
+      .filter(function (x) { return x.count > 0; })
+      .sort(function (a, b) { return b.count - a.count; });
+    var maxCount = 1;
+    countRows.forEach(function (x) { if (x.count > maxCount) maxCount = x.count; });
+
+    var barsHtml = countRows.length
+      ? countRows.map(function (x) {
+          return (
+            '<div class="bar-row"><span class="bar-label">' + esc(x.ex.name) + '</span>' +
+            '<div class="bar-track"><div class="bar-fill" style="width:' + (x.count / maxCount) * 100 + '%;background:' + barColor(x.count / maxCount) + ';"></div></div>' +
+            '<span class="bar-count">' + x.count + '</span></div>'
+          );
+        }).join('')
+      : '<div class="empty-note">この月の実施記録はありません</div>';
+
+    // 日別実施記録(日付降順)
+    var days = buildDays(res);
+    var tableRows = days.map(function (d, i) {
+      var last = i === days.length - 1 ? ' last' : '';
+      var vitalTxt = d.vital
+        ? d.vital.systolic + '/' + d.vital.diastolic + ' · P' + d.vital.pulse + ' · ' + d.vital.temp.toFixed(1) + '℃'
+        : '—';
+      var flag = d.vital && d.vital.flagged
+        ? ' <span class="flag-mark" title="' + esc(d.vital.alerts.join(' / ')) + '">⚑</span>' : '';
+      return (
+        '<div class="td date' + last + '">' + dayLabel(d.date) + '</div>' +
+        '<div class="td' + last + '">' + (d.checkin ? esc(d.checkin.time) : '') + '</div>' +
+        '<div class="td' + last + '">' + vitalTxt + flag + '</div>' +
+        '<div class="td' + last + '">' + (d.exercises.map(exerciseLabel).join(' → ') || '—') + '</div>' +
+        '<div class="td note' + last + '">' + esc(d.note) + '</div>'
+      );
+    }).join('');
+
+    var userSel = S.users.map(function (u) {
+      return '<option value="' + u.id + '"' + (u.id === S.admin.userId ? ' selected' : '') + '>' + esc(u.name) + '</option>';
+    }).join('');
+    var monthSel = months.map(function (m) {
+      return '<option value="' + m + '"' + (m === S.admin.month ? ' selected' : '') + '>' + monthLabel(m) + '</option>';
+    }).join('');
+
+    var content =
+      '<div class="admin-page-head"><div><div class="breadcrumb">利用者別 実績</div>' +
+      '<div class="admin-h1">' +
+      (user
+        ? esc(user.name) + ' さま <span class="attrs">' + user.age + '歳 · ' + esc(user.careLevel) + ' · ' + esc(user.scheduleLabel) + ' 利用</span>'
+        : '利用者がいません') +
+      '</div></div>' +
+      '<div class="admin-actions">' +
+      '<select class="select-plain" onchange="Actions.adminUser(this.value)" aria-label="利用者選択">' + userSel + '</select>' +
+      '<select class="select-plain" onchange="Actions.adminMonth(this.value)" aria-label="対象月選択">' + monthSel + '</select>' +
+      '<button class="btn-csv" onclick="Actions.exportCsv()">CSV出力</button>' +
+      '</div></div>' +
+      '<div class="admin-grid">' +
+      '<div class="panel"><div class="panel-title">血圧・脈拍の推移 <span class="sub">直近8回</span></div>' +
+      vitalsChartSvg(res.vitalsAll) + '</div>' +
+      '<div class="panel"><div class="panel-title">種目別 実施回数 <span class="sub">' + monthLabel(S.admin.month) + '</span></div>' +
+      '<div class="bar-rows">' + barsHtml + '</div></div></div>' +
+      '<div class="panel"><div class="panel-title">日別 実施記録</div>' +
+      '<div class="day-table">' +
+      '<div class="th">日付</div><div class="th">来所</div><div class="th">バイタル</div><div class="th">実施種目</div><div class="th">所見</div>' +
+      tableRows + '</div>' +
+      (days.length === 0 ? '<div class="empty-note">この月の来所記録はありません</div>' : '') +
+      '</div>';
+
+    app.innerHTML = adminShell('admin', content);
+  });
+}
+
+function buildDays(res) {
+  var dateSet = {};
+  res.monthCheckins.forEach(function (c) { dateSet[c.date] = true; });
+  var dates = Object.keys(dateSet).sort().reverse();
+  return dates.map(function (date) {
+    var checkin = null;
+    res.monthCheckins.forEach(function (c) { if (c.date === date && !checkin) checkin = c; });
+    var vital = null;
+    res.monthVitals.forEach(function (v) { if (v.date === date) vital = v; });
+    var exercises = res.monthExercises
+      .filter(function (e) { return e.date === date; })
+      .sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : 1; });
+    var note = exercises.map(function (e) { return e.note; }).filter(String).join(' ');
+    return { date: date, checkin: checkin, vital: vital, exercises: exercises, note: note };
+  });
+}
+
+// ---------------------------------------------------------------- 管理: 本日の記録一覧
+
+function renderAdminToday(app) {
+  app.innerHTML = adminShell('admin/today', loadingHtml());
+  rpc('apiGetTodayRecords').then(function (res) {
+    var checkins = res.checkins.slice().sort(function (a, b) {
+      return timeKey(a.time) < timeKey(b.time) ? -1 : 1;
+    });
+    var rows = checkins.map(function (c) {
+      var u = null;
+      S.users.forEach(function (x) { if (x.id === c.userId) u = x; });
+      if (!u) return '';
+      var vital = null;
+      res.vitals.forEach(function (v) {
+        if (v.userId === u.id && (!vital || timeKey(v.time) > timeKey(vital.time))) vital = v;
+      });
+      var exCount = res.records.filter(function (e) { return e.userId === u.id; }).length;
+      return (
+        '<tr><td style="font-weight:700;">' + esc(c.time) + '</td>' +
+        '<td style="font-weight:700;">' + esc(u.name) + '</td>' +
+        '<td>' + esc(u.careLevel) + '</td>' +
+        '<td>' + (vital ? vital.systolic + '/' + vital.diastolic + ' · P' + vital.pulse + ' · ' + vital.temp.toFixed(1) + '℃' : '未測定') + '</td>' +
+        '<td>' + (exCount > 0 ? exCount + '種目 実施' : '—') + '</td>' +
+        '<td>' + (vital && vital.flagged ? '<span class="flag-mark">⚑ ' + esc(vital.alerts[0]) + '</span>' : '—') + '</td></tr>'
+      );
+    }).join('');
+
+    var content =
+      '<div class="admin-page-head"><div><div class="breadcrumb">本日の記録一覧</div>' +
+      '<div class="admin-h1">' + dayLabel(S.today) +
+      ' <span class="attrs">来所 ' + checkins.length + '名 / 予定 ' + S.users.length + '名</span></div></div></div>' +
+      '<div class="panel"><table class="gen-table"><thead><tr>' +
+      '<th>来所</th><th>利用者</th><th>介護度</th><th>バイタル</th><th>実施種目</th><th>アラート</th>' +
+      '</tr></thead><tbody>' +
+      (rows || '<tr><td colspan="6" class="empty-note">本日のチェックインはまだありません</td></tr>') +
+      '</tbody></table></div>';
+
+    app.innerHTML = adminShell('admin/today', content);
+  });
+}
+
+// ---------------------------------------------------------------- 管理: 種目マスタ / QR発行
+
+function renderAdminMaster(app) {
+  var exCards = S.exercises.map(function (ex) {
+    return (
+      '<div class="qr-card"><div id="qr-' + ex.id + '"></div>' +
+      '<div class="qr-name">' + esc(ex.name) + '</div>' +
+      '<div class="qr-sub">' + esc(ex.amountLabel) + ': ' + esc(ex.amountOptions.join(' / ')) + '</div></div>'
+    );
+  }).join('');
+  var userCards = S.users.map(function (u) {
+    return (
+      '<div class="qr-card"><div id="qr-' + u.id + '"></div>' +
+      '<div class="qr-name">' + esc(u.name) + ' さま</div>' +
+      '<div class="qr-sub">' + esc(u.careLevel) + ' · ' + esc(u.scheduleLabel) + ' 利用</div></div>'
+    );
+  }).join('');
+
+  var content =
+    '<div class="admin-page-head"><div><div class="breadcrumb">種目マスタ / QR発行</div>' +
+    '<div class="admin-h1">QRコード発行 <span class="attrs">印刷して機器・利用者カードに貼付</span></div></div>' +
+    '<div class="admin-actions"><button class="btn-csv" onclick="window.print()">印刷</button></div></div>' +
+    '<div class="panel"><div class="panel-title">訓練機器QR <span class="sub">機器に貼付</span></div>' +
+    '<div class="qr-grid">' + exCards + '</div></div>' +
+    '<div class="panel"><div class="panel-title">利用者QRカード <span class="sub">来所受付用</span></div>' +
+    '<div class="qr-grid">' + userCards + '</div></div>';
+
+  app.innerHTML = adminShell('admin/master', content);
+
+  if (typeof QRCode !== 'undefined') {
+    S.exercises.forEach(function (ex) {
+      new QRCode(document.getElementById('qr-' + ex.id), { text: ex.qrCode, width: 120, height: 120, colorDark: '#1F2A22' });
+    });
+    S.users.forEach(function (u) {
+      new QRCode(document.getElementById('qr-' + u.id), { text: u.qrCode, width: 120, height: 120, colorDark: '#1F2A22' });
+    });
+  }
+}
+
+// ---------------------------------------------------------------- 管理: 月次レポート
+
+function renderAdminMonthly(app) {
+  if (!S.admin.month) S.admin.month = S.today.slice(0, 7);
+  app.innerHTML = adminShell('admin/monthly', loadingHtml());
+
+  rpc('apiGetMonthly', S.admin.month).then(function (res) {
+    var months = res.months.length ? res.months : [S.admin.month];
+    var alertCount = res.vitals.filter(function (v) { return v.flagged; }).length;
+    var tiles = [
+      ['延べ来所数', res.checkins.length + '回'],
+      ['バイタル記録', res.vitals.length + '件'],
+      ['訓練記録', res.records.length + '件'],
+      ['バイタルアラート', alertCount + '件'],
+    ].map(function (t) {
+      return (
+        '<div class="panel" style="text-align:center;">' +
+        '<div style="font-size:13px;font-weight:700;color:var(--text-aux);">' + t[0] + '</div>' +
+        '<div style="font-size:28px;font-weight:900;margin-top:4px;">' + t[1] + '</div></div>'
+      );
+    }).join('');
+
+    var rows = S.users.map(function (u) {
+      var c = res.checkins.filter(function (x) { return x.userId === u.id; }).length;
+      var e = res.records.filter(function (x) { return x.userId === u.id; }).length;
+      var a = res.vitals.filter(function (x) { return x.userId === u.id && x.flagged; }).length;
+      if (c === 0 && e === 0) return '';
+      return (
+        '<tr><td style="font-weight:700;">' + esc(u.name) + '</td>' +
+        '<td>' + esc(u.careLevel) + '</td><td>' + c + '回</td><td>' + e + '件</td>' +
+        '<td>' + (a > 0 ? '<span class="flag-mark">⚑ ' + a + '件</span>' : '—') + '</td></tr>'
+      );
+    }).join('');
+
+    var monthSel = months.map(function (m) {
+      return '<option value="' + m + '"' + (m === S.admin.month ? ' selected' : '') + '>' + monthLabel(m) + '</option>';
+    }).join('');
+
+    var content =
+      '<div class="admin-page-head"><div><div class="breadcrumb">月次レポート</div>' +
+      '<div class="admin-h1">' + monthLabel(S.admin.month) + ' 実績サマリー</div></div>' +
+      '<div class="admin-actions">' +
+      '<select class="select-plain" onchange="Actions.monthlyMonth(this.value)" aria-label="対象月選択">' + monthSel + '</select>' +
+      '</div></div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:18px;">' + tiles + '</div>' +
+      '<div class="panel"><div class="panel-title">利用者別 内訳</div>' +
+      '<table class="gen-table"><thead><tr><th>利用者</th><th>介護度</th><th>来所回数</th><th>訓練記録</th><th>アラート</th></tr></thead>' +
+      '<tbody>' + rows + '</tbody></table></div>';
+
+    app.innerHTML = adminShell('admin/monthly', content);
+  });
+}
+
+// ---------------------------------------------------------------- アクション
+
+var Actions = {
+  // --- 受付 ---
+  checkin: function (userId) {
+    rpc('apiCheckin', userId).then(function (res) {
+      S.todayCheckins = res.todayCheckins;
+      var user = null;
+      S.users.forEach(function (u) { if (u.id === userId) user = u; });
+      if (navigator.vibrate) navigator.vibrate(80);
+      if (res.already) {
+        // 受付済みの再スキャン: 二重受付と誤認させない(自動遷移なし)
+        S.toast = {
+          type: 'info', userId: userId,
+          title: user.name + ' さまは ' + res.record.time + ' に受付済みです',
+          sub: 'タップするとバイタル・訓練の記録に進みます',
+        };
+      } else {
+        S.toast = {
+          type: 'success', userId: userId,
+          title: user.name + ' さま 受付完了',
+          sub: res.record.time + ' チェックイン → バイタル測定へ',
+        };
+      }
+      render();
+    }).catch(function () {
+      S.toast = { type: 'error', title: '通信エラー', sub: '受付を記録できませんでした。もう一度お試しください' };
+      render();
+    });
+  },
+  openPicker: function () {
+    var checkedIds = {};
+    S.todayCheckins.forEach(function (c) { checkedIds[c.userId] = true; });
+    var weekday = WEEKDAYS[new Date().getDay()];
+    var pending = S.users.filter(function (u) { return String(u.scheduleLabel || '').indexOf(weekday) >= 0 && !checkedIds[u.id]; });
+    var rows = pending.length
+      ? pending.map(function (u) {
+          return (
+            '<button class="modal-row picker-item" data-name="' + esc(u.name.replace(/\s/g, '')) + '" onclick="Actions.closePicker();Actions.checkin(\'' + u.id + '\')">' +
+            '<span class="person-name">' + esc(u.name) + '</span>' +
+            '<span class="person-care">' + esc(u.careLevel) + '</span></button>'
+          );
+        }).join('')
+      : '<div class="empty-note">全員チェックイン済みです</div>';
+    document.getElementById('picker').innerHTML =
+      '<div class="modal-backdrop" onclick="Actions.closePicker()">' +
+      '<div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="picker-title" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><div><div class="eyebrow">手動受付</div><div class="modal-title" id="picker-title">利用者を選択</div></div>' +
+      '<button class="modal-close" onclick="Actions.closePicker()" aria-label="閉じる">×</button></div>' +
+      '<label class="search-box"><span aria-hidden="true">⌕</span><input type="search" placeholder="氏名で検索" oninput="Actions.filterPicker(this.value)"></label>' + rows + '</div></div>';
+  },
+  filterPicker: function (query) {
+    var normalized = String(query || '').replace(/\s/g, '');
+    document.querySelectorAll('.picker-item').forEach(function (el) {
+      var name = el.getAttribute('data-name') || '';
+      el.style.display = !normalized || name.indexOf(normalized) >= 0 ? '' : 'none';
+    });
+  },
+  closePicker: function () {
+    var el = document.getElementById('picker');
+    if (el) el.innerHTML = '';
+  },
+  goVitals: function (userId) {
+    S.currentUserId = userId;
+    sessionStorage.setItem('currentUserId', userId);
+    S.toast = null;
+    S.vDraft = null;
+    go('vitals');
+  },
+  backToCheckin: function () {
+    S.toast = null;
+    S.currentUserId = '';
+    S.vDraft = null;
+    S.exDraft = null;
+    sessionStorage.removeItem('currentUserId');
+    go('');
+  },
+
+  // --- バイタル ---
+  vInput: function (key, value) {
+    var clean = value.replace(/[^0-9.]/g, '');
+    var dot = clean.indexOf('.');
+    S.vDraft[key] = dot < 0 ? clean : clean.slice(0, dot + 1) + clean.slice(dot + 1).replace(/\./g, '');
+    S.vitalConfirmed = false;
+    Actions.vRefresh();
+  },
+  vRefresh: function () {
+    var alerts = evaluateVitalAlerts(S.vDraft, S.prevVital);
+    var errors = vitalValidationErrors(S.vDraft);
+    var box = document.getElementById('v-alerts');
+    if (box) {
+      var errorHtml = errors.map(function (msg) {
+        return '<div class="toast-error" role="alert"><span class="x-circle">!</span><span class="t-sub">' + esc(msg) + '</span></div>';
+      }).join('');
+      var alertHtml = alerts.map(function (msg) {
+        return '<div class="alert-banner" role="alert"><span class="alert-dot"></span><span class="alert-text">' + esc(msg) + '</span></div>';
+      }).join('');
+      var confirmHtml = alerts.length
+        ? '<label class="safety-confirm"><input type="checkbox" ' + (S.vitalConfirmed ? 'checked' : '') + ' onchange="Actions.vConfirm(this.checked)">' +
+          '<span><strong>職員による確認済み</strong><small>運動を開始できる状態か確認しました</small></span></label>'
+        : '';
+      box.innerHTML = errorHtml + alertHtml + confirmHtml;
+      box.style.display = (alerts.length || errors.length) ? 'flex' : 'none';
+      box.style.flexDirection = 'column';
+      box.style.gap = '12px';
+    }
+    // 必須は血圧・脈拍・体温のみ(SpO2・体重は任意)
+    var requiredLabels = { systolic: '血圧(上)', diastolic: '血圧(下)', pulse: '脈拍', temp: '体温' };
+    var missing = Object.keys(requiredLabels).filter(function (k) { return S.vDraft[k] === ''; });
+    var hint = document.getElementById('v-hint');
+    if (hint) {
+      hint.textContent = missing.length
+        ? 'あと入力: ' + missing.map(function (k) { return requiredLabels[k]; }).join('・')
+        : (alerts.length && !S.vitalConfirmed ? '「職員による確認済み」にチェックすると保存できます' : '');
+    }
+    var btn = document.getElementById('v-save');
+    if (btn) btn.disabled = missing.length > 0 || errors.length > 0 || (alerts.length > 0 && !S.vitalConfirmed);
+  },
+  vConfirm: function (checked) {
+    S.vitalConfirmed = checked;
+    Actions.vRefresh();
+  },
+  vReset: function () {
+    S.vDraft = { systolic: '', diastolic: '', pulse: '', temp: '', spo2: '', weight: '' };
+    S.vitalConfirmed = false;
+    render();
+  },
+  vSave: function () {
+    var alerts = evaluateVitalAlerts(S.vDraft, S.prevVital);
+    if (vitalValidationErrors(S.vDraft).length || (alerts.length && !S.vitalConfirmed)) return;
+    var btn = document.getElementById('v-save');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+    var payload = { userId: S.currentUserId };
+    ['systolic', 'diastolic', 'pulse', 'temp', 'spo2', 'weight'].forEach(function (k) {
+      payload[k] = S.vDraft[k];
+    });
+    rpc('apiSaveVitals', payload).then(function (rec) {
+      S.vDraft = null;
+      S.vitalConfirmed = false;
+      S.lastSaved = { kind: 'vitals', id: rec.id, label: 'バイタルを記録しました' };
+      go('exercise');
+    }).catch(function (e) {
+      showSaveError('保存できませんでした。電波状況をご確認のうえ、もう一度お試しください');
+      if (btn) { btn.disabled = false; btn.textContent = '保存して訓練へ'; }
+    });
+  },
+
+  // --- 訓練 ---
+  pickExercise: function (exerciseId) {
+    S.toast = null;
+    go('exercise/' + exerciseId);
+  },
+  backToScan: function () {
+    S.exDraft = null;
+    go('exercise');
+  },
+  exSeg: function (key, value) {
+    S.exDraft[key] = value;
+    document.querySelectorAll('[data-seg="' + key + '"]').forEach(function (el) {
+      el.classList.toggle('selected', el.getAttribute('data-val') === value);
+    });
+    Actions.exRefresh();
+  },
+  exNote: function (value) {
+    S.exDraft.note = value;
+  },
+  exRefresh: function () {
+    var btn = document.getElementById('ex-save');
+    if (btn) btn.disabled = !(S.exDraft.amount && S.exDraft.load);
+  },
+  exSave: function () {
+    var btn = document.getElementById('ex-save');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+    rpc('apiSaveExercise', {
+      userId: S.currentUserId,
+      exerciseId: S.exDraft.exerciseId,
+      amount: S.exDraft.amount,
+      load: S.exDraft.load,
+      note: (S.exDraft.note || '').trim(),
+    }).then(function (res) {
+      var ex = exerciseById(S.exDraft.exerciseId);
+      S.lastSaved = { kind: 'records', id: res.record.id, label: (ex ? ex.name : '種目') + 'を記録しました' };
+      S.exDraft = null;
+      go('exercise');
+      render(); // 同一ハッシュに戻る場合もあるため明示再描画
+    }).catch(function (e) {
+      showSaveError('保存できませんでした。電波状況をご確認のうえ、もう一度お試しください');
+      if (btn) { btn.disabled = false; btn.textContent = 'この内容で記録する'; }
+    });
+  },
+  /** 直前に保存した記録の取り消し(論理削除) */
+  undoLast: function () {
+    var last = S.lastSaved;
+    if (!last) return;
+    S.lastSaved = null;
+    rpc('apiVoidRecord', last.kind, last.id).then(function () {
+      render();
+    }).catch(function () {
+      S.lastSaved = last;
+      showSaveError('取り消しできませんでした。もう一度お試しください');
+    });
+  },
+  dismissSnackbar: function () {
+    S.lastSaved = null;
+    var bar = document.getElementById('snackbar');
+    if (bar) bar.remove();
+  },
+
+  // --- 接続設定(ホスティング版) ---
+  openSettings: function () {
+    document.getElementById('picker').innerHTML =
+      '<div class="modal-backdrop" onclick="Actions.closePicker()">' +
+      '<div class="modal-sheet" onclick="event.stopPropagation()">' +
+      '<div class="modal-title">GAS 接続設定</div>' +
+      '<div class="section-note">Apps Script のウェブアプリURL(https://script.google.com/macros/s/…/exec)を貼り付けて保存してください。</div>' +
+      '<input class="note-area" id="set-url" placeholder="https://script.google.com/macros/s/…/exec"' +
+      ' value="' + esc(window.GAS_API_URL) + '" style="min-height:44px;">' +
+      '<input class="note-area" id="set-token" placeholder="共有トークン(API_TOKEN未設定なら空のまま)"' +
+      ' value="' + esc(window.GAS_API_TOKEN) + '" style="min-height:44px;">' +
+      '<div id="set-error" class="section-note" style="color:var(--alert-text);"></div>' +
+      '<button class="btn-primary" style="flex:none;width:100%;" onclick="Actions.saveSettings()">接続を確認して保存</button>' +
+      '<button class="link-plain" onclick="Actions.closePicker()">閉じる</button>' +
+      '</div></div>';
+  },
+  saveSettings: function () {
+    var url = document.getElementById('set-url').value.trim();
+    var token = document.getElementById('set-token').value.trim();
+    var errBox = document.getElementById('set-error');
+    if (url === '') {
+      localStorage.removeItem('gasApiUrl');
+      localStorage.removeItem('gasApiToken');
+      location.reload();
+      return;
+    }
+    if (url.indexOf('https://script.google.com/') !== 0 || url.indexOf('/exec') < 0) {
+      errBox.textContent = 'URLの形式が違います。「https://script.google.com/macros/s/…/exec」を貼り付けてください';
+      return;
+    }
+    errBox.textContent = '接続を確認しています…';
+    fetch(url, { method: 'POST', body: JSON.stringify({ fn: 'apiRefreshToday', args: [], token: token }) })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.error || '');
+        localStorage.setItem('gasApiUrl', url);
+        localStorage.setItem('gasApiToken', token);
+        location.reload();
+      })
+      .catch(function (e) {
+        errBox.textContent = '接続できませんでした: ' + (e && e.message ? e.message : e) +
+          ' — GASのデプロイが「全員」公開になっているか、URLが正しいかご確認ください';
+      });
+  },
+
+  // --- 管理 ---
+  adminUser: function (id) { S.admin.userId = id; render(); },
+  adminMonth: function (m) { S.admin.month = m; render(); },
+  monthlyMonth: function (m) { S.admin.month = m; render(); },
+  exportCsv: function () {
+    if (!lastResults) return;
+    var user = null;
+    S.users.forEach(function (u) { if (u.id === S.admin.userId) user = u; });
+    var days = buildDays(lastResults).slice().reverse();
+    var header = ['日付', '来所時刻', '収縮期血圧', '拡張期血圧', '脈拍', '体温', 'SpO2', '体重', 'アラート', '実施種目', '所見'];
+    var rows = days.map(function (d) {
+      return [
+        d.date,
+        d.checkin ? d.checkin.time : '',
+        d.vital ? d.vital.systolic : '', d.vital ? d.vital.diastolic : '',
+        d.vital ? d.vital.pulse : '', d.vital ? d.vital.temp : '',
+        d.vital && d.vital.spo2 != null ? d.vital.spo2 : '',
+        d.vital && d.vital.weight != null ? d.vital.weight : '',
+        d.vital ? d.vital.alerts.join(' / ') : '',
+        d.exercises.map(function (e) { return exerciseLabel(e) + '(' + e.load + ')'; }).join(' → '),
+        d.note,
+      ];
+    });
+    var csv = [header].concat(rows).map(function (r) {
+      return r.map(function (c) {
+        var value = String(c);
+        if (/^[=+\-@]/.test(value)) value = "'" + value;
+        return '"' + value.replace(/"/g, '""') + '"';
+      }).join(',');
+    }).join('\r\n');
+    var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '実績_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.month + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  },
+};
+
+// ---------------------------------------------------------------- 時計
+
+setInterval(function () {
+  var clock = nowClock();
+  var d = document.getElementById('clock-date');
+  var t = document.getElementById('clock-time');
+  if (d) d.textContent = clock.date;
+  if (t) t.textContent = clock.time;
+}, 10000);
+
+// ---------------------------------------------------------------- ローカルプレビュー用モック(GAS 環境では未使用)
+
+var Mock = (function () {
+  var KEY = 'kinoukunren-gas-mock-v2';
+  function todayStr() {
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function nowTime() {
+    var d = new Date();
+    return d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2);
+  }
+  function seed() {
+    var exercises = [
+      { id: 'ergo', name: 'エルゴメーター', shortName: 'エルゴ', amountLabel: '実施時間', amountOptions: ['10分', '15分', '20分'], qrCode: 'GSE:ergo' },
+      { id: 'walk', name: '平行棒内歩行', shortName: '歩行', amountLabel: '実施量', amountOptions: ['3往復', '5往復', '7往復'], qrCode: 'GSE:walk' },
+      { id: 'legpress', name: 'レッグプレス', shortName: 'レッグプレス', amountLabel: '実施回数', amountOptions: ['10回×2', '15回×2', '20回×2'], qrCode: 'GSE:legpress' },
+      { id: 'ball', name: 'ボール体操', shortName: 'ボール体操', amountLabel: '実施時間', amountOptions: ['10分', '15分', '20分'], qrCode: 'GSE:ball' },
+      { id: 'band', name: 'セラバンド', shortName: 'セラバンド', amountLabel: '実施回数', amountOptions: ['10回', '15回', '20回'], qrCode: 'GSE:band' },
+    ];
+    var usersRaw = [
+      ['u01', '田中 花子', 82, '要介護2', '月/木', ['walk', 'legpress', 'ball', 'ergo']],
+      ['u02', '佐藤 一郎', 78, '要支援1', '月/水', ['walk', 'ergo', 'band']],
+      ['u03', '鈴木 良子', 85, '要介護1', '月/金', ['walk', 'ball', 'band']],
+      ['u04', '高橋 正夫', 80, '要介護3', '月/木', ['walk', 'legpress', 'ergo']],
+      ['u05', '伊藤 幸子', 76, '要支援2', '月/水', ['ergo', 'ball', 'band']],
+      ['u06', '渡辺 茂', 88, '要介護2', '月/金', ['walk', 'ball']],
+      ['u07', '山本 静江', 79, '要介護1', '月/木', ['walk', 'legpress', 'band']],
+      ['u08', '中村 勝', 83, '要支援1', '月/水', ['ergo', 'walk']],
+      ['u09', '小林 富美', 81, '要介護2', '月/金', ['ball', 'band', 'walk']],
+      ['u10', '加藤 秀雄', 77, '要支援2', '月/木', ['ergo', 'legpress']],
+      ['u11', '吉田 春江', 86, '要介護3', '月/水', ['walk', 'ball']],
+      ['u12', '佐々木 実', 74, '要支援1', '月/金', ['ergo', 'band', 'walk']],
+    ];
+    var users = usersRaw.map(function (r) {
+      return { id: r[0], name: r[1], age: r[2], careLevel: r[3], scheduleLabel: r[4], plan: r[5], qrCode: 'GSU:' + r[0] };
+    });
+    var db = { users: users, exercises: exercises, checkins: [], vitals: [], records: [], seq: 0 };
+    function nid() { db.seq += 1; return 'm' + db.seq; }
+    var d = new Date();
+    d.setDate(d.getDate() - 3);
+    var gap3 = false;
+    var dates = [];
+    while (dates.length < 7) {
+      dates.push(d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2));
+      d.setDate(d.getDate() - (gap3 ? 3 : 4));
+      gap3 = !gap3;
+    }
+    var hist = [
+      [128, 74, 70, 36.2, 97, 52.5, '9:08', [['walk', '5往復', '意欲高い。'], ['ball', '15分', ''], ['ergo', '15分', '']]],
+      [121, 72, 68, 36.3, 98, 52.4, '9:15', [['walk', '5往復', '左膝の痛み訴えなし。'], ['band', '15回', ''], ['ergo', '10分', '']]],
+      [130, 75, 71, 36.4, 97, 52.6, '9:10', [['walk', '3往復', ''], ['legpress', '15回×2', 'フォーム良好。'], ['ergo', '15分', '']]],
+      [125, 72, 68, 36.3, 97, 52.7, '9:12', [['walk', '5往復', ''], ['ball', '10分', ''], ['ergo', '15分', 'ペース安定。']]],
+      [131, 76, 72, 36.5, 96, 52.8, '9:06', [['walk', '5往復', ''], ['legpress', '10回×2', ''], ['ergo', '10分', '']]],
+      [124, 73, 69, 36.2, 98, 52.9, '9:14', [['walk', '3往復', '疲労の訴えあり、負荷軽め。'], ['band', '10回', ''], ['ergo', '10分', '']]],
+      [129, 74, 71, 36.4, 97, 53.0, '9:09', [['walk', '5往復', ''], ['ball', '15分', ''], ['ergo', '15分', '']]],
+    ];
+    var today = todayStr();
+    [['u02', '9:05'], ['u04', '8:58'], ['u05', '9:02'], ['u07', '9:15'],
+     ['u08', '9:18'], ['u10', '9:03'], ['u11', '9:09'], ['u12', '9:20']].forEach(function (c) {
+      db.checkins.push({ id: nid(), date: today, time: c[1], userId: c[0] });
+    });
+    db.vitals.push({ id: nid(), date: today, time: '9:12', userId: 'u02', systolic: 118, diastolic: 70, pulse: 66, temp: 36.1, spo2: 98, weight: 61.2, flagged: false, alerts: [] });
+    db.records.push({ id: nid(), date: today, time: '9:35', userId: 'u02', exerciseId: 'walk', amount: '5往復', load: 'ふつう', note: '' });
+    dates.forEach(function (date, i) {
+      var h = hist[i];
+      db.checkins.push({ id: nid(), date: date, time: h[6], userId: 'u01' });
+      db.vitals.push({ id: nid(), date: date, time: h[6], userId: 'u01', systolic: h[0], diastolic: h[1], pulse: h[2], temp: h[3], spo2: h[4], weight: h[5], flagged: false, alerts: [] });
+      var hour = 9, min = 40;
+      h[7].forEach(function (m) {
+        db.records.push({ id: nid(), date: date, time: hour + ':' + ('0' + min).slice(-2), userId: 'u01', exerciseId: m[0], amount: m[1], load: 'ふつう', note: m[2] });
+        min += 25;
+        if (min >= 60) { min -= 60; hour += 1; }
+      });
+    });
+    return db;
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    var db = seed();
+    localStorage.setItem(KEY, JSON.stringify(db));
+    return db;
+  }
+  function save(db) { localStorage.setItem(KEY, JSON.stringify(db)); }
+
+  var fns = {
+    apiGetBootstrap: function () {
+      var db = load();
+      return { users: db.users, exercises: db.exercises, today: todayStr(), staff: 'プレビュー', todayCheckins: fns.apiGetTodayCheckins() };
+    },
+    apiGetTodayCheckins: function () {
+      var db = load();
+      var t = todayStr();
+      return db.checkins.filter(function (c) { return c.date === t; })
+        .sort(function (a, b) { return timeKey(b.time) < timeKey(a.time) ? -1 : 1; });
+    },
+    apiCheckin: function (userId) {
+      var db = load();
+      var t = todayStr();
+      var ex = db.checkins.filter(function (c) { return c.date === t && c.userId === userId; });
+      if (ex.length) return { record: ex[0], already: true, todayCheckins: fns.apiGetTodayCheckins() };
+      db.seq += 1;
+      var rec = { id: 'm' + db.seq, date: t, time: nowTime(), userId: userId };
+      db.checkins.push(rec);
+      save(db);
+      return { record: rec, already: false, todayCheckins: fns.apiGetTodayCheckins() };
+    },
+    apiGetVitalContext: function (userId) {
+      var db = load();
+      var t = todayStr();
+      var list = db.vitals.filter(function (v) { return v.userId === userId && v.date < t; })
+        .sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? -1 : 1; });
+      return { prev: list.length ? list[list.length - 1] : null };
+    },
+    apiSaveVitals: function (p) {
+      var db = load();
+      var prev = fns.apiGetVitalContext(p.userId).prev;
+      var alerts = evaluateVitalAlerts(p, prev);
+      db.seq += 1;
+      var rec = {
+        id: 'm' + db.seq, date: todayStr(), time: nowTime(), userId: p.userId,
+        systolic: Number(p.systolic) || 0, diastolic: Number(p.diastolic) || 0, pulse: Number(p.pulse) || 0,
+        temp: Number(p.temp) || 0,
+        spo2: String(p.spo2) === '' ? null : Number(p.spo2),
+        weight: String(p.weight) === '' ? null : Number(p.weight),
+        flagged: alerts.length > 0, alerts: alerts,
+      };
+      db.vitals.push(rec);
+      save(db);
+      return rec;
+    },
+    apiVoidRecord: function (kind, id) {
+      var db = load();
+      var list = db[kind === 'records' ? 'records' : kind === 'vitals' ? 'vitals' : 'checkins'];
+      var idx = -1;
+      list.forEach(function (r, i) { if (r.id === id) idx = i; });
+      if (idx >= 0) list.splice(idx, 1);
+      save(db);
+      return { ok: true };
+    },
+    apiRefreshToday: function () {
+      return { today: todayStr(), todayCheckins: fns.apiGetTodayCheckins() };
+    },
+    apiSaveExercise: function (p) {
+      var db = load();
+      db.seq += 1;
+      var rec = { id: 'm' + db.seq, date: todayStr(), time: nowTime(), userId: p.userId, exerciseId: p.exerciseId, amount: p.amount, load: p.load, note: p.note || '' };
+      db.records.push(rec);
+      save(db);
+      return { record: rec, todayExercises: fns.apiGetTodayExercises(p.userId) };
+    },
+    apiGetTodayExercises: function (userId) {
+      var db = load();
+      var t = todayStr();
+      return db.records.filter(function (e) { return e.userId === userId && e.date === t; })
+        .sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : 1; });
+    },
+    apiGetUserResults: function (userId, month) {
+      var db = load();
+      var months = {};
+      db.checkins.forEach(function (c) { months[c.date.slice(0, 7)] = true; });
+      var vitalsAll = db.vitals.filter(function (v) { return v.userId === userId; })
+        .sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? -1 : 1; });
+      function inM(d) { return d.slice(0, 7) === month; }
+      return {
+        months: Object.keys(months).sort().reverse(),
+        vitalsAll: vitalsAll,
+        monthCheckins: db.checkins.filter(function (c) { return c.userId === userId && inM(c.date); }),
+        monthVitals: vitalsAll.filter(function (v) { return inM(v.date); }),
+        monthExercises: db.records.filter(function (e) { return e.userId === userId && inM(e.date); }),
+      };
+    },
+    apiGetTodayRecords: function () {
+      var db = load();
+      var t = todayStr();
+      return {
+        checkins: fns.apiGetTodayCheckins(),
+        vitals: db.vitals.filter(function (v) { return v.date === t; }),
+        records: db.records.filter(function (e) { return e.date === t; }),
+      };
+    },
+    apiGetMonthly: function (month) {
+      var db = load();
+      var months = {};
+      db.checkins.forEach(function (c) { months[c.date.slice(0, 7)] = true; });
+      function inM(d) { return d.slice(0, 7) === month; }
+      return {
+        months: Object.keys(months).sort().reverse(),
+        checkins: db.checkins.filter(function (c) { return inM(c.date); }),
+        vitals: db.vitals.filter(function (v) { return inM(v.date); }),
+        records: db.records.filter(function (e) { return inM(e.date); }),
+      };
+    },
+  };
+
+  return {
+    call: function (name, args) {
+      if (!fns[name]) return Promise.reject(new Error('unknown api: ' + name));
+      try {
+        return Promise.resolve(fns[name].apply(null, args));
+      } catch (e) {
+        return Promise.reject(e);
+      }
+    },
+  };
+})();
+
+// ---------------------------------------------------------------- 起動
+
+rpc('apiGetBootstrap').then(function (boot) {
+  S.users = boot.users;
+  S.exercises = boot.exercises;
+  S.today = boot.today;
+  S.staff = boot.staff;
+  S.todayCheckins = boot.todayCheckins;
+  S.ready = true;
+  render();
+}).catch(function (e) {
+  document.getElementById('app').innerHTML =
+    '<div style="padding:48px;text-align:center;color:#8A4560;font-weight:700;">' +
+    '起動エラー: ' + esc(e && e.message ? e.message : e) +
+    '<br><span style="font-weight:400;font-size:13px;">Apps Script エディタで setup() を実行済みか確認してください</span></div>';
+});
+</script>
+
+  </body>
+</html>
