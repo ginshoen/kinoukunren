@@ -1365,6 +1365,9 @@ select:focus-visible {
   padding: 8px 14px; font-size: 13px; font-weight: 700; min-height: 40px;
 }
 .btn-danger[data-confirm="1"] { background: var(--alert); color: #fff; }
+\n
+.footer-links { display: flex; justify-content: center; gap: 4px; }
+.footer-links .link-plain { width: auto; padding: 8px 12px; color: var(--text-aux); font-size: 13px; }
 \n</style>
 
   </head>
@@ -1916,9 +1919,12 @@ function renderCheckin(app) {
         '<span class="t-title" style="display:block;">デモモードで動作中(記録は保存されません)</span>' +
         '<span class="t-sub">GASと接続するには下の「接続設定」からURLを貼り付けてください</span></span></div>'
       : '') +
+    '<div class="footer-links">' +
+    '<button class="link-plain" onclick="go(\'admin\')">📊 管理画面</button>' +
     (isStandalone()
       ? '<button class="link-plain" onclick="Actions.openSettings()">⚙ 接続設定</button>'
       : '') +
+    '</div>' +
     '</div></div></div>' +
     '<div id="picker"></div>';
 
