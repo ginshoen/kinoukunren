@@ -1345,6 +1345,26 @@ select:focus-visible {
   font-size: 13px; color: var(--text-aux); background: var(--subtle-bg);
   border-radius: 8px; padding: 6px 10px;
 }
+\n
+/* ---------- 利用者管理フォーム ---------- */
+.form-grid { display: flex; flex-direction: column; gap: 12px; }
+.form-grid label { font-size: 14px; font-weight: 700; color: var(--text-sub); display: block; }
+.form-grid input, .form-grid select { display: block; width: 100%; margin-top: 4px; }
+.check-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.check-item {
+  display: flex; align-items: center; gap: 6px;
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 12px; min-height: 44px; background: #fff;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+}
+.check-item input { width: 20px; height: 20px; accent-color: var(--green); }
+.check-item:has(input:checked) { border: 2px solid var(--green); background: var(--green-l4); }
+.btn-danger {
+  background: var(--alert-bg); color: var(--alert-text);
+  border: 1px solid var(--alert-border); border-radius: 10px;
+  padding: 8px 14px; font-size: 13px; font-weight: 700; min-height: 40px;
+}
+.btn-danger[data-confirm="1"] { background: var(--alert); color: #fff; }
 \n</style>
 
   </head>
@@ -1495,6 +1515,36 @@ function vitalValidationErrors(draft) {
 var Scanner = {
   stream: null, timer: null, video: null, lastValue: '', lastAt: 0, paused: false,
   onDetect: null, generation: 0, scanning: false,
+  /**
+   * 画面表示時の準備のみ(カメラは起動しない)。
+   * ライブスキャンは「スキャンを開始」ボタンのタップで起動し、
+   * 「停止」タップ・15秒無検出・画面遷移で停止する(バッテリー配慮)。
+   */
+  prepare: function (onDetect) {
+    var self = this;
+    self.onDetect = onDetect;
+    self.bindCapture();
+    var toggle = document.getElementById('scan-toggle-btn');
+    if (toggle && toggle.getAttribute('data-bound') !== 'true') {
+      toggle.setAttribute('data-bound', 'true');
+      toggle.addEventListener('click', function () {
+        if (self.stream || self.timer) self.stopToIdle();
+        else self.start(self.onDetect);
+      });
+    }
+  },
+  /** ライブスキャンを止めて「開始」待ちの状態に戻す */
+  stopToIdle: function (message) {
+    this.stop();
+    if (this.video && this.video.parentNode) this.video.parentNode.removeChild(this.video);
+    this.video = null;
+    var toggle = document.getElementById('scan-toggle-btn');
+    if (toggle) toggle.textContent = '📷 スキャンを開始';
+    var resume = document.getElementById('camera-resume-btn');
+    if (resume) resume.remove();
+    var hint = document.getElementById('camera-hint');
+    if (hint) hint.textContent = message || '「スキャンを開始」を押してください';
+  },
   start: function (onDetect) {
     var self = this;
     // 再入時は既存リソースを必ず解放する。iOSはカメラ同時1キャプチャ制約が
@@ -1553,11 +1603,10 @@ var Scanner = {
       })
       .then(function () {
         if (generation !== self.generation || !self.video) return;
-        // ライブ読取が使える端末では起動ボタンを隠し、ヒントを更新
         var hintEl = document.getElementById('camera-hint');
         if (hintEl) hintEl.textContent = 'QRコードを枠内にかざしてください';
-        var retryBtn = document.getElementById('live-retry-btn');
-        if (retryBtn) retryBtn.remove();
+        var toggle = document.getElementById('scan-toggle-btn');
+        if (toggle) toggle.textContent = '⏹ スキャンを停止';
         self.liveSince = Date.now();
         var canvas = document.createElement('canvas');
         var detector = window.BarcodeDetector ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
@@ -1631,55 +1680,14 @@ var Scanner = {
    */
   fail: function (keepHint) {
     var hint = document.getElementById('camera-hint');
-    if (hint && !keepHint) hint.textContent = 'カメラを起動するか、QRコードを撮影してください';
+    if (hint && !keepHint) hint.textContent = 'ライブカメラを使えません。「写真から読み取る」をご利用ください';
+    var toggle = document.getElementById('scan-toggle-btn');
+    if (toggle) toggle.textContent = '📷 スキャンを開始';
     this.bindCapture();
-    // Chrome(iOS)はページ表示と同時の起動を拒否することがあるため、
-    // ユーザーのタップを起点に再起動できるボタンを出す
-    var wrap = document.querySelector('.capture-wrap');
-    if (wrap && !document.getElementById('live-retry-btn')) {
-      var btn = document.createElement('button');
-      btn.className = 'capture-btn live';
-      btn.id = 'live-retry-btn';
-      btn.textContent = '🎥 ライブカメラを起動';
-      btn.addEventListener('click', function () {
-        var self = Scanner;
-        if (self.onDetect) self.start(self.onDetect);
-      });
-      wrap.insertBefore(btn, wrap.firstChild);
-    }
   },
-  /** 15秒無検出での自動停止。フレームは残しタップで再開できるようにする */
+  /** 15秒無検出での自動停止(バッテリー配慮)。「開始」待ちに戻す */
   suspend: function (message) {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
-    if (this.stream) this.stream.getTracks().forEach(function (t) { t.stop(); });
-    this.stream = null;
-    var view = document.getElementById('camera-view');
-    if (view && !document.getElementById('camera-resume-btn')) {
-      var hint = document.getElementById('camera-hint');
-      if (hint) hint.textContent = message || '読み取りがないため停止しました';
-      var btn = document.createElement('button');
-      btn.className = 'capture-btn';
-      btn.id = 'camera-resume-btn';
-      btn.textContent = '▶ タップして再開';
-      btn.style.position = 'absolute';
-      btn.style.left = '50%';
-      btn.style.top = '50%';
-      btn.style.transform = 'translate(-50%, -50%)';
-      btn.style.zIndex = '4';
-      btn.addEventListener('click', function () { Scanner.restart(); });
-      view.appendChild(btn);
-    }
-  },
-  restart: function () {
-    var view = document.getElementById('camera-view');
-    var btn = document.getElementById('camera-resume-btn');
-    if (btn) btn.remove();
-    if (this.video && this.video.parentNode) this.video.parentNode.removeChild(this.video);
-    this.video = null;
-    var hint = document.getElementById('camera-hint');
-    if (hint) hint.textContent = 'カメラを起動しています…';
-    if (view && this.onDetect) this.start(this.onDetect);
+    this.stopToIdle(message || '読み取りがないため自動停止しました。「スキャンを開始」で再開できます');
   },
   bindCapture: function () {
     var self = this;
@@ -1780,7 +1788,9 @@ function cameraHtml(hint) {
     '<div class="camera-corner tl"></div><div class="camera-corner tr"></div>' +
     '<div class="camera-corner bl"></div><div class="camera-corner br"></div>' +
     '<div class="camera-hint" id="camera-hint">' + esc(hint) + '</div>' +
-    '<div class="capture-wrap"><button class="capture-btn" id="capture-btn">カメラでQRを撮影</button>' +
+    '<div class="capture-wrap">' +
+    '<button class="capture-btn" id="scan-toggle-btn">📷 スキャンを開始</button>' +
+    '<button class="capture-btn live" id="capture-btn">写真から読み取る</button>' +
     '<input type="file" accept="image/*" capture="environment" id="capture-input" style="display:none;"></div>' +
     '</div>'
   );
@@ -1828,6 +1838,7 @@ function render() {
   if (h === 'exercise') return renderExerciseScan(app);
   if (h.indexOf('exercise/') === 0) return renderExerciseForm(app, h.slice(9));
   if (h === 'admin') return renderAdminResults(app);
+  if (h === 'admin/users') return renderAdminUsers(app);
   if (h === 'admin/today') return renderAdminToday(app);
   if (h === 'admin/master') return renderAdminMaster(app);
   if (h === 'admin/monthly') return renderAdminMonthly(app);
@@ -1911,7 +1922,7 @@ function renderCheckin(app) {
     '</div></div></div>' +
     '<div id="picker"></div>';
 
-  Scanner.start(function (value) {
+  Scanner.prepare(function (value) {
     var user = null;
     S.users.forEach(function (u) { if (u.qrCode === value.trim()) user = u; });
     if (!user) {
@@ -2064,7 +2075,7 @@ function renderExerciseScan(app) {
       '<button class="link-plain" onclick="Actions.backToCheckin()">対応を終了して受付に戻る</button>' +
       '</div></div></div>';
 
-    Scanner.start(function (value) {
+    Scanner.prepare(function (value) {
       var ex = null;
       S.exercises.forEach(function (e) { if (e.qrCode === value.trim()) ex = e; });
       if (!ex) {
@@ -2346,6 +2357,7 @@ function renderUserDetail(app, userId) {
 var NAV_ITEMS = [
   ['admin', '利用者別 実績'],
   ['admin/today', '本日の記録一覧'],
+  ['admin/users', '利用者管理 🔒'],
   ['admin/master', '種目マスタ / QR発行'],
   ['admin/monthly', '月次レポート'],
 ];
@@ -2522,6 +2534,104 @@ function buildDays(res) {
     var note = exercises.map(function (e) { return e.note; }).filter(String).join(' ');
     return { date: date, checkin: checkin, vital: vital, exercises: exercises, note: note };
   });
+}
+
+// ---------------------------------------------------------------- 管理: 利用者管理(管理者PIN必須)
+
+var CARE_LEVELS = ['要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
+
+function renderAdminUsers(app) {
+  // PIN未検証ならロック画面
+  if (!S.adminVerified) {
+    var savedPin = sessionStorage.getItem('adminPin');
+    if (savedPin !== null && !S.adminVerifying) {
+      // この端末で解錠済みなら自動再検証
+      S.adminVerifying = true;
+      rpc('apiVerifyAdmin', savedPin).then(function (res) {
+        S.adminVerified = true; S.adminPin = savedPin; S.pinConfigured = res.pinConfigured;
+        S.adminVerifying = false; render();
+      }).catch(function () {
+        S.adminVerifying = false;
+        sessionStorage.removeItem('adminPin');
+        render();
+      });
+      app.innerHTML = adminShell('admin/users', loadingHtml());
+      return;
+    }
+    app.innerHTML = adminShell('admin/users',
+      '<div class="admin-page-head"><div><div class="breadcrumb">利用者管理</div>' +
+      '<div class="admin-h1">🔒 管理者専用</div></div></div>' +
+      '<div class="panel" style="max-width:420px;">' +
+      '<div class="panel-title">管理者PINを入力してください</div>' +
+      '<div class="section-note" style="margin-bottom:10px;">利用者の登録・編集・削除は管理者のみ行えます。現場職員の方はこの画面の操作は不要です。</div>' +
+      '<input type="password" inputmode="numeric" class="note-area" id="admin-pin" placeholder="PIN" style="min-height:48px;font-size:20px;letter-spacing:4px;">' +
+      '<div class="section-note" id="pin-error" style="color:var(--alert-text);min-height:18px;"></div>' +
+      '<button class="btn-primary" style="flex:none;width:100%;" onclick="Actions.adminUnlock()">解錠する</button>' +
+      '</div>');
+    return;
+  }
+
+  var u = S.editingUser;
+  var formHtml = '';
+  if (u) {
+    var wdChecks = WEEKDAYS.map(function (w) {
+      var on = ('/' + (u.scheduleLabel || '') + '/').indexOf('/' + w + '/') >= 0 ||
+        (u.scheduleLabel || '').split('/').indexOf(w) >= 0;
+      return '<label class="check-item"><input type="checkbox" name="wd" value="' + w + '"' + (on ? ' checked' : '') + '>' + w + '</label>';
+    }).join('');
+    var planChecks = S.exercises.map(function (ex) {
+      var on = (u.plan || []).indexOf(ex.id) >= 0;
+      return '<label class="check-item"><input type="checkbox" name="plan" value="' + ex.id + '"' + (on ? ' checked' : '') + '>' + esc(ex.name) + '</label>';
+    }).join('');
+    var careOpts = CARE_LEVELS.map(function (c) {
+      return '<option value="' + c + '"' + (u.careLevel === c ? ' selected' : '') + '>' + c + '</option>';
+    }).join('');
+    formHtml =
+      '<div class="panel" id="user-form">' +
+      '<div class="panel-title">' + (u.id ? '利用者を編集' : '利用者を新規登録') + '</div>' +
+      '<div class="form-grid">' +
+      '<label>氏名 <input class="note-area" id="f-name" value="' + esc(u.name || '') + '" placeholder="例: 田中 花子" style="min-height:44px;"></label>' +
+      '<label>ふりがな <input class="note-area" id="f-kana" value="' + esc(u.kana || '') + '" placeholder="例: たなか はなこ" style="min-height:44px;"></label>' +
+      '<label>年齢 <input class="note-area" id="f-age" inputmode="numeric" value="' + (u.age || '') + '" style="min-height:44px;max-width:120px;"></label>' +
+      '<label>介護度 <select class="select-plain" id="f-care" style="min-height:44px;">' + careOpts + '</select></label>' +
+      '<div>利用曜日<div class="check-row">' + wdChecks + '</div></div>' +
+      '<div>予定種目<div class="check-row">' + planChecks + '</div></div>' +
+      '</div>' +
+      '<div class="section-note" id="form-error" style="color:var(--alert-text);min-height:18px;"></div>' +
+      '<div class="btn-row" style="margin-top:8px;">' +
+      '<button class="btn-outline" onclick="Actions.adminCancelEdit()">キャンセル</button>' +
+      '<button class="btn-primary" id="f-save" onclick="Actions.adminSaveUser()">保存する</button>' +
+      '</div></div>';
+  }
+
+  var rows = S.users.map(function (x) {
+    return (
+      '<tr><td style="font-weight:700;">' + esc(x.name) + '<br><span class="section-note">' + esc(x.kana || '') + '</span></td>' +
+      '<td>' + x.age + '歳</td><td>' + esc(x.careLevel) + '</td><td>' + esc(x.scheduleLabel) + '</td>' +
+      '<td>' + x.plan.map(function (id) { var ex = exerciseById(id); return ex ? ex.shortName : id; }).join('・') + '</td>' +
+      '<td style="white-space:nowrap;">' +
+      '<button class="btn-csv" style="margin-right:6px;" onclick="Actions.adminEditUser(\'' + x.id + '\')">編集</button>' +
+      '<button class="btn-danger" data-del="' + x.id + '" onclick="Actions.adminDeleteUser(\'' + x.id + '\', this)">削除</button>' +
+      '</td></tr>'
+    );
+  }).join('');
+
+  app.innerHTML = adminShell('admin/users',
+    '<div class="admin-page-head"><div><div class="breadcrumb">利用者管理</div>' +
+    '<div class="admin-h1">利用者の登録・編集 <span class="attrs">全' + S.users.length + '名</span></div></div>' +
+    '<div class="admin-actions">' +
+    '<button class="btn-csv" onclick="Actions.adminNewUser()">+ 新規登録</button>' +
+    '<button class="select-plain" onclick="Actions.adminLock()">🔒 ロックする</button>' +
+    '</div></div>' +
+    (S.pinConfigured ? '' :
+      '<div class="alert-banner"><span class="alert-dot"></span><span class="alert-text">' +
+      '管理者PINが未設定のため、誰でもこの画面を開けます。Apps Script の「プロジェクトの設定 → スクリプトプロパティ」で ADMIN_PIN を設定してください</span></div>') +
+    formHtml +
+    '<div class="panel"><div style="overflow-x:auto;"><table class="gen-table"><thead><tr>' +
+    '<th>氏名</th><th>年齢</th><th>介護度</th><th>利用曜日</th><th>予定種目</th><th></th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="section-note" style="margin-top:8px;">削除しても過去の記録は残ります。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
+    '</div>');
 }
 
 // ---------------------------------------------------------------- 管理: 本日の記録一覧
@@ -2900,6 +3010,92 @@ var Actions = {
     if (empty) empty.hidden = visible > 0;
   },
 
+  // --- 利用者管理(管理者専用) ---
+  adminUnlock: function () {
+    var pin = (document.getElementById('admin-pin') || {}).value || '';
+    var err = document.getElementById('pin-error');
+    if (err) err.textContent = '確認中…';
+    rpc('apiVerifyAdmin', pin).then(function (res) {
+      S.adminVerified = true;
+      S.adminPin = pin;
+      S.pinConfigured = res.pinConfigured;
+      sessionStorage.setItem('adminPin', pin);
+      render();
+    }).catch(function (e) {
+      if (err) err.textContent = (e && e.message) || 'PINが正しくありません';
+    });
+  },
+  adminLock: function () {
+    S.adminVerified = false;
+    S.adminPin = '';
+    S.editingUser = null;
+    sessionStorage.removeItem('adminPin');
+    render();
+  },
+  adminNewUser: function () {
+    S.editingUser = { id: '', name: '', kana: '', age: '', careLevel: CARE_LEVELS[0], scheduleLabel: '', plan: [] };
+    render();
+  },
+  adminEditUser: function (id) {
+    var u = null;
+    S.users.forEach(function (x) { if (x.id === id) u = x; });
+    if (!u) return;
+    S.editingUser = { id: u.id, name: u.name, kana: u.kana, age: u.age, careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, plan: u.plan.slice() };
+    render();
+  },
+  adminCancelEdit: function () {
+    S.editingUser = null;
+    render();
+  },
+  adminSaveUser: function () {
+    var err = document.getElementById('form-error');
+    var wds = [];
+    document.querySelectorAll('input[name="wd"]:checked').forEach(function (el) { wds.push(el.value); });
+    var plan = [];
+    document.querySelectorAll('input[name="plan"]:checked').forEach(function (el) { plan.push(el.value); });
+    var payload = {
+      id: S.editingUser.id,
+      name: document.getElementById('f-name').value.trim(),
+      kana: document.getElementById('f-kana').value.trim(),
+      age: document.getElementById('f-age').value.trim(),
+      careLevel: document.getElementById('f-care').value,
+      scheduleLabel: wds.join('/'),
+      plan: plan.join(','),
+    };
+    if (!payload.name) { if (err) err.textContent = '氏名を入力してください'; return; }
+    if (!payload.age || !isFinite(Number(payload.age))) { if (err) err.textContent = '年齢を数字で入力してください'; return; }
+    var btn = document.getElementById('f-save');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+    rpc('apiAdminSaveUser', S.adminPin, payload).then(function (res) {
+      S.users = res.users;
+      S.editingUser = null;
+      render();
+    }).catch(function (e) {
+      if (err) err.textContent = (e && e.message) || '保存できませんでした';
+      if (btn) { btn.disabled = false; btn.textContent = '保存する'; }
+    });
+  },
+  adminDeleteUser: function (id, btn) {
+    // 誤タップ防止の2段階確認
+    if (btn.getAttribute('data-confirm') !== '1') {
+      btn.setAttribute('data-confirm', '1');
+      btn.textContent = '本当に削除?';
+      setTimeout(function () {
+        btn.removeAttribute('data-confirm');
+        btn.textContent = '削除';
+      }, 3000);
+      return;
+    }
+    btn.disabled = true;
+    rpc('apiAdminDeleteUser', S.adminPin, id).then(function (res) {
+      S.users = res.users;
+      render();
+    }).catch(function (e) {
+      btn.disabled = false;
+      alert((e && e.message) || '削除できませんでした');
+    });
+  },
+
   // --- 接続設定(ホスティング版) ---
   openSettings: function () {
     document.getElementById('picker').innerHTML =
@@ -3140,6 +3336,32 @@ var Mock = (function () {
     },
     apiRefreshToday: function () {
       return { today: todayStr(), todayCheckins: fns.apiGetTodayCheckins() };
+    },
+    apiVerifyAdmin: function () {
+      return { ok: true, pinConfigured: false };
+    },
+    apiAdminSaveUser: function (pin, u) {
+      var db = load();
+      var plan = String(u.plan || '').split(',').filter(String);
+      if (u.id) {
+        db.users.forEach(function (x) {
+          if (x.id === u.id) {
+            x.name = u.name; x.kana = u.kana; x.age = Number(u.age);
+            x.careLevel = u.careLevel; x.scheduleLabel = u.scheduleLabel; x.plan = plan;
+          }
+        });
+      } else {
+        var id = 'u' + Date.now().toString(36);
+        db.users.push({ id: id, name: u.name, kana: u.kana, age: Number(u.age), careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, plan: plan, qrCode: 'GSU:' + id });
+      }
+      save(db);
+      return { users: db.users };
+    },
+    apiAdminDeleteUser: function (pin, id) {
+      var db = load();
+      db.users = db.users.filter(function (x) { return x.id !== id; });
+      save(db);
+      return { users: db.users };
     },
     apiGetTodayAlerts: function () {
       var db = load();
