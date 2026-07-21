@@ -3,6 +3,11 @@
   <head>
     <base target="_top" />
     <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="format-detection" content="telephone=no" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -1250,7 +1255,6 @@ select:focus-visible {
 @keyframes slide-in {
   from { opacity: 0; transform: translateY(-6px); }
 }
-\n
 /* ---------- ライブ読取: 検出フィードバック ---------- */
 .camera-view.detected .camera-corner {
   border-color: #fff;
@@ -1277,7 +1281,6 @@ select:focus-visible {
 @keyframes badge-pop {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
 }
-\n
 /* 撮影/起動ボタンを縦並びに(Chrome iOS 用ライブ起動ボタン追加のため) */
 .capture-wrap {
   flex-direction: column;
@@ -1288,7 +1291,6 @@ select:focus-visible {
   background: #fff;
   color: var(--green-dark);
 }
-\n
 /* ---------- 利用者一覧・詳細 ---------- */
 .list-controls {
   position: sticky; top: 0; z-index: 5;
@@ -1345,7 +1347,6 @@ select:focus-visible {
   font-size: 13px; color: var(--text-aux); background: var(--subtle-bg);
   border-radius: 8px; padding: 6px 10px;
 }
-\n
 /* ---------- 利用者管理フォーム ---------- */
 .form-grid { display: flex; flex-direction: column; gap: 12px; }
 .form-grid label { font-size: 14px; font-weight: 700; color: var(--text-sub); display: block; }
@@ -1365,13 +1366,348 @@ select:focus-visible {
   padding: 8px 14px; font-size: 13px; font-weight: 700; min-height: 40px;
 }
 .btn-danger[data-confirm="1"] { background: var(--alert); color: #fff; }
-\n
 .footer-links { display: flex; justify-content: center; gap: 4px; }
 .footer-links .link-plain { width: auto; padding: 8px 12px; color: var(--text-aux); font-size: 13px; }
-\n</style>
+
+/* ========================================================================== */
+/* Responsive hardening                                                       */
+/* ========================================================================== */
+
+html {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body,
+#app {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+img,
+svg,
+canvas,
+video {
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.phone-wrap,
+.phone,
+.phone-body,
+.phone-body > *,
+.admin-wrap,
+.admin-frame,
+.admin-content,
+.admin-grid,
+.panel {
+  min-width: 0;
+}
+
+.phone-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.phone-header > :not(.logo):not(.back-btn):not(.h-right) {
+  min-width: 0;
+}
+
+.phone-header .h-title,
+.phone-header .h-sub,
+.screen-intro h1,
+.screen-intro p,
+.toast-success,
+.toast-error,
+.alert-text {
+  overflow-wrap: anywhere;
+}
+
+.phone-header .h-right {
+  min-width: 0;
+  margin-left: 0;
+}
+
+.camera-view {
+  --scan-x: clamp(44px, 17%, 64px);
+  --scan-top: clamp(36px, 13%, 44px);
+  --scan-bottom: clamp(112px, 38%, 126px);
+}
+
+.camera-dim {
+  inset: var(--scan-top) var(--scan-x) var(--scan-bottom);
+}
+
+.camera-corner.tl { top: var(--scan-top); left: var(--scan-x); }
+.camera-corner.tr { top: var(--scan-top); right: var(--scan-x); }
+.camera-corner.bl { bottom: var(--scan-bottom); left: var(--scan-x); }
+.camera-corner.br { bottom: var(--scan-bottom); right: var(--scan-x); }
+
+.camera-hint,
+.capture-wrap {
+  max-width: 100%;
+}
+
+.modal-sheet {
+  width: 100%;
+  max-width: min(460px, calc(100vw - 36px));
+}
+
+.admin-page-head > :first-child,
+.admin-actions {
+  min-width: 0;
+}
+
+.panel {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.gen-table {
+  min-width: 660px;
+}
+
+.day-table {
+  min-width: 680px;
+}
+
+.qr-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+}
+
+@media (max-width: 900px) {
+  .admin-frame {
+    flex-direction: column;
+  }
+
+  .admin-sidebar {
+    width: 100%;
+    max-width: 100%;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 5px;
+    padding: 14px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .admin-sidebar .brand {
+    flex: none;
+    padding: 0 10px 0 2px;
+  }
+
+  .admin-sidebar .brand-name,
+  .admin-staff {
+    display: none;
+  }
+
+  .nav-item {
+    width: auto;
+    min-width: max-content;
+  }
+
+  .admin-content {
+    overflow-x: hidden;
+  }
+
+  .admin-page-head {
+    align-items: flex-start;
+  }
+
+  .admin-actions {
+    width: 100%;
+    margin-left: 0;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+}
+
+@media (max-width: 600px) {
+  .admin-wrap {
+    padding: 0;
+  }
+
+  .admin-frame {
+    min-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .admin-content {
+    padding: 20px 16px max(32px, env(safe-area-inset-bottom));
+  }
+
+  .admin-page-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .admin-h1 {
+    font-size: clamp(21px, 7vw, 25px);
+    line-height: 1.35;
+  }
+
+  .admin-h1 .attrs {
+    display: block;
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+
+  .admin-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-actions > :only-child,
+  .admin-actions > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .select-plain,
+  .btn-csv {
+    width: 100%;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  .bar-row {
+    grid-template-columns: minmax(76px, .8fr) minmax(70px, 1.6fr) 26px;
+    gap: 7px;
+  }
+}
+
+@media (max-width: 520px) {
+  .phone-header {
+    padding-right: max(18px, env(safe-area-inset-right));
+    padding-left: max(18px, env(safe-area-inset-left));
+  }
+
+  .phone-body {
+    padding-right: max(18px, env(safe-area-inset-right));
+    padding-left: max(18px, env(safe-area-inset-left));
+  }
+
+  .camera-view {
+    height: clamp(250px, 78vw, 310px);
+    min-height: 0;
+  }
+}
+
+@media (max-width: 359px) {
+  .phone-header,
+  .phone-header.compact,
+  .phone-header.training {
+    min-height: 78px;
+    gap: 8px;
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-left: max(14px, env(safe-area-inset-left));
+  }
+
+  .phone-header .logo {
+    width: 38px;
+    height: 38px;
+  }
+
+  .phone-header .h-title {
+    font-size: 18px;
+  }
+
+  .phone-header .h-right .h-sub {
+    font-size: 10px;
+  }
+
+  .phone-body {
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-left: max(14px, env(safe-area-inset-left));
+  }
+
+  .workflow-step {
+    font-size: 10px;
+  }
+
+  .screen-intro h1 {
+    font-size: 20px;
+  }
+
+  .capture-btn {
+    width: calc(100% - 28px);
+    min-height: 48px;
+    padding: 0 14px;
+    font-size: 14px;
+  }
+
+  .bp-head {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .bp-prev {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .btn-row {
+    flex-direction: column-reverse;
+  }
+
+  .btn-row > * {
+    width: 100%;
+    flex: none;
+  }
+
+  .footer-links {
+    flex-direction: column;
+  }
+
+  .footer-links .link-plain {
+    width: 100%;
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .phone-wrap {
+    padding-top: 0;
+  }
+
+  .phone {
+    border-radius: 0;
+  }
+
+  .camera-view {
+    height: 250px;
+    min-height: 0;
+  }
+}
+
+</style>
 
   </head>
   <body>
+<script>window.GAS_API_URL='';window.GAS_API_TOKEN='';</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
