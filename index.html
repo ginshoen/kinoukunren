@@ -1288,6 +1288,63 @@ select:focus-visible {
   background: #fff;
   color: var(--green-dark);
 }
+\n
+/* ---------- 利用者一覧・詳細 ---------- */
+.list-controls {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--card-face);
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 4px 0 10px;
+}
+.filter-chips { display: flex; gap: 8px; }
+.chip {
+  flex: 1; min-height: 44px; border-radius: 99px;
+  border: 1px solid var(--border); background: #fff;
+  font-size: 14px; font-weight: 700; color: var(--text-sub);
+}
+.chip.selected {
+  border: 2px solid var(--green); background: var(--green-l4);
+  color: var(--green-dark); font-weight: 900;
+}
+.chip-alert.selected {
+  border-color: var(--alert); background: var(--alert-bg); color: var(--alert-text);
+}
+.kana-head {
+  position: sticky; top: 112px; z-index: 4;
+  font-size: 13px; font-weight: 900; color: var(--text-aux);
+  background: var(--card-face); padding: 4px 2px;
+}
+.person-row.tappable { width: 100%; text-align: left; min-height: 60px; }
+.person-row.tappable:active { background: var(--input-bg); }
+.person-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.person-row.tappable .person-name { font-size: 17px; }
+.person-row.tappable .person-time { flex: none; margin-left: 8px; }
+.person-row.offday { background: rgba(255, 255, 255, 0.7); }
+.person-row.offday .status-dot { background: transparent; border: 2px solid var(--border-undone); }
+.person-row.offday .person-time { color: var(--text-disabled); font-weight: 400; }
+.chev { flex: none; color: var(--text-disabled); font-size: 20px; margin-left: 2px; }
+.badge-alert {
+  flex: none; min-width: 30px; height: 30px;
+  display: grid; place-items: center; border-radius: 99px;
+  background: var(--alert-bg); border: 1px solid var(--alert-border);
+  color: var(--alert); font-size: 15px; font-weight: 900;
+}
+
+/* 利用者詳細 */
+.today-card { display: flex; flex-direction: column; gap: 8px; }
+.today-status { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 900; }
+.today-status.absent { color: var(--text-aux); font-weight: 700; }
+.today-vitals { font-size: 15px; color: var(--text-sub); }
+.today-vitals b { font-size: 18px; color: var(--text); }
+.vital-cell.stat { display: flex; flex-direction: column; gap: 2px; }
+.stat-value { font-size: 26px; font-weight: 900; line-height: 1.2; }
+.history-day { display: flex; flex-direction: column; gap: 4px; padding: 12px 16px; }
+.history-date { font-size: 14px; font-weight: 900; }
+.history-ex { font-size: 14px; color: var(--text-sub); }
+.history-note {
+  font-size: 13px; color: var(--text-aux); background: var(--subtle-bg);
+  border-radius: 8px; padding: 6px 10px;
+}
 \n</style>
 
   </head>
@@ -1765,6 +1822,8 @@ function render() {
   if (!S.ready) return;
   var h = location.hash.replace(/^#\/?/, '');
   var app = document.getElementById('app');
+  if (h === 'users') return renderUserList(app);
+  if (h.indexOf('users/') === 0) return renderUserDetail(app, h.slice(6));
   if (h === 'vitals') return renderVitals(app);
   if (h === 'exercise') return renderExerciseScan(app);
   if (h.indexOf('exercise/') === 0) return renderExerciseForm(app, h.slice(9));
@@ -1839,6 +1898,7 @@ function renderCheckin(app) {
     '<div><div class="section-head"><span class="section-title">本日の来所状況</span>' +
     '<span class="section-note">' + S.todayCheckins.length + '名 / 予定' + scheduled.length + '名</span></div>' +
     '<div class="row-list">' + rows + '</div></div>' +
+    '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users\')">👥 利用者の状況を確認(一覧)</button>' +
     '<button class="link-plain" onclick="Actions.openPicker()">QRを読み取れない場合は名前から選択 ›</button>' +
     (isStandalone() && !window.GAS_API_URL
       ? '<div class="toast-error" role="alert"><span class="x-circle">!</span><span>' +
@@ -2061,6 +2121,223 @@ function renderExerciseForm(app, exerciseId) {
       '</div></div></div>';
 
     Actions.exRefresh();
+  });
+}
+
+// ---------------------------------------------------------------- 利用者一覧・詳細
+
+/** ふりがなから五十音の行(あ/か/さ…)を判定 */
+function kanaGyo(kana) {
+  var c = (kana || '').replace(/\s/g, '').charAt(0);
+  if (!c) return 'その他'; // indexOf('')は0を返すため空文字を先に弾く
+  var rows = [
+    ['あ', 'あいうえおぁぃぅぇぉ'], ['か', 'かきくけこがぎぐげご'],
+    ['さ', 'さしすせそざじずぜぞ'], ['た', 'たちつてとだぢづでどっ'],
+    ['な', 'なにぬねの'], ['は', 'はひふへほばびぶべぼぱぴぷぺぽ'],
+    ['ま', 'まみむめも'], ['や', 'やゆよゃゅょ'], ['ら', 'らりるれろ'],
+    ['わ', 'わをん'],
+  ];
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i][1].indexOf(c) >= 0) return rows[i][0];
+  }
+  return 'その他';
+}
+
+/** 一覧行のHTML(状態: checked=来所済 / pending=本日予定・未着 / offday=予定なし) */
+function userRowHtml(u, state, time, hasAlert) {
+  var cls = 'person-row tappable' + (state === 'pending' ? ' pending' : state === 'offday' ? ' offday' : '');
+  var right = state === 'checked' ? esc(time) : state === 'pending' ? '未着' : esc(u.scheduleLabel);
+  return (
+    '<button class="' + cls + '" data-name="' + esc((u.name + (u.kana || '')).replace(/\s/g, '')) + '"' +
+    ' onclick="go(\'users/' + u.id + '\')">' +
+    '<span class="status-dot"></span>' +
+    '<span class="person-main"><span class="person-name">' + esc(u.name) + '</span>' +
+    '<span class="person-care">' + esc(u.careLevel) + ' · ' + u.age + '歳</span></span>' +
+    (hasAlert ? '<span class="badge-alert" title="本日アラートあり">⚑</span>' : '') +
+    '<span class="person-time">' + right + '</span>' +
+    '<span class="chev" aria-hidden="true">›</span></button>'
+  );
+}
+
+function renderUserList(app) {
+  app.innerHTML = loadingHtml();
+  rpc('apiGetTodayAlerts').then(function (alerts) {
+    var checkedTime = {};
+    S.todayCheckins.forEach(function (c) { checkedTime[c.userId] = c.time; });
+    var todayWeekday = WEEKDAYS[new Date().getDay()];
+
+    // かな行ごとにグループ化(かな未設定は「その他」)
+    var groups = {};
+    S.users.forEach(function (u) {
+      var g = kanaGyo(u.kana);
+      (groups[g] = groups[g] || []).push(u);
+    });
+    var order = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ', 'その他'];
+
+    var listHtml = order.filter(function (g) { return groups[g]; }).map(function (g) {
+      var rows = groups[g]
+        .sort(function (a, b) { return (a.kana || a.name) < (b.kana || b.name) ? -1 : 1; })
+        .map(function (u) {
+          var state = checkedTime[u.id] ? 'checked'
+            : String(u.scheduleLabel || '').indexOf(todayWeekday) >= 0 ? 'pending' : 'offday';
+          var attr = ' data-state="' + state + '" data-alert="' + (alerts[u.id] ? '1' : '0') + '"';
+          return userRowHtml(u, state, checkedTime[u.id], alerts[u.id])
+            .replace('<button ', '<button' + attr + ' ');
+        }).join('');
+      return '<div class="kana-group"><div class="kana-head">' + g +
+        (g === 'その他' ? '' : '行') + '</div><div class="row-list">' + rows + '</div></div>';
+    }).join('');
+
+    app.innerHTML =
+      '<div class="phone-wrap"><div class="phone">' +
+      '<header class="phone-header compact">' +
+      '<button class="back-btn" onclick="go(\'\')" aria-label="受付へ戻る">‹</button>' +
+      '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">利用者一覧</div></div>' +
+      '<div class="h-right"><span class="pill-badge">全' + S.users.length + '名</span></div>' +
+      '</header>' +
+      '<div class="phone-body" style="gap:12px;">' +
+      '<div class="list-controls">' +
+      '<label class="search-box"><span aria-hidden="true">⌕</span>' +
+      '<input type="search" placeholder="氏名・ふりがなで検索" oninput="Actions.filterUsers(this.value)"></label>' +
+      '<div class="filter-chips">' +
+      '<button class="chip selected" data-filter="all" onclick="Actions.userFilter(\'all\')">すべて</button>' +
+      '<button class="chip" data-filter="today" onclick="Actions.userFilter(\'today\')">本日来所</button>' +
+      '<button class="chip chip-alert" data-filter="alert" onclick="Actions.userFilter(\'alert\')">⚑ アラート</button>' +
+      '</div></div>' +
+      listHtml +
+      '<div class="empty-note" id="user-empty" hidden>該当する利用者がいません</div>' +
+      '</div></div></div>';
+
+    Actions.applyUserFilters();
+  }).catch(function (e) {
+    app.innerHTML = renderErrorHtml('利用者一覧を読み込めませんでした', 'users');
+  });
+}
+
+function renderErrorHtml(message, backHash) {
+  return (
+    '<div class="phone-wrap"><div class="phone"><div class="phone-body">' +
+    '<div class="toast-error" role="alert"><span class="x-circle">✕</span><span>' +
+    '<span class="t-title" style="display:block;">' + esc(message) + '</span>' +
+    '<span class="t-sub">電波状況をご確認のうえ、再試行してください</span></span></div>' +
+    '<button class="btn-primary" style="flex:none;width:100%;" onclick="render()">再試行</button>' +
+    '<button class="link-plain" onclick="go(\'\')">受付画面へ戻る</button>' +
+    '</div></div></div>'
+  );
+}
+
+function vitalLineText(v) {
+  if (!v) return null;
+  var parts = ['血圧 <b>' + v.systolic + '/' + v.diastolic + '</b>', '脈拍 <b>' + v.pulse + '</b>', '<b>' + v.temp.toFixed(1) + '</b>℃'];
+  if (v.spo2 != null) parts.push('SpO2 <b>' + v.spo2 + '</b>%');
+  if (v.weight != null) parts.push('<b>' + v.weight.toFixed(1) + '</b>kg');
+  return parts.join(' · ');
+}
+
+function renderUserDetail(app, userId) {
+  var user = null;
+  S.users.forEach(function (u) { if (u.id === userId) user = u; });
+  if (!user) return go('users');
+  app.innerHTML = loadingHtml();
+
+  rpc('apiGetUserDetail', userId).then(function (res) {
+    var planned = plannedExercises(user);
+    var doneIds = {};
+    res.todayExercises.forEach(function (e) { doneIds[e.exerciseId] = true; });
+    var doneCount = planned.filter(function (ex) { return doneIds[ex.id]; }).length;
+
+    // ① 本日の状況
+    var todayHtml;
+    if (res.todayCheckin) {
+      todayHtml =
+        '<div class="today-status"><span class="status-dot"></span>' + esc(res.todayCheckin.time) + ' 来所済み</div>' +
+        (res.todayVital
+          ? '<div class="today-vitals">' + vitalLineText(res.todayVital) + '</div>'
+          : '<div class="today-vitals">バイタル未測定</div>') +
+        '<div class="today-vitals">訓練 ' + planned.length + '種目中 <b>' + doneCount + '種目</b> 完了</div>' +
+        (res.todayVital && res.todayVital.flagged
+          ? res.todayVital.alerts.map(function (msg) {
+              return '<div class="alert-banner"><span class="alert-dot"></span><span class="alert-text">' + esc(msg) + '</span></div>';
+            }).join('')
+          : '');
+    } else {
+      todayHtml = '<div class="today-status absent">本日はまだ来所していません(' + esc(user.scheduleLabel) + ' 利用)</div>';
+    }
+
+    // ② 最新値グリッド
+    var latest = res.vitalsAll.length ? res.vitalsAll[res.vitalsAll.length - 1] : null;
+    var prev = res.vitalsAll.length > 1 ? res.vitalsAll[res.vitalsAll.length - 2] : null;
+    function statCell(label, unit, val, prevVal) {
+      return (
+        '<div class="vital-cell stat"><span class="card-label">' + label + ' <span class="unit">' + unit + '</span></span>' +
+        '<div class="stat-value">' + (val == null ? '—' : val) + '</div>' +
+        (prevVal != null ? '<span class="vital-prev">前回 ' + prevVal + '</span>' : '') + '</div>'
+      );
+    }
+    var statsHtml = latest
+      ? '<div class="vitals-grid" style="margin-top:12px;">' +
+        statCell('血圧', 'mmHg', latest.systolic + '/' + latest.diastolic, prev ? prev.systolic + '/' + prev.diastolic : null) +
+        statCell('体温', '℃', latest.temp.toFixed(1), prev ? prev.temp.toFixed(1) : null) +
+        statCell('SpO2', '%', latest.spo2, prev ? prev.spo2 : null) +
+        statCell('体重', 'kg', latest.weight != null ? latest.weight.toFixed(1) : null,
+          prev && prev.weight != null ? prev.weight.toFixed(1) : null) +
+        '</div>'
+      : '<div class="empty-note">バイタル記録はまだありません</div>';
+
+    // ③ 直近の訓練記録
+    var historyHtml = res.recentDays.length
+      ? res.recentDays.map(function (d) {
+          return (
+            '<div class="card history-day">' +
+            '<div class="history-date">' + dayLabel(d.date) + ' <span class="section-note">' + esc(d.time) + ' 来所</span></div>' +
+            '<div class="history-ex">' + (d.exercises.map(exerciseLabel).join(' → ') || '訓練記録なし') + '</div>' +
+            (d.note ? '<div class="history-note">所見: ' + esc(d.note) + '</div>' : '') +
+            '</div>'
+          );
+        }).join('')
+      : '<div class="empty-note">来所記録はまだありません</div>';
+
+    // ④ アラート履歴
+    var alertsHtml = res.alertHistory.length
+      ? res.alertHistory.map(function (v) {
+          return (
+            '<div class="alert-banner"><span class="alert-dot"></span><span class="alert-text">' +
+            '<b>' + dayLabel(v.date) + '</b> 血圧' + v.systolic + '/' + v.diastolic + '<br>' +
+            esc(v.alerts.join(' / ')) + '</span></div>'
+          );
+        }).join('')
+      : '<div class="empty-note">アラートの記録はありません</div>';
+
+    app.innerHTML =
+      '<div class="phone-wrap"><div class="phone">' +
+      '<header class="phone-header compact">' +
+      '<button class="back-btn" onclick="go(\'users\')" aria-label="一覧へ戻る">‹</button>' +
+      '<div>' +
+      (user.kana ? '<div class="h-sub">' + esc(user.kana) + '</div>' : '') +
+      '<div class="h-title">' + esc(user.name) + ' さま</div>' +
+      '<div class="h-sub">' + user.age + '歳 · ' + esc(user.scheduleLabel) + ' 利用</div>' +
+      '</div>' +
+      '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
+      '</header>' +
+      '<div class="phone-body" style="gap:16px;">' +
+      '<div><div class="section-head"><span class="section-title">本日の状況</span>' +
+      '<span class="section-note">' + dayLabel(S.today) + '</span></div>' +
+      '<div class="card today-card">' + todayHtml + '</div>' +
+      (res.todayCheckin
+        ? '<button class="btn-primary" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.goVitals(\'' + user.id + '\')">▶ この方の記録をはじめる</button>'
+        : '') +
+      '</div>' +
+      '<div><div class="section-head"><span class="section-title">バイタル推移</span>' +
+      '<span class="section-note">直近8回</span></div>' +
+      '<div class="card">' + vitalsChartSvg(res.vitalsAll) + '</div>' + statsHtml + '</div>' +
+      '<div><div class="section-head"><span class="section-title">機能訓練の実施記録</span>' +
+      '<span class="section-note">直近5回の来所日</span></div>' +
+      '<div class="row-list">' + historyHtml + '</div></div>' +
+      '<div><div class="section-head"><span class="section-title">アラート履歴</span></div>' +
+      '<div class="row-list">' + alertsHtml + '</div></div>' +
+      '</div></div></div>';
+  }).catch(function () {
+    app.innerHTML = renderErrorHtml('利用者情報を読み込めませんでした', 'users');
   });
 }
 
@@ -2588,6 +2865,41 @@ var Actions = {
     if (bar) bar.remove();
   },
 
+  // --- 利用者一覧 ---
+  filterUsers: function (query) {
+    S.userQuery = (query || '').replace(/\s/g, '');
+    Actions.applyUserFilters();
+  },
+  userFilter: function (mode) {
+    S.userFilterMode = mode;
+    document.querySelectorAll('.filter-chips .chip').forEach(function (el) {
+      el.classList.toggle('selected', el.getAttribute('data-filter') === mode);
+    });
+    Actions.applyUserFilters();
+  },
+  applyUserFilters: function () {
+    var q = S.userQuery || '';
+    var mode = S.userFilterMode || 'all';
+    var visible = 0;
+    document.querySelectorAll('.person-row.tappable[data-state]').forEach(function (el) {
+      var name = el.getAttribute('data-name') || '';
+      var state = el.getAttribute('data-state');
+      var hasAlert = el.getAttribute('data-alert') === '1';
+      var show = (!q || name.indexOf(q) >= 0) &&
+        (mode === 'all' || (mode === 'today' && state === 'checked') || (mode === 'alert' && hasAlert));
+      el.hidden = !show;
+      if (show) visible++;
+    });
+    // 空になったかなグループの見出しも隠す
+    document.querySelectorAll('.kana-group').forEach(function (g) {
+      var any = false;
+      g.querySelectorAll('.person-row.tappable').forEach(function (el) { if (!el.hidden) any = true; });
+      g.hidden = !any;
+    });
+    var empty = document.getElementById('user-empty');
+    if (empty) empty.hidden = visible > 0;
+  },
+
   // --- 接続設定(ホスティング版) ---
   openSettings: function () {
     document.getElementById('picker').innerHTML =
@@ -2686,7 +2998,7 @@ setInterval(function () {
 // ---------------------------------------------------------------- ローカルプレビュー用モック(GAS 環境では未使用)
 
 var Mock = (function () {
-  var KEY = 'kinoukunren-gas-mock-v2';
+  var KEY = 'kinoukunren-gas-mock-v3';
   function todayStr() {
     var d = new Date();
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
@@ -2704,21 +3016,21 @@ var Mock = (function () {
       { id: 'band', name: 'セラバンド', shortName: 'セラバンド', amountLabel: '実施回数', amountOptions: ['10回', '15回', '20回'], qrCode: 'GSE:band' },
     ];
     var usersRaw = [
-      ['u01', '田中 花子', 82, '要介護2', '月/木', ['walk', 'legpress', 'ball', 'ergo']],
-      ['u02', '佐藤 一郎', 78, '要支援1', '月/水', ['walk', 'ergo', 'band']],
-      ['u03', '鈴木 良子', 85, '要介護1', '月/金', ['walk', 'ball', 'band']],
-      ['u04', '高橋 正夫', 80, '要介護3', '月/木', ['walk', 'legpress', 'ergo']],
-      ['u05', '伊藤 幸子', 76, '要支援2', '月/水', ['ergo', 'ball', 'band']],
-      ['u06', '渡辺 茂', 88, '要介護2', '月/金', ['walk', 'ball']],
-      ['u07', '山本 静江', 79, '要介護1', '月/木', ['walk', 'legpress', 'band']],
-      ['u08', '中村 勝', 83, '要支援1', '月/水', ['ergo', 'walk']],
-      ['u09', '小林 富美', 81, '要介護2', '月/金', ['ball', 'band', 'walk']],
-      ['u10', '加藤 秀雄', 77, '要支援2', '月/木', ['ergo', 'legpress']],
-      ['u11', '吉田 春江', 86, '要介護3', '月/水', ['walk', 'ball']],
-      ['u12', '佐々木 実', 74, '要支援1', '月/金', ['ergo', 'band', 'walk']],
+      ['u01', '田中 花子', 82, '要介護2', '月/木', ['walk', 'legpress', 'ball', 'ergo'], 'たなか はなこ'],
+      ['u02', '佐藤 一郎', 78, '要支援1', '月/水', ['walk', 'ergo', 'band'], 'さとう いちろう'],
+      ['u03', '鈴木 良子', 85, '要介護1', '月/金', ['walk', 'ball', 'band'], 'すずき よしこ'],
+      ['u04', '高橋 正夫', 80, '要介護3', '月/木', ['walk', 'legpress', 'ergo'], 'たかはし まさお'],
+      ['u05', '伊藤 幸子', 76, '要支援2', '月/水', ['ergo', 'ball', 'band'], 'いとう さちこ'],
+      ['u06', '渡辺 茂', 88, '要介護2', '月/金', ['walk', 'ball'], 'わたなべ しげる'],
+      ['u07', '山本 静江', 79, '要介護1', '月/木', ['walk', 'legpress', 'band'], 'やまもと しずえ'],
+      ['u08', '中村 勝', 83, '要支援1', '月/水', ['ergo', 'walk'], 'なかむら まさる'],
+      ['u09', '小林 富美', 81, '要介護2', '月/金', ['ball', 'band', 'walk'], 'こばやし ふみ'],
+      ['u10', '加藤 秀雄', 77, '要支援2', '月/木', ['ergo', 'legpress'], 'かとう ひでお'],
+      ['u11', '吉田 春江', 86, '要介護3', '月/水', ['walk', 'ball'], 'よしだ はるえ'],
+      ['u12', '佐々木 実', 74, '要支援1', '月/金', ['ergo', 'band', 'walk'], 'ささき みのる'],
     ];
     var users = usersRaw.map(function (r) {
-      return { id: r[0], name: r[1], age: r[2], careLevel: r[3], scheduleLabel: r[4], plan: r[5], qrCode: 'GSU:' + r[0] };
+      return { id: r[0], name: r[1], age: r[2], careLevel: r[3], scheduleLabel: r[4], plan: r[5], qrCode: 'GSU:' + r[0], kana: r[6] || '' };
     });
     var db = { users: users, exercises: exercises, checkins: [], vitals: [], records: [], seq: 0 };
     function nid() { db.seq += 1; return 'm' + db.seq; }
@@ -2828,6 +3140,43 @@ var Mock = (function () {
     },
     apiRefreshToday: function () {
       return { today: todayStr(), todayCheckins: fns.apiGetTodayCheckins() };
+    },
+    apiGetTodayAlerts: function () {
+      var db = load();
+      var t = todayStr();
+      var map = {};
+      db.vitals.forEach(function (v) { if (v.date === t && v.flagged) map[v.userId] = true; });
+      return map;
+    },
+    apiGetUserDetail: function (userId) {
+      var db = load();
+      var t = todayStr();
+      var checkins = db.checkins.filter(function (c) { return c.userId === userId; });
+      var vitals = db.vitals.filter(function (v) { return v.userId === userId; })
+        .sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? -1 : 1; });
+      var records = db.records.filter(function (e) { return e.userId === userId; });
+      var todayCheckin = null;
+      checkins.forEach(function (c) { if (c.date === t && !todayCheckin) todayCheckin = c; });
+      var todayVitals = vitals.filter(function (v) { return v.date === t; });
+      var dates = {};
+      checkins.forEach(function (c) { dates[c.date] = c.time; });
+      var recentDays = Object.keys(dates).sort().reverse().slice(0, 5).map(function (date) {
+        var dayEx = records.filter(function (e) { return e.date === date; })
+          .sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : 1; });
+        return {
+          date: date, time: dates[date], exercises: dayEx,
+          note: dayEx.map(function (e) { return e.note; }).filter(String).join(' '),
+        };
+      });
+      return {
+        todayCheckin: todayCheckin,
+        todayVital: todayVitals.length ? todayVitals[todayVitals.length - 1] : null,
+        todayExercises: records.filter(function (e) { return e.date === t; })
+          .sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : 1; }),
+        vitalsAll: vitals,
+        recentDays: recentDays,
+        alertHistory: vitals.filter(function (v) { return v.flagged; }).reverse().slice(0, 10),
+      };
     },
     apiSaveExercise: function (p) {
       var db = load();
