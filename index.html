@@ -1440,12 +1440,19 @@ var Scanner = {
   onDetect: null, generation: 0, scanning: false,
   start: function (onDetect) {
     var self = this;
+    // 再入時は既存リソースを必ず解放する。iOSはカメラ同時1キャプチャ制約が
+    // あるため、前回の stream が生きていると2回目以降の getUserMedia が
+    // NotReadableError で恒久的に失敗する(「ボタンを押しても無反応」の主因)。
+    if (self.timer) { clearInterval(self.timer); self.timer = null; }
+    if (self.stream) { self.stream.getTracks().forEach(function (t) { t.stop(); }); self.stream = null; }
+    if (self.video && self.video.parentNode) self.video.parentNode.removeChild(self.video);
+    self.video = null; self.paused = false; self.scanning = false;
     var generation = ++self.generation;
     self.onDetect = onDetect;
     var view = document.getElementById('camera-view');
     self.bindCapture();
     // まずライブカメラを試行し、起動できた端末は連続読取。
-    // GAS iframe で拒否される端末(iOS等)は撮影ボタンに自動フォールバックする。
+    // GAS iframe で拒否される端末は撮影ボタンに自動フォールバックする。
     if (!view || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       self.fail(); return;
     }
@@ -1461,12 +1468,31 @@ var Scanner = {
         self.stream = stream;
         var video = document.createElement('video');
         video.muted = true;
+        video.setAttribute('muted', ''); // WKWebViewはコンテンツ属性も参照する
         video.setAttribute('playsinline', '');
+        video.setAttribute('webkit-playsinline', '');
         video.setAttribute('autoplay', '');
         video.srcObject = stream;
         view.insertBefore(video, view.firstChild);
         self.video = video;
-        return video.play();
+        // autoplay拒否(iOS Chromeで起きうる)は致命エラーにせず、タップ再生に格下げ
+        return video.play().catch(function (err) {
+          if (generation !== self.generation) return;
+          if (err && (err.name === 'NotAllowedError' || err.name === 'AbortError')) {
+            var hintEl = document.getElementById('camera-hint');
+            if (hintEl) hintEl.textContent = 'タップしてカメラを開始';
+            var retryPlay = function () {
+              video.play().then(function () {
+                view.removeEventListener('click', retryPlay);
+                var h = document.getElementById('camera-hint');
+                if (h) h.textContent = 'QRコードを枠内にかざしてください';
+              }).catch(function () {});
+            };
+            view.addEventListener('click', retryPlay);
+            return; // 許可は取得済みなので後続のスキャン準備は継続
+          }
+          throw err;
+        });
       })
       .then(function () {
         if (generation !== self.generation || !self.video) return;
@@ -1480,7 +1506,14 @@ var Scanner = {
         var detector = window.BarcodeDetector ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
         self.timer = setInterval(function () {
           var v = self.video;
-          if (!v || v.readyState < 2 || self.paused || self.scanning) return;
+          if (!v || self.paused || self.scanning) return;
+          if (v.readyState < 2) {
+            // 1フレームも来ないまま15秒経過 = 起動失敗(「読取なし」とは区別して案内)
+            if (Date.now() - self.liveSince > 15000) {
+              self.suspend('カメラ映像を取得できませんでした。タップして再試行してください');
+            }
+            return;
+          }
           // 15秒間なにも読み取れなければ省電力のため自動停止(タップで再開)
           if (Date.now() - Math.max(self.lastAt || 0, self.liveSince) > 15000) {
             self.suspend();
@@ -1517,7 +1550,21 @@ var Scanner = {
           try { decodeWithJsQr(); } finally { self.scanning = false; }
         }, 350);
       })
-      .catch(function () { if (generation === self.generation) self.fail(); });
+      .catch(function (err) {
+        if (generation !== self.generation) return;
+        // 原因を画面に表示する(これまでは握りつぶしていて切り分け不能だった)
+        var name = (err && err.name) || 'UnknownError';
+        var guide = {
+          NotAllowedError: 'カメラが許可されていません。iPhoneの「設定 → Chrome(またはSafari)→ カメラ」を許可にして、ページを再読み込みしてください',
+          NotReadableError: 'カメラが他のアプリ・タブで使用中です。他のカメラ利用を閉じてから「ライブカメラを起動」を押してください',
+          NotFoundError: 'この端末で利用できるカメラが見つかりません',
+          OverconstrainedError: '背面カメラを起動できません。もう一度お試しください',
+          SecurityError: 'この画面ではライブカメラを使えません。公開URL(ginshoen.github.io)から開いてください',
+        }[name] || 'カメラを起動できませんでした';
+        var hint = document.getElementById('camera-hint');
+        if (hint) hint.textContent = guide + '(' + name + ')';
+        self.fail(true);
+      });
   },
   /**
    * ライブカメラ不可時のフォールバック。
@@ -1525,9 +1572,9 @@ var Scanner = {
    * ブロックされる(Safari/Chrome共通)。その場で「撮影→写真をjsQRで解読」する
    * file capture 方式は iframe 内でも動作する。
    */
-  fail: function () {
+  fail: function (keepHint) {
     var hint = document.getElementById('camera-hint');
-    if (hint) hint.textContent = 'カメラを起動するか、QRコードを撮影してください';
+    if (hint && !keepHint) hint.textContent = 'カメラを起動するか、QRコードを撮影してください';
     this.bindCapture();
     // Chrome(iOS)はページ表示と同時の起動を拒否することがあるため、
     // ユーザーのタップを起点に再起動できるボタンを出す
@@ -1545,7 +1592,7 @@ var Scanner = {
     }
   },
   /** 15秒無検出での自動停止。フレームは残しタップで再開できるようにする */
-  suspend: function () {
+  suspend: function (message) {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
     if (this.stream) this.stream.getTracks().forEach(function (t) { t.stop(); });
@@ -1553,7 +1600,7 @@ var Scanner = {
     var view = document.getElementById('camera-view');
     if (view && !document.getElementById('camera-resume-btn')) {
       var hint = document.getElementById('camera-hint');
-      if (hint) hint.textContent = '読み取りがないため停止しました';
+      if (hint) hint.textContent = message || '読み取りがないため停止しました';
       var btn = document.createElement('button');
       btn.className = 'capture-btn';
       btn.id = 'camera-resume-btn';
