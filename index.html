@@ -1277,6 +1277,17 @@ select:focus-visible {
 @keyframes badge-pop {
   from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
 }
+\n
+/* 撮影/起動ボタンを縦並びに(Chrome iOS 用ライブ起動ボタン追加のため) */
+.capture-wrap {
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.capture-btn.live {
+  background: #fff;
+  color: var(--green-dark);
+}
 \n</style>
 
   </head>
@@ -1459,14 +1470,22 @@ var Scanner = {
       })
       .then(function () {
         if (generation !== self.generation || !self.video) return;
-        // ライブ読取が使える端末では撮影ボタンを控えめにし、ヒントを更新
+        // ライブ読取が使える端末では起動ボタンを隠し、ヒントを更新
         var hintEl = document.getElementById('camera-hint');
         if (hintEl) hintEl.textContent = 'QRコードを枠内にかざしてください';
+        var retryBtn = document.getElementById('live-retry-btn');
+        if (retryBtn) retryBtn.remove();
+        self.liveSince = Date.now();
         var canvas = document.createElement('canvas');
         var detector = window.BarcodeDetector ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
         self.timer = setInterval(function () {
           var v = self.video;
           if (!v || v.readyState < 2 || self.paused || self.scanning) return;
+          // 15秒間なにも読み取れなければ省電力のため自動停止(タップで再開)
+          if (Date.now() - Math.max(self.lastAt || 0, self.liveSince) > 15000) {
+            self.suspend();
+            return;
+          }
           self.scanning = true;
           var handle = function (value) {
             var now = Date.now();
@@ -1508,8 +1527,55 @@ var Scanner = {
    */
   fail: function () {
     var hint = document.getElementById('camera-hint');
-    if (hint) hint.textContent = 'ライブ映像を使えないため、QRコードを撮影してください';
+    if (hint) hint.textContent = 'カメラを起動するか、QRコードを撮影してください';
     this.bindCapture();
+    // Chrome(iOS)はページ表示と同時の起動を拒否することがあるため、
+    // ユーザーのタップを起点に再起動できるボタンを出す
+    var wrap = document.querySelector('.capture-wrap');
+    if (wrap && !document.getElementById('live-retry-btn')) {
+      var btn = document.createElement('button');
+      btn.className = 'capture-btn live';
+      btn.id = 'live-retry-btn';
+      btn.textContent = '🎥 ライブカメラを起動';
+      btn.addEventListener('click', function () {
+        var self = Scanner;
+        if (self.onDetect) self.start(self.onDetect);
+      });
+      wrap.insertBefore(btn, wrap.firstChild);
+    }
+  },
+  /** 15秒無検出での自動停止。フレームは残しタップで再開できるようにする */
+  suspend: function () {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    if (this.stream) this.stream.getTracks().forEach(function (t) { t.stop(); });
+    this.stream = null;
+    var view = document.getElementById('camera-view');
+    if (view && !document.getElementById('camera-resume-btn')) {
+      var hint = document.getElementById('camera-hint');
+      if (hint) hint.textContent = '読み取りがないため停止しました';
+      var btn = document.createElement('button');
+      btn.className = 'capture-btn';
+      btn.id = 'camera-resume-btn';
+      btn.textContent = '▶ タップして再開';
+      btn.style.position = 'absolute';
+      btn.style.left = '50%';
+      btn.style.top = '50%';
+      btn.style.transform = 'translate(-50%, -50%)';
+      btn.style.zIndex = '4';
+      btn.addEventListener('click', function () { Scanner.restart(); });
+      view.appendChild(btn);
+    }
+  },
+  restart: function () {
+    var view = document.getElementById('camera-view');
+    var btn = document.getElementById('camera-resume-btn');
+    if (btn) btn.remove();
+    if (this.video && this.video.parentNode) this.video.parentNode.removeChild(this.video);
+    this.video = null;
+    var hint = document.getElementById('camera-hint');
+    if (hint) hint.textContent = 'カメラを起動しています…';
+    if (view && this.onDetect) this.start(this.onDetect);
   },
   bindCapture: function () {
     var self = this;
