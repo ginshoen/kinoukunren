@@ -2111,6 +2111,7 @@ var S = {
   today: '',
   staff: '',
   todayCheckins: [],
+  todayAlerts: {},      // 利用者一覧は先に表示し、アラートだけバックグラウンド更新
   currentUserId: sessionStorage.getItem('currentUserId') || '',
   toast: null,          // {type:'success'|'error', title, sub, userId}
   toastTimer: null,
@@ -2950,10 +2951,30 @@ function userRowHtml(u, state, time, hasAlert) {
   );
 }
 
+function applyUserAlerts(alerts) {
+  var rows = document.querySelectorAll('.person-row[data-user-id]');
+  for (var i = 0; i < rows.length; i++) {
+    var row = rows[i];
+    var hasAlert = !!alerts[row.getAttribute('data-user-id')];
+    row.setAttribute('data-alert', hasAlert ? '1' : '0');
+    var badge = row.querySelector('.badge-alert');
+    if (hasAlert && !badge) {
+      badge = document.createElement('span');
+      badge.className = 'badge-alert';
+      badge.title = '本日アラートあり';
+      badge.textContent = '⚑';
+      row.insertBefore(badge, row.querySelector('.person-time'));
+    } else if (!hasAlert && badge) {
+      badge.remove();
+    }
+  }
+  Actions.applyUserFilters();
+}
+
 function renderUserList(app, renderId) {
-  app.innerHTML = loadingHtml();
-  rpc('apiGetTodayAlerts').then(function (alerts) {
-    if (!isCurrentRender(renderId)) return;
+    // 一覧そのものは起動時に取得済みの利用者情報で即時表示する。
+    // 当日アラートは画面をブロックせず、取得後に該当行だけを更新する。
+    var alerts = S.todayAlerts || {};
     var checkedTime = {};
     S.todayCheckins.forEach(function (c) { checkedTime[c.userId] = c.time; });
     var todayWeekday = WEEKDAYS[new Date().getDay()];
@@ -2972,7 +2993,7 @@ function renderUserList(app, renderId) {
         .map(function (u) {
           var state = checkedTime[u.id] ? 'checked'
             : String(u.scheduleLabel || '').indexOf(todayWeekday) >= 0 ? 'pending' : 'offday';
-          var attr = ' data-state="' + state + '" data-alert="' + (alerts[u.id] ? '1' : '0') + '"';
+          var attr = ' data-user-id="' + esc(u.id) + '" data-state="' + state + '" data-alert="' + (alerts[u.id] ? '1' : '0') + '"';
           return userRowHtml(u, state, checkedTime[u.id], alerts[u.id])
             .replace('<button ', '<button' + attr + ' ');
         }).join('');
@@ -3001,9 +3022,13 @@ function renderUserList(app, renderId) {
       '</div></div></div>';
 
     Actions.applyUserFilters();
-  }).catch(function (e) {
+
+  rpc('apiGetTodayAlerts').then(function (freshAlerts) {
+    S.todayAlerts = freshAlerts || {};
     if (!isCurrentRender(renderId)) return;
-    app.innerHTML = renderErrorHtml('利用者一覧を読み込めませんでした', 'users');
+    applyUserAlerts(S.todayAlerts);
+  }).catch(function () {
+    // アラート取得に失敗しても、利用者一覧と受付状態はそのまま利用できる。
   });
 }
 
