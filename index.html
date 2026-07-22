@@ -841,9 +841,14 @@ select {
   color: var(--border);
   text-align: left;
   width: 100%;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 .nav-item:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+.nav-item:active {
+  transform: translateY(1px);
 }
 .nav-item.active {
   background: var(--green);
@@ -1072,9 +1077,9 @@ select {
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 14px;
+  padding: 10px;
   display: grid;
-  grid-template-columns: minmax(88px, 38%) minmax(0, 1fr);
+  grid-template-columns: minmax(96px, 43%) minmax(0, 1fr);
   align-items: center;
   gap: 14px;
   text-align: center;
@@ -1083,7 +1088,7 @@ select {
 }
 .qr-code {
   width: 100%;
-  max-width: 120px;
+  max-width: 136px;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -1985,9 +1990,9 @@ textarea {
     height: 55mm !important;
     box-sizing: border-box !important;
     aspect-ratio: auto !important;
-    padding: 5mm !important;
-    grid-template-columns: 35mm minmax(0, 1fr) !important;
-    gap: 5mm !important;
+    padding: 4mm !important;
+    grid-template-columns: 40mm minmax(0, 1fr) !important;
+    gap: 4mm !important;
     border: .25mm solid #aeb8b1 !important;
     border-radius: 2mm !important;
     box-shadow: none !important;
@@ -1995,8 +2000,8 @@ textarea {
     page-break-inside: avoid;
   }
   .qr-print-page .qr-code {
-    width: 34mm !important;
-    height: 34mm !important;
+    width: 40mm !important;
+    height: 40mm !important;
     max-width: none !important;
   }
   .qr-print-page .qr-name {
@@ -2190,6 +2195,9 @@ var S = {
   exDraft: null,        // 訓練記録下書き {amount, load, note}
   exerciseCache: {},    // userId -> {data, expires}（画面往復時の再通信を削減）
   admin: { userId: '', month: '', notebookUserId: '', notebookDate: '' },
+  adminVerifying: false,
+  adminVerifyPromise: null,
+  adminUnlockPromise: null,
   notebook: { data: null, photo: '', comment: '' },
 };
 
@@ -2608,7 +2616,14 @@ function showSaveError(message) {
 
 function go(hash) {
   if (hash !== '' && hash !== 'exercise' && hash.indexOf('exercise/') !== 0) Scanner.autoMode = '';
+  var current = location.hash.replace(/^#\/?/, '');
+  // 同じメニューをもう一度押した場合も再読み込みし、無反応に見えないようにする。
+  if (current === hash) {
+    render();
+    return false;
+  }
   location.hash = hash;
+  return false;
 }
 
 window.addEventListener('hashchange', render);
@@ -3287,36 +3302,51 @@ var NAV_ITEMS = [
 function adminShell(active, contentHtml) {
   var nav = NAV_ITEMS.map(function (item) {
     var cls = 'nav-item' + (item[0] === active ? ' active' : '');
-    return '<button class="' + cls + '"' + (item[0] === active ? ' aria-current="page"' : '') +
-      ' onclick="go(\'' + item[0] + '\')">' + item[1] + '</button>';
+    return '<button type="button" class="' + cls + '" data-admin-route="' + item[0] + '"' +
+      (item[0] === active ? ' aria-current="page"' : '') +
+      ' onclick="return go(\'' + item[0] + '\')">' + item[1] + '</button>';
   }).join('');
   return (
     '<div class="admin-wrap"><div class="admin-frame">' +
     '<nav class="admin-sidebar" aria-label="管理画面メニュー">' +
     '<div class="brand"><img src="' + LOGO + '" alt="銀松苑ロゴ"><span class="brand-name">銀松苑 管理</span></div>' +
     nav +
-    '<button class="nav-item" style="font-size:13px;color:#8FA491;" onclick="go(\'\')">‹ 受付画面へ</button>' +
+    '<button type="button" class="nav-item" style="font-size:13px;color:#8FA491;" onclick="return go(\'\')">‹ 受付画面へ</button>' +
     '<div class="admin-staff">スタッフ:' + esc(S.staff) + '</div>' +
     '</nav><main class="admin-content">' + contentHtml + '</main></div></div>'
   );
 }
 
+/** 保存済みPINの再検証を全メニューで共有し、連続タップ時の競合を防ぐ。 */
+function verifySavedAdminPin(savedPin) {
+  if (S.adminVerifyPromise) return S.adminVerifyPromise;
+  S.adminVerifying = true;
+  S.adminVerifyPromise = rpc('apiVerifyAdmin', savedPin).then(function (res) {
+    S.adminVerified = true;
+    S.adminPin = savedPin;
+    S.pinConfigured = res.pinConfigured;
+    return res;
+  }).catch(function (err) {
+    S.adminVerified = false;
+    S.adminPin = '';
+    sessionStorage.removeItem('adminPin');
+    throw err;
+  }).finally(function () {
+    S.adminVerifying = false;
+    S.adminVerifyPromise = null;
+  });
+  return S.adminVerifyPromise;
+}
+
 function renderAdminGate(app, requested, renderId) {
   var savedPin = sessionStorage.getItem('adminPin');
-  if (savedPin !== null && !S.adminVerifying) {
-    S.adminVerifying = true;
+  if (savedPin !== null) {
     app.innerHTML = adminShell(requested, loadingHtml());
-    rpc('apiVerifyAdmin', savedPin).then(function (res) {
+    verifySavedAdminPin(savedPin).then(function () {
       if (!isCurrentRender(renderId)) return;
-      S.adminVerified = true;
-      S.adminPin = savedPin;
-      S.pinConfigured = res.pinConfigured;
-      S.adminVerifying = false;
       render();
     }).catch(function () {
       if (!isCurrentRender(renderId)) return;
-      S.adminVerifying = false;
-      sessionStorage.removeItem('adminPin');
       render();
     });
     return;
@@ -3502,36 +3532,9 @@ function buildDays(res) {
 var CARE_LEVELS = ['要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
 
 function renderAdminUsers(app, renderId) {
-  // PIN未検証ならロック画面
+  // 通常はルーター側で検証済み。直接呼ばれた場合も共通処理へ戻す。
   if (!S.adminVerified) {
-    var savedPin = sessionStorage.getItem('adminPin');
-    if (savedPin !== null && !S.adminVerifying) {
-      // この端末で解錠済みなら自動再検証
-      S.adminVerifying = true;
-      rpc('apiVerifyAdmin', savedPin).then(function (res) {
-        if (!isCurrentRender(renderId)) return;
-        S.adminVerified = true; S.adminPin = savedPin; S.pinConfigured = res.pinConfigured;
-        S.adminVerifying = false; render();
-      }).catch(function () {
-        if (!isCurrentRender(renderId)) return;
-        S.adminVerifying = false;
-        sessionStorage.removeItem('adminPin');
-        render();
-      });
-      app.innerHTML = adminShell('admin/users', loadingHtml());
-      return;
-    }
-    app.innerHTML = adminShell('admin/users',
-      '<div class="admin-page-head"><div><div class="breadcrumb">利用者管理</div>' +
-      '<div class="admin-h1">🔒 管理者専用</div></div></div>' +
-      '<div class="panel" style="max-width:420px;">' +
-      '<div class="panel-title">管理者PINを入力してください</div>' +
-      '<div class="section-note" style="margin-bottom:10px;">利用者の登録・編集・削除は管理者のみ行えます。現場職員の方はこの画面の操作は不要です。</div>' +
-      '<input type="password" inputmode="numeric" class="note-area" id="admin-pin" placeholder="PIN" style="min-height:48px;font-size:20px;letter-spacing:4px;">' +
-      '<div class="section-note" id="pin-error" style="color:var(--alert-text);min-height:18px;"></div>' +
-      '<button class="btn-primary" style="flex:none;width:100%;" onclick="Actions.adminUnlock()">解錠する</button>' +
-      '</div>');
-    return;
+    return renderAdminGate(app, 'admin/users', renderId);
   }
 
   var u = S.editingUser;
@@ -3685,11 +3688,11 @@ function renderAdminMaster(app, renderId) {
     if (!isCurrentRender(renderId) || typeof QRCode === 'undefined') return;
     S.exercises.forEach(function (ex) {
       var el = document.getElementById('qr-' + ex.id);
-      if (el && !el.firstChild) new QRCode(el, { text: ex.qrCode, width: 240, height: 240, colorDark: '#1F2A22' });
+      if (el && !el.firstChild) new QRCode(el, { text: ex.qrCode, width: 320, height: 320, colorDark: '#1F2A22' });
     });
     S.users.forEach(function (u) {
       var el = document.getElementById('qr-' + u.id);
-      if (el && !el.firstChild) new QRCode(el, { text: u.qrCode, width: 240, height: 240, colorDark: '#1F2A22' });
+      if (el && !el.firstChild) new QRCode(el, { text: u.qrCode, width: 320, height: 320, colorDark: '#1F2A22' });
     });
   }
   if (typeof QRCode !== 'undefined') drawQrCodes();
@@ -4147,10 +4150,13 @@ var Actions = {
 
   // --- 利用者管理(管理者専用) ---
   adminUnlock: function () {
+    if (S.adminUnlockPromise) return;
     var pin = (document.getElementById('admin-pin') || {}).value || '';
     var err = document.getElementById('pin-error');
+    var btn = document.querySelector('.admin-gate .btn-primary');
     if (err) err.textContent = '確認中…';
-    rpc('apiVerifyAdmin', pin).then(function (res) {
+    if (btn) btn.disabled = true;
+    S.adminUnlockPromise = rpc('apiVerifyAdmin', pin).then(function (res) {
       S.adminVerified = true;
       S.adminPin = pin;
       S.pinConfigured = res.pinConfigured;
@@ -4158,6 +4164,9 @@ var Actions = {
       render();
     }).catch(function (e) {
       if (err) err.textContent = (e && e.message) || 'PINが正しくありません';
+    }).finally(function () {
+      S.adminUnlockPromise = null;
+      if (btn && document.body.contains(btn)) btn.disabled = false;
     });
   },
   adminLock: function () {
