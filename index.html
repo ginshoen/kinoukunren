@@ -1065,26 +1065,37 @@ select {
 /* QR発行カード */
 .qr-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 14px;
 }
 .qr-card {
   background: #fff;
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
+  border-radius: 14px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: minmax(88px, 38%) minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 14px;
   text-align: center;
+  aspect-ratio: 91 / 55;
+  overflow: hidden;
 }
-.qr-card img {
-  width: 120px;
-  height: 120px;
+.qr-code {
+  width: 100%;
+  max-width: 120px;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+.qr-code img,
+.qr-code canvas {
+  width: 100% !important;
+  height: auto !important;
+  aspect-ratio: 1;
 }
 .qr-card .qr-name {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 900;
 }
 .qr-card .qr-sub {
@@ -1440,20 +1451,23 @@ textarea {
   margin-left: 0;
 }
 
-.camera-view {
-  --scan-x: clamp(44px, 17%, 64px);
-  --scan-top: clamp(36px, 13%, 44px);
-  --scan-bottom: clamp(112px, 38%, 126px);
+.camera-view { height: 390px; }
+.camera-frame {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  width: min(62%, 230px);
+  aspect-ratio: 1;
+  transform: translateX(-50%);
+  border-radius: 16px;
+  box-shadow: 0 0 0 3000px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 1;
 }
-
-.camera-dim {
-  inset: var(--scan-top) var(--scan-x) var(--scan-bottom);
-}
-
-.camera-corner.tl { top: var(--scan-top); left: var(--scan-x); }
-.camera-corner.tr { top: var(--scan-top); right: var(--scan-x); }
-.camera-corner.bl { bottom: var(--scan-bottom); left: var(--scan-x); }
-.camera-corner.br { bottom: var(--scan-bottom); right: var(--scan-x); }
+.camera-frame .camera-corner.tl { top: 0; left: 0; right: auto; bottom: auto; }
+.camera-frame .camera-corner.tr { top: 0; right: 0; left: auto; bottom: auto; }
+.camera-frame .camera-corner.bl { bottom: 0; left: 0; right: auto; top: auto; }
+.camera-frame .camera-corner.br { bottom: 0; right: 0; left: auto; top: auto; }
 
 .camera-hint,
 .capture-wrap {
@@ -1606,7 +1620,7 @@ textarea {
   }
 
   .camera-view {
-    height: clamp(250px, 78vw, 310px);
+    height: clamp(360px, 105vw, 410px);
     min-height: 0;
   }
 }
@@ -1942,6 +1956,60 @@ textarea {
   .gen-table td:nth-child(6)::before { content: '操作'; }
 }
 
+/* QRカード印刷: 日本標準の名刺サイズ 91mm × 55mm */
+@media print {
+  .qr-print-page .admin-page-head,
+  .qr-print-page .panel-title { display: none !important; }
+  .qr-print-page .panel {
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+  .qr-print-page .qr-user-panel { break-before: page; }
+  body.qr-print-users .qr-machine-panel { display: none !important; }
+  body.qr-print-users .qr-user-panel { break-before: auto; }
+  .qr-print-page .qr-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 91mm) !important;
+    grid-auto-rows: 55mm;
+    gap: 3mm 2mm !important;
+    align-items: start;
+    justify-content: start;
+  }
+  .qr-print-page .qr-card {
+    width: 91mm !important;
+    height: 55mm !important;
+    box-sizing: border-box !important;
+    aspect-ratio: auto !important;
+    padding: 5mm !important;
+    grid-template-columns: 35mm minmax(0, 1fr) !important;
+    gap: 5mm !important;
+    border: .25mm solid #aeb8b1 !important;
+    border-radius: 2mm !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .qr-print-page .qr-code {
+    width: 34mm !important;
+    height: 34mm !important;
+    max-width: none !important;
+  }
+  .qr-print-page .qr-name {
+    font-size: 16pt !important;
+    line-height: 1.4 !important;
+  }
+  .qr-print-page .qr-sub {
+    margin-top: 2mm;
+    font-size: 9pt !important;
+    line-height: 1.35 !important;
+  }
+}
+
 </style>
 
   </head>
@@ -2210,6 +2278,8 @@ var Scanner = {
     var self = this;
     self.mode = mode || 'scan';
     self.onDetect = onDetect;
+    // 画面表示直後からデコーダーを先読みし、開始ボタン後の待ち時間をなくす。
+    if (typeof jsQR !== 'function') ensureQrDecoder().catch(function () {});
     self.bindCapture();
     var toggle = document.getElementById('scan-toggle-btn');
     if (toggle && toggle.getAttribute('data-bound') !== 'true') {
@@ -2333,14 +2403,15 @@ var Scanner = {
             self.detectionTimer = setTimeout(function () {
               self.detectionTimer = null;
               if (generation === self.generation) onDetect(value);
-            }, 900);
+            }, 550);
           };
           var decodeWithJsQr = function () {
             var vw = v.videoWidth, vh = v.videoHeight;
             if (!vw || !vh || !canvasCtx || typeof jsQR !== 'function') return;
-            // 画面中央のQR枠周辺だけを最大640pxで解析し、CPU負荷を大幅に抑える。
+            // 正方形の読取枠周辺だけを512pxで解析。通常の黒QRを高速優先し、
+            // 4回に1回だけ反転QRも試すことで速度と互換性を両立する。
             var source = Math.min(vw, vh);
-            var size = Math.min(640, source);
+            var size = Math.min(512, source);
             var sx = Math.round((vw - source) / 2);
             var sy = Math.round((vh - source) / 2);
             if (canvas.width !== size || canvas.height !== size) {
@@ -2348,7 +2419,9 @@ var Scanner = {
               canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
             }
             canvasCtx.drawImage(v, sx, sy, source, source, 0, 0, size, size);
-            var code = jsQR(canvasCtx.getImageData(0, 0, size, size).data, size, size, { inversionAttempts: 'attemptBoth' });
+            self.decodeTick = (self.decodeTick || 0) + 1;
+            var inversion = self.decodeTick % 4 === 0 ? 'attemptBoth' : 'dontInvert';
+            var code = jsQR(canvasCtx.getImageData(0, 0, size, size).data, size, size, { inversionAttempts: inversion });
             if (code && code.data) handle(code.data);
           };
           if (detector) {
@@ -2363,7 +2436,7 @@ var Scanner = {
             return;
           }
           try { decodeWithJsQr(); } finally { self.scanning = false; }
-        }, 450);
+        }, 250);
       })
       .catch(function (err) {
         if (generation !== self.generation) return;
@@ -2496,9 +2569,9 @@ function decodeQrFromFile(file) {
 function cameraHtml(hint) {
   return (
     '<div class="camera-view" id="camera-view">' +
-    '<div class="camera-dim"></div>' +
+    '<div class="camera-frame" aria-hidden="true">' +
     '<div class="camera-corner tl"></div><div class="camera-corner tr"></div>' +
-    '<div class="camera-corner bl"></div><div class="camera-corner br"></div>' +
+    '<div class="camera-corner bl"></div><div class="camera-corner br"></div></div>' +
     '<div class="camera-hint" id="camera-hint" role="status" aria-live="polite">' + esc(hint) + '</div>' +
     '<div class="capture-wrap">' +
     '<button class="capture-btn" id="scan-toggle-btn">📷 スキャンを開始</button>' +
@@ -3584,27 +3657,27 @@ function renderAdminToday(app, renderId) {
 function renderAdminMaster(app, renderId) {
   var exCards = S.exercises.map(function (ex) {
     return (
-      '<div class="qr-card"><div id="qr-' + ex.id + '"></div>' +
-      '<div class="qr-name">' + esc(ex.name) + '</div>' +
-      '<div class="qr-sub">' + esc(ex.amountLabel) + ': ' + esc(ex.amountOptions.join(' / ')) + '</div></div>'
+      '<div class="qr-card qr-card-machine"><div class="qr-code" id="qr-' + ex.id + '"></div>' +
+      '<div class="qr-card-copy"><div class="qr-name">' + esc(ex.name) + '</div>' +
+      '<div class="qr-sub">' + esc(ex.amountLabel) + ': ' + esc(ex.amountOptions.join(' / ')) + '</div></div></div>'
     );
   }).join('');
   var userCards = S.users.map(function (u) {
     return (
-      '<div class="qr-card"><div id="qr-' + u.id + '"></div>' +
-      '<div class="qr-name">' + esc(u.name) + ' さま</div>' +
-      '<div class="qr-sub">' + esc(u.careLevel) + ' · ' + esc(u.scheduleLabel) + ' 利用</div></div>'
+      '<div class="qr-card qr-card-user"><div class="qr-code" id="qr-' + u.id + '"></div>' +
+      '<div class="qr-card-copy"><div class="qr-name">' + esc(u.name) + ' 様</div></div></div>'
     );
   }).join('');
 
   var content =
-    '<div class="admin-page-head"><div><div class="breadcrumb">種目マスタ / QR発行</div>' +
+    '<div class="qr-print-page"><div class="admin-page-head"><div><div class="breadcrumb">種目マスタ / QR発行</div>' +
     '<div class="admin-h1">QRコード発行 <span class="attrs">印刷して機器・利用者カードに貼付</span></div></div>' +
-    '<div class="admin-actions"><button class="btn-csv" onclick="window.print()">印刷</button></div></div>' +
-    '<div class="panel"><div class="panel-title">訓練機器QR <span class="sub">機器に貼付</span></div>' +
+    '<div class="admin-actions"><button class="btn-csv" onclick="Actions.printQrCards(\'users\')">利用者カードを印刷</button>' +
+    '<button class="btn-outline" onclick="Actions.printQrCards(\'all\')">機器を含めて印刷</button></div></div>' +
+    '<div class="panel qr-machine-panel"><div class="panel-title">訓練機器QR <span class="sub">機器に貼付</span></div>' +
     '<div class="qr-grid">' + exCards + '</div></div>' +
-    '<div class="panel"><div class="panel-title">利用者QRカード <span class="sub">来所受付用</span></div>' +
-    '<div class="qr-grid">' + userCards + '</div></div>';
+    '<div class="panel qr-user-panel"><div class="panel-title">利用者QRカード <span class="sub">名刺サイズ・来所受付用</span></div>' +
+    '<div class="qr-grid">' + userCards + '</div></div></div>';
 
   app.innerHTML = adminShell('admin/master', content);
 
@@ -3612,11 +3685,11 @@ function renderAdminMaster(app, renderId) {
     if (!isCurrentRender(renderId) || typeof QRCode === 'undefined') return;
     S.exercises.forEach(function (ex) {
       var el = document.getElementById('qr-' + ex.id);
-      if (el && !el.firstChild) new QRCode(el, { text: ex.qrCode, width: 120, height: 120, colorDark: '#1F2A22' });
+      if (el && !el.firstChild) new QRCode(el, { text: ex.qrCode, width: 240, height: 240, colorDark: '#1F2A22' });
     });
     S.users.forEach(function (u) {
       var el = document.getElementById('qr-' + u.id);
-      if (el && !el.firstChild) new QRCode(el, { text: u.qrCode, width: 120, height: 120, colorDark: '#1F2A22' });
+      if (el && !el.firstChild) new QRCode(el, { text: u.qrCode, width: 240, height: 240, colorDark: '#1F2A22' });
     });
   }
   if (typeof QRCode !== 'undefined') drawQrCodes();
@@ -4232,6 +4305,18 @@ var Actions = {
     document.title = '連絡帳_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.notebookDate;
     window.print();
     setTimeout(function () { document.title = oldTitle; }, 500);
+  },
+  printQrCards: function (mode) {
+    document.body.classList.toggle('qr-print-users', mode === 'users');
+    var oldTitle = document.title;
+    document.title = mode === 'users' ? '利用者QRカード_名刺サイズ' : 'QRカード_名刺サイズ';
+    var cleanup = function () {
+      document.body.classList.remove('qr-print-users');
+      document.title = oldTitle;
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
   },
 
   // --- 接続設定(ホスティング版) ---
