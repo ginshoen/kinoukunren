@@ -1758,6 +1758,8 @@ textarea {
   font-size: 12px;
 }
 .notebook-tools .btn-outline { flex: none; min-height: 42px; padding: 0 16px; }
+.notebook-count { margin-left: auto; font-weight: 800; color: var(--green-dark); }
+.notebook-count.warn { color: var(--alert-text); }
 .communication-sheet {
   width: 100%;
   max-width: 1120px;
@@ -1873,8 +1875,77 @@ textarea {
   #notebook-photo { min-height: 0; height: 100%; }
   #notebook-photo img { max-height: none; }
   .notebook-comment { min-height: 20mm; font-size: 11px; line-height: 1.55; }
+  .communication-sheet.compact-print .notebook-comment { font-size: 9.5px; line-height: 1.35; }
+  .communication-sheet.compact-print .notebook-box.program li { min-height: 18px; }
+  .communication-sheet.compact-print .notebook-box.program li b,
+  .communication-sheet.compact-print .notebook-box.program li small { font-size: 10px; }
   .family-lines { gap: 13px; }
   .notebook-footer { margin-top: 4px; }
+}
+
+/* ---------- 安全情報・管理者ゲート ---------- */
+.precaution-banner {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  padding: 13px 14px;
+  border: 2px solid #d46a46;
+  border-radius: 14px;
+  background: #fff2eb;
+  color: #692915;
+}
+.precaution-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #c8512e;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+}
+.precaution-label { display: block; margin-bottom: 3px; font-size: 12px; font-weight: 900; letter-spacing: .04em; }
+.precaution-banner strong { display: block; font-size: 15px; line-height: 1.6; }
+.precaution-check { display: flex; align-items: center; gap: 8px; margin-top: 9px; font-size: 14px; font-weight: 900; }
+.precaution-check input { width: 24px; height: 24px; accent-color: #a63f20; }
+.admin-gate { width: 100%; max-width: 440px; display: grid; gap: 14px; }
+.admin-gate .note-area { min-height: 50px; font-size: 20px; letter-spacing: 4px; }
+.admin-gate .btn-primary { width: 100%; }
+
+@media (max-width: 600px) {
+  .notebook-count { width: 100%; margin-left: 0; }
+  .day-table { display: block; min-width: 0; }
+  .day-table .th { display: none; }
+  .day-table .td {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 8px;
+    padding: 7px 10px;
+    border-inline: 1px solid var(--border);
+    border-bottom: 0;
+  }
+  .day-table .td::before { color: var(--text-aux); font-size: 11px; font-weight: 800; }
+  .day-table .td:nth-child(5n + 1) { margin-top: 12px; border-top: 1px solid var(--border); border-radius: 12px 12px 0 0; }
+  .day-table .td:nth-child(5n + 1)::before { content: '日付'; }
+  .day-table .td:nth-child(5n + 2)::before { content: '来所'; }
+  .day-table .td:nth-child(5n + 3)::before { content: 'バイタル'; }
+  .day-table .td:nth-child(5n + 4)::before { content: '実施種目'; }
+  .day-table .td:nth-child(5n + 5) { border-bottom: 1px solid var(--border); border-radius: 0 0 12px 12px; }
+  .day-table .td:nth-child(5n + 5)::before { content: '所見'; }
+  .gen-table { min-width: 0; }
+  .gen-table thead { display: none; }
+  .gen-table, .gen-table tbody, .gen-table tr, .gen-table td { display: block; width: 100%; }
+  .gen-table tr { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+  .gen-table td { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 8px; padding: 6px 0; border: 0; white-space: normal !important; }
+  .gen-table td::before { color: var(--text-aux); font-size: 11px; font-weight: 800; }
+  .gen-table td:nth-child(1)::before { content: '利用者'; }
+  .gen-table td:nth-child(2)::before { content: '年齢'; }
+  .gen-table td:nth-child(3)::before { content: '介護度'; }
+  .gen-table td:nth-child(4)::before { content: '曜日'; }
+  .gen-table td:nth-child(5)::before { content: '予定種目'; }
+  .gen-table td:nth-child(6)::before { content: '操作'; }
 }
 
 </style>
@@ -1949,6 +2020,7 @@ var S = {
   vDraft: null,         // バイタル下書き
   prevVital: null,
   vitalConfirmed: false,
+  precautionConfirmed: false,
   exDraft: null,        // 訓練記録下書き {amount, load, note}
   admin: { userId: '', month: '', notebookUserId: '', notebookDate: '' },
   notebook: { data: null, photo: '', comment: '' },
@@ -2028,14 +2100,16 @@ function vitalValidationErrors(draft) {
 
 var Scanner = {
   stream: null, timer: null, video: null, lastValue: '', lastAt: 0, paused: false,
-  onDetect: null, generation: 0, scanning: false,
+  onDetect: null, generation: 0, scanning: false, detectionTimer: null,
+  mode: '', autoMode: '',
   /**
    * 画面表示時の準備のみ(カメラは起動しない)。
    * ライブスキャンは「スキャンを開始」ボタンのタップで起動し、
-   * 「停止」タップ・15秒無検出・画面遷移で停止する(バッテリー配慮)。
+   * 一度開始した後は、読み取り→短時間静止→保存→次の読み取りを自動で繰り返す。
    */
-  prepare: function (onDetect) {
+  prepare: function (onDetect, mode) {
     var self = this;
+    self.mode = mode || 'scan';
     self.onDetect = onDetect;
     self.bindCapture();
     var toggle = document.getElementById('scan-toggle-btn');
@@ -2043,14 +2117,25 @@ var Scanner = {
       toggle.setAttribute('data-bound', 'true');
       toggle.addEventListener('click', function () {
         if (self.stream || self.timer) self.stopToIdle();
-        else self.start(self.onDetect);
+        else {
+          self.autoMode = self.mode;
+          self.start(self.onDetect);
+        }
       });
+    }
+    // 保存後の再描画では追加タップなしでライブ読取へ復帰する。
+    if (self.autoMode === self.mode && !self.stream && !self.timer) {
+      setTimeout(function () {
+        if (self.autoMode === self.mode && document.getElementById('camera-view')) self.start(self.onDetect);
+      }, 120);
     }
   },
   /** ライブスキャンを止めて「開始」待ちの状態に戻す */
   stopToIdle: function (message) {
+    var video = this.video;
     this.stop();
-    if (this.video && this.video.parentNode) this.video.parentNode.removeChild(this.video);
+    this.autoMode = '';
+    if (video && video.parentNode) video.parentNode.removeChild(video);
     this.video = null;
     var toggle = document.getElementById('scan-toggle-btn');
     if (toggle) toggle.textContent = '📷 スキャンを開始';
@@ -2065,6 +2150,7 @@ var Scanner = {
     // あるため、前回の stream が生きていると2回目以降の getUserMedia が
     // NotReadableError で恒久的に失敗する(「ボタンを押しても無反応」の主因)。
     if (self.timer) { clearInterval(self.timer); self.timer = null; }
+    if (self.detectionTimer) { clearTimeout(self.detectionTimer); self.detectionTimer = null; }
     if (self.stream) { self.stream.getTracks().forEach(function (t) { t.stop(); }); self.stream = null; }
     if (self.video && self.video.parentNode) self.video.parentNode.removeChild(self.video);
     self.video = null; self.paused = false; self.scanning = false;
@@ -2134,18 +2220,17 @@ var Scanner = {
             }
             return;
           }
-          // 15秒間なにも読み取れなければ省電力のため自動停止(タップで再開)
-          if (Date.now() - Math.max(self.lastAt || 0, self.liveSince) > 15000) {
-            self.suspend();
-            return;
-          }
           self.scanning = true;
           var handle = function (value) {
+            if (generation !== self.generation || self.paused) return;
             var now = Date.now();
             if (value === self.lastValue && now - self.lastAt < 2000) return;
             self.lastValue = value; self.lastAt = now;
             self.flash();
-            onDetect(value);
+            self.detectionTimer = setTimeout(function () {
+              self.detectionTimer = null;
+              if (generation === self.generation) onDetect(value);
+            }, 900);
           };
           var decodeWithJsQr = function () {
             var w = v.videoWidth, h = v.videoHeight;
@@ -2159,12 +2244,14 @@ var Scanner = {
           };
           if (detector) {
             detector.detect(v).then(function (codes) {
+              if (generation !== self.generation || v !== self.video) return;
               if (codes.length) handle(codes[0].rawValue);
               else decodeWithJsQr();
             }).catch(function () {
+              if (generation !== self.generation) return;
               detector = null;
               decodeWithJsQr();
-            }).then(function () { self.scanning = false; });
+            }).then(function () { if (generation === self.generation) self.scanning = false; });
             return;
           }
           try { decodeWithJsQr(); } finally { self.scanning = false; }
@@ -2238,6 +2325,8 @@ var Scanner = {
       view.classList.add('detected');
       var badge = document.createElement('div');
       badge.className = 'detected-badge';
+      badge.setAttribute('role', 'status');
+      badge.setAttribute('aria-live', 'assertive');
       badge.textContent = '✓ 読み取りました';
       view.appendChild(badge);
     }
@@ -2256,8 +2345,9 @@ var Scanner = {
   stop: function () {
     this.generation += 1;
     if (this.timer) clearInterval(this.timer);
+    if (this.detectionTimer) clearTimeout(this.detectionTimer);
     if (this.stream) this.stream.getTracks().forEach(function (t) { t.stop(); });
-    this.timer = null; this.stream = null; this.video = null; this.paused = false; this.scanning = false;
+    this.timer = null; this.detectionTimer = null; this.stream = null; this.video = null; this.paused = false; this.scanning = false;
   },
 };
 
@@ -2301,7 +2391,7 @@ function cameraHtml(hint) {
     '<div class="camera-dim"></div>' +
     '<div class="camera-corner tl"></div><div class="camera-corner tr"></div>' +
     '<div class="camera-corner bl"></div><div class="camera-corner br"></div>' +
-    '<div class="camera-hint" id="camera-hint">' + esc(hint) + '</div>' +
+    '<div class="camera-hint" id="camera-hint" role="status" aria-live="polite">' + esc(hint) + '</div>' +
     '<div class="capture-wrap">' +
     '<button class="capture-btn" id="scan-toggle-btn">📷 スキャンを開始</button>' +
     '<button class="capture-btn live" id="capture-btn">写真から読み取る</button>' +
@@ -2335,7 +2425,10 @@ function showSaveError(message) {
 
 // ---------------------------------------------------------------- ルーター
 
-function go(hash) { location.hash = hash; }
+function go(hash) {
+  if (hash !== '' && hash !== 'exercise' && hash.indexOf('exercise/') !== 0) Scanner.autoMode = '';
+  location.hash = hash;
+}
 
 window.addEventListener('hashchange', render);
 
@@ -2351,6 +2444,7 @@ function render() {
   if (h === 'vitals') return renderVitals(app);
   if (h === 'exercise') return renderExerciseScan(app);
   if (h.indexOf('exercise/') === 0) return renderExerciseForm(app, h.slice(9));
+  if (h.indexOf('admin') === 0 && !S.adminVerified) return renderAdminGate(app, h);
   if (h === 'admin') return renderAdminResults(app);
   if (h === 'admin/users') return renderAdminUsers(app);
   if (h === 'admin/today') return renderAdminToday(app);
@@ -2449,7 +2543,7 @@ function renderCheckin(app) {
       return;
     }
     Actions.checkin(user.id);
-  });
+  }, 'checkin');
 
   if (S.toast && S.toast.type === 'success') Scanner.paused = true;
 
@@ -2466,6 +2560,19 @@ function renderCheckin(app) {
 }
 
 // ---------------------------------------------------------------- 1b バイタル記録
+
+function precautionHtml(user, confirmable) {
+  if (!user || !String(user.precautions || '').trim()) return '';
+  return (
+    '<section class="precaution-banner" role="alert"><span class="precaution-icon" aria-hidden="true">!</span><div>' +
+    '<span class="precaution-label">運動の禁止事項・注意点</span><strong>' + esc(user.precautions) + '</strong>' +
+    (confirmable
+      ? '<label class="precaution-check"><input type="checkbox" ' + (S.precautionConfirmed ? 'checked' : '') +
+        ' onchange="Actions.precautionConfirm(this.checked)"><span>内容を確認しました</span></label>'
+      : '') +
+    '</div></section>'
+  );
+}
 
 function renderVitals(app) {
   var user = currentUser();
@@ -2498,6 +2605,7 @@ function renderVitals(app) {
       '<div class="phone-body" style="gap:12px;">' +
       '<nav class="workflow-steps" aria-label="記録の進み具合"><div class="workflow-step done"><span class="workflow-number">✓</span><span>受付</span></div><div class="workflow-step current" aria-current="step"><span class="workflow-number">2</span><span>バイタル</span></div><div class="workflow-step upcoming"><span class="workflow-number">3</span><span>機能訓練</span></div></nav>' +
       '<div class="screen-intro compact-intro"><span class="eyebrow">STEP 2</span><h1>バイタルを記録</h1><p>血圧・脈拍・体温は必須です(SpO2・体重は任意)。</p></div>' +
+      precautionHtml(user, true) +
       '<div class="card"><div class="bp-head"><span class="bp-title">血圧</span><span class="bp-unit">mmHg</span>' +
       '<span class="bp-prev">' + (prev ? '前回 ' + prev.systolic + ' / ' + prev.diastolic : '前回記録なし') + '</span></div>' +
       '<div class="bp-inputs">' +
@@ -2587,6 +2695,7 @@ function renderExerciseScan(app) {
       '<div class="phone-body" style="gap:14px;">' +
       '<nav class="workflow-steps" aria-label="記録の進み具合"><div class="workflow-step done"><span class="workflow-number">✓</span><span>受付</span></div><div class="workflow-step done"><span class="workflow-number">✓</span><span>バイタル</span></div><div class="workflow-step current" aria-current="step"><span class="workflow-number">3</span><span>機能訓練</span></div></nav>' +
       '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">STEP 3</span><h1>訓練種目を記録</h1><p>QRを読むか、下の予定から選んでください。</p></div>' +
+      precautionHtml(user, false) +
       snackbarHtml() +
       cameraHtml('訓練機器のQRコードをかざしてください') +
       errHtml +
@@ -2605,7 +2714,7 @@ function renderExerciseScan(app) {
       }
       S.toast = null;
       Actions.pickExercise(ex.id);
-    });
+    }, 'exercise');
   });
 }
 
@@ -2626,6 +2735,7 @@ function renderExerciseForm(app, exerciseId) {
         var sel = d[key] === opt ? ' selected' : '';
         return (
           '<button class="segment' + (small ? ' small' : '') + sel + '" data-seg="' + key + '" data-val="' + esc(opt) + '"' +
+          ' aria-pressed="' + (d[key] === opt ? 'true' : 'false') + '"' +
           ' onclick="Actions.exSeg(\'' + key + '\', \'' + esc(opt) + '\')">' + esc(opt) + '</button>'
         );
       }).join('');
@@ -2640,6 +2750,7 @@ function renderExerciseForm(app, exerciseId) {
       '<div class="h-right"><span class="qr-read-badge">QR<br>読取済</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
+      precautionHtml(user, false) +
       '<div class="card"><div class="card-label" style="margin-bottom:8px;">' + esc(ex.amountLabel) + '</div>' +
       '<div class="segment-row">' + segs(ex.amountOptions, 'amount', false) + '</div></div>' +
       '<div class="card"><div class="card-label" style="margin-bottom:8px;">負荷レベル</div>' +
@@ -2925,17 +3036,50 @@ var NAV_ITEMS = [
 function adminShell(active, contentHtml) {
   var nav = NAV_ITEMS.map(function (item) {
     var cls = 'nav-item' + (item[0] === active ? ' active' : '');
-    return '<button class="' + cls + '" onclick="go(\'' + item[0] + '\')">' + item[1] + '</button>';
+    return '<button class="' + cls + '"' + (item[0] === active ? ' aria-current="page"' : '') +
+      ' onclick="go(\'' + item[0] + '\')">' + item[1] + '</button>';
   }).join('');
   return (
     '<div class="admin-wrap"><div class="admin-frame">' +
-    '<nav class="admin-sidebar">' +
+    '<nav class="admin-sidebar" aria-label="管理画面メニュー">' +
     '<div class="brand"><img src="' + LOGO + '" alt="銀松苑ロゴ"><span class="brand-name">銀松苑 管理</span></div>' +
     nav +
     '<button class="nav-item" style="font-size:13px;color:#8FA491;" onclick="go(\'\')">‹ 受付画面へ</button>' +
     '<div class="admin-staff">スタッフ:' + esc(S.staff) + '</div>' +
     '</nav><main class="admin-content">' + contentHtml + '</main></div></div>'
   );
+}
+
+function renderAdminGate(app, requested) {
+  var savedPin = sessionStorage.getItem('adminPin');
+  if (savedPin !== null && !S.adminVerifying) {
+    S.adminVerifying = true;
+    app.innerHTML = adminShell(requested, loadingHtml());
+    rpc('apiVerifyAdmin', savedPin).then(function (res) {
+      S.adminVerified = true;
+      S.adminPin = savedPin;
+      S.pinConfigured = res.pinConfigured;
+      S.adminVerifying = false;
+      render();
+    }).catch(function () {
+      S.adminVerifying = false;
+      sessionStorage.removeItem('adminPin');
+      render();
+    });
+    return;
+  }
+  app.innerHTML = adminShell(requested,
+    '<div class="admin-page-head"><div><div class="breadcrumb">管理画面</div>' +
+    '<div class="admin-h1">🔒 管理者確認</div></div></div>' +
+    '<div class="panel admin-gate"><div class="section-note">利用者情報・記録・連絡帳を保護するため、管理者PINを入力してください。</div>' +
+    '<input type="password" inputmode="numeric" class="note-area" id="admin-pin" aria-label="管理者PIN" placeholder="PIN" autocomplete="current-password">' +
+    '<div id="pin-error" class="form-error" role="alert"></div>' +
+    '<button class="btn-primary" onclick="Actions.adminUnlock()">管理画面を開く</button>' +
+    '<div class="section-note">PINが未設定の場合は空欄のまま開けます。運用前にApps Scriptのスクリプトプロパティ「ADMIN_PIN」を設定してください。</div></div>');
+  setTimeout(function () {
+    var pin = document.getElementById('admin-pin');
+    if (pin) pin.focus();
+  }, 0);
 }
 
 function exerciseLabel(rec) {
@@ -3392,6 +3536,7 @@ function renderCommunicationBook(app) {
     var photoHtml = S.notebook.photo
       ? '<img src="' + S.notebook.photo + '" alt="本日のご様子">'
       : '<div class="notebook-photo-empty"><span>写真</span><small>下の「写真を選ぶ」から追加できます</small></div>';
+    var densePrint = S.notebook.comment.length > 300 || data.exercises.length > 6;
     var content =
       '<div class="admin-page-head no-print"><div><div class="breadcrumb">連絡帳 作成・印刷</div>' +
       '<div class="admin-h1">利用者へお渡しする連絡帳</div></div>' +
@@ -3400,8 +3545,8 @@ function renderCommunicationBook(app) {
       '<button class="btn-csv" onclick="Actions.printNotebook()">🖨 印刷</button></div></div>' +
       '<div class="notebook-tools no-print"><label class="btn-outline">📷 写真を選ぶ<input type="file" accept="image/*" capture="environment" onchange="Actions.notebookPhoto(this.files[0])" hidden></label>' +
       '<button class="select-plain" onclick="Actions.resetNotebookComment()">文章を自動作成し直す</button>' +
-      '<span>黄色の文章欄はクリックして編集できます。</span></div>' +
-      '<section class="communication-sheet" aria-label="弐番館デイサービス連絡帳">' +
+      '<span>黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 420 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / 600文字</span></div>' +
+      '<section class="communication-sheet' + (densePrint ? ' compact-print' : '') + '" aria-label="弐番館デイサービス連絡帳">' +
       '<header class="notebook-head"><div class="notebook-brand"><img src="' + LOGO + '" alt=""><div><small>機能訓練デイサービス</small><h1>弐番館 連絡帳</h1></div></div>' +
       '<div class="notebook-meta"><div><small>お名前</small><strong>' + esc(data.user.name) + ' 様</strong></div><div><small>ご利用日</small><strong>' + esc(notebookDateLabel(data.date)) + '</strong></div></div></header>' +
       '<p class="notebook-thanks">本日もご利用いただきありがとうございます。</p>' +
@@ -3486,6 +3631,8 @@ var Actions = {
     sessionStorage.setItem('currentUserId', userId);
     S.toast = null;
     S.vDraft = null;
+    S.precautionConfirmed = false;
+    Scanner.autoMode = '';
     go('vitals');
   },
   backToCheckin: function () {
@@ -3493,6 +3640,7 @@ var Actions = {
     S.currentUserId = '';
     S.vDraft = null;
     S.exDraft = null;
+    S.precautionConfirmed = false;
     sessionStorage.removeItem('currentUserId');
     go('');
   },
@@ -3507,6 +3655,10 @@ var Actions = {
   },
   vCondition: function (value) {
     S.vDraft.conditionNote = value.slice(0, 300);
+  },
+  precautionConfirm: function (checked) {
+    S.precautionConfirmed = checked;
+    Actions.vRefresh();
   },
   vRefresh: function () {
     var alerts = evaluateVitalAlerts(S.vDraft, S.prevVital);
@@ -3532,13 +3684,17 @@ var Actions = {
     var requiredLabels = { systolic: '血圧(上)', diastolic: '血圧(下)', pulse: '脈拍', temp: '体温' };
     var missing = Object.keys(requiredLabels).filter(function (k) { return S.vDraft[k] === ''; });
     var hint = document.getElementById('v-hint');
+    var user = currentUser();
+    var precautionPending = !!(user && String(user.precautions || '').trim() && !S.precautionConfirmed);
     if (hint) {
       hint.textContent = missing.length
         ? 'あと入力: ' + missing.map(function (k) { return requiredLabels[k]; }).join('・')
-        : (alerts.length && !S.vitalConfirmed ? '「職員による確認済み」にチェックすると保存できます' : '');
+        : (precautionPending
+          ? '運動の禁止事項・注意点を確認してください'
+          : (alerts.length && !S.vitalConfirmed ? '「職員による確認済み」にチェックすると保存できます' : ''));
     }
     var btn = document.getElementById('v-save');
-    if (btn) btn.disabled = missing.length > 0 || errors.length > 0 || (alerts.length > 0 && !S.vitalConfirmed);
+    if (btn) btn.disabled = missing.length > 0 || errors.length > 0 || precautionPending || (alerts.length > 0 && !S.vitalConfirmed);
   },
   vConfirm: function (checked) {
     S.vitalConfirmed = checked;
@@ -3547,6 +3703,7 @@ var Actions = {
   vReset: function () {
     S.vDraft = { systolic: '', diastolic: '', pulse: '', temp: '', spo2: '', weight: '', conditionNote: '' };
     S.vitalConfirmed = false;
+    S.precautionConfirmed = false;
     render();
   },
   vSave: function () {
@@ -3582,7 +3739,9 @@ var Actions = {
   exSeg: function (key, value) {
     S.exDraft[key] = value;
     document.querySelectorAll('[data-seg="' + key + '"]').forEach(function (el) {
-      el.classList.toggle('selected', el.getAttribute('data-val') === value);
+      var selected = el.getAttribute('data-val') === value;
+      el.classList.toggle('selected', selected);
+      el.setAttribute('aria-pressed', selected ? 'true' : 'false');
     });
     Actions.exRefresh();
   },
@@ -3806,6 +3965,11 @@ var Actions = {
   },
   notebookComment: function (value) {
     S.notebook.comment = String(value || '').slice(0, 600);
+    var count = document.getElementById('notebook-count');
+    if (count) {
+      count.textContent = S.notebook.comment.length + ' / 600文字';
+      count.classList.toggle('warn', S.notebook.comment.length > 420);
+    }
   },
   resetNotebookComment: function () {
     if (!S.notebook.data) return;
@@ -3816,16 +3980,34 @@ var Actions = {
   notebookPhoto: function (file) {
     if (!file) return;
     if (!/^image\//.test(file.type)) { alert('画像ファイルを選択してください'); return; }
-    var reader = new FileReader();
-    reader.onload = function () {
-      S.notebook.photo = String(reader.result || '');
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      var max = 1600;
+      var ratio = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * ratio));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * ratio));
+      var ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); alert('写真を処理できませんでした'); return; }
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      S.notebook.photo = canvas.toDataURL('image/jpeg', 0.82);
+      URL.revokeObjectURL(url);
       var box = document.getElementById('notebook-photo');
       if (box) box.innerHTML = '<img src="' + S.notebook.photo + '" alt="本日のご様子">';
     };
-    reader.onerror = function () { alert('写真を読み込めませんでした'); };
-    reader.readAsDataURL(file);
+    img.onerror = function () { URL.revokeObjectURL(url); alert('写真を読み込めませんでした。JPEGまたはPNGをご利用ください'); };
+    img.src = url;
   },
   printNotebook: function () {
+    var commentBox = document.getElementById('notebook-comment');
+    if (commentBox) {
+      S.notebook.comment = String(commentBox.innerText || '').slice(0, 600);
+      if (commentBox.innerText.length > 600) commentBox.textContent = S.notebook.comment;
+    }
+    if (S.notebook.comment.length > 520 && !window.confirm('連絡文が長いため文字が小さくなります。このまま印刷しますか？')) return;
+    var sheet = document.querySelector('.communication-sheet');
+    if (sheet) sheet.classList.toggle('compact-print', S.notebook.comment.length > 300 || (S.notebook.data && S.notebook.data.exercises.length > 6));
     var oldTitle = document.title;
     var user = S.notebook.data && S.notebook.data.user;
     document.title = '連絡帳_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.notebookDate;
@@ -4031,7 +4213,7 @@ var Mock = (function () {
   var fns = {
     apiGetBootstrap: function () {
       var db = load();
-      return { users: db.users, exercises: db.exercises, today: todayStr(), staff: 'プレビュー', todayCheckins: fns.apiGetTodayCheckins() };
+      return { apiVersion: 4, capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook'], users: db.users, exercises: db.exercises, today: todayStr(), staff: 'プレビュー', todayCheckins: fns.apiGetTodayCheckins() };
     },
     apiGetTodayCheckins: function () {
       var db = load();
@@ -4254,6 +4436,9 @@ var Mock = (function () {
 // ---------------------------------------------------------------- 起動
 
 rpc('apiGetBootstrap').then(function (boot) {
+  if (!boot.apiVersion || boot.apiVersion < 4) {
+    throw new Error('GASが旧バージョンです。Apps Scriptを最新版として再デプロイしてください');
+  }
   S.users = boot.users;
   S.exercises = boot.exercises;
   S.today = boot.today;
