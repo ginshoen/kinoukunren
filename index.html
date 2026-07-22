@@ -844,8 +844,10 @@ select {
   cursor: pointer;
   touch-action: manipulation;
 }
-.nav-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+@media (hover: hover) and (pointer: fine) {
+  .nav-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
 }
 .nav-item:active {
   transform: translateY(1px);
@@ -1523,6 +1525,7 @@ textarea {
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     -webkit-overflow-scrolling: touch;
+    scroll-padding-inline: 14px;
   }
 
   .admin-sidebar .brand {
@@ -1538,6 +1541,7 @@ textarea {
   .nav-item {
     width: auto;
     min-width: max-content;
+    scroll-margin-inline: 14px;
   }
 
   .admin-content {
@@ -3299,7 +3303,36 @@ var NAV_ITEMS = [
   ['admin/monthly', '月次レポート'],
 ];
 
+var adminNavSyncId = 0;
+
+/**
+ * 管理画面はスマートフォンで横スクロール式になる。
+ * innerHTML の更新でスクロール位置が先頭へ戻っても、選択中タブを表示範囲へ戻す。
+ */
+function scheduleAdminNavSync() {
+  var syncId = ++adminNavSyncId;
+  requestAnimationFrame(function () {
+    if (syncId !== adminNavSyncId) return;
+    var nav = document.querySelector('.admin-sidebar');
+    if (!nav || nav.scrollWidth <= nav.clientWidth) return;
+    var active = nav.querySelector('.nav-item[aria-current="page"]');
+    if (!active) return;
+
+    var padding = 14;
+    var activeLeft = active.offsetLeft;
+    var activeRight = activeLeft + active.offsetWidth;
+    var visibleLeft = nav.scrollLeft + padding;
+    var visibleRight = nav.scrollLeft + nav.clientWidth - padding;
+    if (activeLeft >= visibleLeft && activeRight <= visibleRight) return;
+
+    var targetLeft = activeLeft - (nav.clientWidth - active.offsetWidth) / 2;
+    var maxLeft = Math.max(0, nav.scrollWidth - nav.clientWidth);
+    nav.scrollLeft = Math.max(0, Math.min(targetLeft, maxLeft));
+  });
+}
+
 function adminShell(active, contentHtml) {
+  scheduleAdminNavSync();
   var nav = NAV_ITEMS.map(function (item) {
     var cls = 'nav-item' + (item[0] === active ? ' active' : '');
     return '<button type="button" class="' + cls + '" data-admin-route="' + item[0] + '"' +
