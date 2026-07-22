@@ -8,12 +8,6 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta name="format-detection" content="telephone=no" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap"
-      rel="stylesheet"
-    />
     <style>
 :root {
   /* Primary — 銀松苑グリーン */
@@ -65,7 +59,7 @@ body {
 
 body {
   background: radial-gradient(circle at 12% -10%, rgba(130,217,184,.2), transparent 32rem), var(--page);
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }
@@ -1770,7 +1764,7 @@ textarea {
   border-radius: 18px;
   box-shadow: 0 16px 42px rgba(20,45,36,.12);
   color: #17231d;
-  font-family: 'Zen Kaku Gothic New', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
 }
 .notebook-head {
   display: flex;
@@ -1958,8 +1952,6 @@ textarea {
         読み込み中…
       </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
 /* 銀松苑 機能訓練記録アプリ — クライアント(GAS HtmlService 用 SPA) */
 'use strict';
@@ -1976,33 +1968,123 @@ function isStandalone() {
   return !(window.google && google.script && google.script.run);
 }
 
+// QR関連ライブラリは初期表示を止めないよう、必要になった時点で非同期読込する。
+var OPTIONAL_SCRIPTS = {};
+function loadScriptOnce(src, globalName) {
+  if (window[globalName]) return Promise.resolve(window[globalName]);
+  if (OPTIONAL_SCRIPTS[globalName]) return OPTIONAL_SCRIPTS[globalName];
+  OPTIONAL_SCRIPTS[globalName] = new Promise(function (resolve, reject) {
+    var script = document.createElement('script');
+    script.src = src;
+    script.async = true;
+    script.onload = function () {
+      if (window[globalName]) resolve(window[globalName]);
+      else reject(new Error(globalName + 'を読み込めませんでした'));
+    };
+    script.onerror = function () { reject(new Error(globalName + 'を読み込めませんでした')); };
+    document.head.appendChild(script);
+  }).catch(function (err) {
+    delete OPTIONAL_SCRIPTS[globalName];
+    throw err;
+  });
+  return OPTIONAL_SCRIPTS[globalName];
+}
+function ensureQrDecoder() {
+  return loadScriptOnce('https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js', 'jsQR')
+    .catch(function () {
+      return loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js', 'jsQR');
+    });
+}
+function ensureQrGenerator() {
+  return loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js', 'QRCode')
+    .catch(function () {
+      return loadScriptOnce('https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js', 'QRCode');
+    });
+}
+
 // ---------------------------------------------------------------- RPC
+
+var RPC_CACHE = {};
+var RPC_INFLIGHT = {};
+var RPC_CACHE_EPOCH = 0;
+var RPC_READ_TTL = {
+  apiGetBootstrap: 300000,
+  apiRefreshToday: 5000,
+  apiGetVitalContext: 60000,
+  apiGetTodayExercises: 8000,
+  apiGetTodayAlerts: 30000,
+  apiGetUserDetail: 15000,
+  apiGetUserResults: 30000,
+  apiGetTodayRecords: 10000,
+  apiGetMonthly: 60000,
+  apiGetCommunicationBook: 15000,
+};
+function rpcCacheKey(name, args) {
+  return name + ':' + JSON.stringify(args || []);
+}
+function clearRpcCache() {
+  RPC_CACHE = {};
+  RPC_CACHE_EPOCH += 1;
+}
+function delay(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+function fetchRpc(name, args) {
+  var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  var timeoutMs = RPC_READ_TTL[name] ? 12000 : 25000;
+  var timeout = setTimeout(function () { if (controller) controller.abort(); }, timeoutMs);
+  return fetch(window.GAS_API_URL, {
+    method: 'POST',
+    // Content-Type を text/plain のままにして CORS プリフライトを回避する
+    body: JSON.stringify({ fn: name, args: args, token: window.GAS_API_TOKEN || '' }),
+    signal: controller ? controller.signal : undefined,
+  }).then(function (r) {
+    if (!r.ok) throw new Error('通信エラー(' + r.status + ')');
+    return r.json();
+  }).then(function (res) {
+    if (!res.ok) throw new Error(res.error || 'サーバーエラー');
+    return res.data;
+  }).catch(function (err) {
+    if (err && err.name === 'AbortError') throw new Error('通信がタイムアウトしました');
+    throw err;
+  }).finally(function () { clearTimeout(timeout); });
+}
 
 function rpc(name) {
   var args = [].slice.call(arguments, 1);
+  var ttl = RPC_READ_TTL[name] || 0;
+  var key = rpcCacheKey(name, args);
+  var requestEpoch = RPC_CACHE_EPOCH;
+  var cached = RPC_CACHE[key];
+  if (ttl && cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
+  if (ttl && RPC_INFLIGHT[key]) return RPC_INFLIGHT[key];
+
+  var request;
   // ホスティング版: GAS の /exec を JSON API として呼ぶ(iOSライブカメラ対応構成)
   if (window.GAS_API_URL) {
-    return fetch(window.GAS_API_URL, {
-      method: 'POST',
-      // Content-Type を text/plain のままにして CORS プリフライトを回避する
-      body: JSON.stringify({ fn: name, args: args, token: window.GAS_API_TOKEN || '' }),
-    }).then(function (r) {
-      if (!r.ok) throw new Error('通信エラー(' + r.status + ')');
-      return r.json();
-    }).then(function (res) {
-      if (!res.ok) throw new Error(res.error || 'サーバーエラー');
-      return res.data;
+    request = fetchRpc(name, args).catch(function (err) {
+      // 読み取りだけを1回再試行。保存系は二重登録を避けるため自動再試行しない。
+      if (!ttl || String(err && err.message || err).indexOf('認証') >= 0) throw err;
+      return delay(350).then(function () { return fetchRpc(name, args); });
     });
-  }
-  if (window.google && google.script && google.script.run) {
-    return new Promise(function (resolve, reject) {
+  } else if (window.google && google.script && google.script.run) {
+    request = new Promise(function (resolve, reject) {
       var runner = google.script.run
         .withSuccessHandler(resolve)
         .withFailureHandler(function (e) { reject(e); });
       runner[name].apply(runner, args);
     });
+  } else {
+    request = Mock.call(name, args); // ローカルプレビュー用モック
   }
-  return Mock.call(name, args); // ローカルプレビュー用モック
+
+  request = Promise.resolve(request).then(function (data) {
+    if (ttl && requestEpoch === RPC_CACHE_EPOCH) RPC_CACHE[key] = { data: data, expires: Date.now() + ttl };
+    else clearRpcCache();
+    return data;
+  }).finally(function () { delete RPC_INFLIGHT[key]; });
+  if (ttl) RPC_INFLIGHT[key] = request;
+  return request;
 }
 
 /** 未登録端末を管理者PINでGASへペアリングする。 */
@@ -2037,6 +2119,7 @@ var S = {
   vitalConfirmed: false,
   precautionConfirmed: false,
   exDraft: null,        // 訓練記録下書き {amount, load, note}
+  exerciseCache: {},    // userId -> {data, expires}（画面往復時の再通信を削減）
   admin: { userId: '', month: '', notebookUserId: '', notebookDate: '' },
   notebook: { data: null, photo: '', comment: '' },
 };
@@ -2161,6 +2244,8 @@ var Scanner = {
   },
   start: function (onDetect) {
     var self = this;
+    // カメラ起動と並行してデコーダーを読み込む。初期画面の表示は待たせない。
+    if (typeof jsQR !== 'function') ensureQrDecoder().catch(function () {});
     // 再入時は既存リソースを必ず解放する。iOSはカメラ同時1キャプチャ制約が
     // あるため、前回の stream が生きていると2回目以降の getUserMedia が
     // NotReadableError で恒久的に失敗する(「ボタンを押しても無反応」の主因)。
@@ -2179,7 +2264,8 @@ var Scanner = {
       self.fail(); return;
     }
     navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+      // QR読取には十分な解像度へ抑え、iPhoneでの発熱・フレーム落ちを防ぐ。
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 960 }, height: { ideal: 540 } },
       audio: false,
     })
       .then(function (stream) {
@@ -2224,6 +2310,7 @@ var Scanner = {
         if (toggle) toggle.textContent = '⏹ スキャンを停止';
         self.liveSince = Date.now();
         var canvas = document.createElement('canvas');
+        var canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
         var detector = window.BarcodeDetector ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
         self.timer = setInterval(function () {
           var v = self.video;
@@ -2248,20 +2335,25 @@ var Scanner = {
             }, 900);
           };
           var decodeWithJsQr = function () {
-            var w = v.videoWidth, h = v.videoHeight;
-            if (!w || !h || typeof jsQR !== 'function') return;
-            canvas.width = w; canvas.height = h;
-            var ctx = canvas.getContext('2d', { willReadFrequently: true });
-            if (!ctx) return;
-            ctx.drawImage(v, 0, 0, w, h);
-            var code = jsQR(ctx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'attemptBoth' });
+            var vw = v.videoWidth, vh = v.videoHeight;
+            if (!vw || !vh || !canvasCtx || typeof jsQR !== 'function') return;
+            // 画面中央のQR枠周辺だけを最大640pxで解析し、CPU負荷を大幅に抑える。
+            var source = Math.min(vw, vh);
+            var size = Math.min(640, source);
+            var sx = Math.round((vw - source) / 2);
+            var sy = Math.round((vh - source) / 2);
+            if (canvas.width !== size || canvas.height !== size) {
+              canvas.width = size; canvas.height = size;
+              canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
+            }
+            canvasCtx.drawImage(v, sx, sy, source, source, 0, 0, size, size);
+            var code = jsQR(canvasCtx.getImageData(0, 0, size, size).data, size, size, { inversionAttempts: 'attemptBoth' });
             if (code && code.data) handle(code.data);
           };
           if (detector) {
             detector.detect(v).then(function (codes) {
               if (generation !== self.generation || v !== self.video) return;
               if (codes.length) handle(codes[0].rawValue);
-              else decodeWithJsQr();
             }).catch(function () {
               if (generation !== self.generation) return;
               detector = null;
@@ -2270,7 +2362,7 @@ var Scanner = {
             return;
           }
           try { decodeWithJsQr(); } finally { self.scanning = false; }
-        }, 350);
+        }, 450);
       })
       .catch(function (err) {
         if (generation !== self.generation) return;
@@ -2448,25 +2540,31 @@ function go(hash) {
 window.addEventListener('hashchange', render);
 
 function render() {
+  var renderId = (S.renderId || 0) + 1;
+  S.renderId = renderId;
   Scanner.stop();
   if (S.toastTimer) { clearTimeout(S.toastTimer); S.toastTimer = null; }
   if (S.pollTimer) { clearInterval(S.pollTimer); S.pollTimer = null; }
   if (!S.ready) return;
   var h = location.hash.replace(/^#\/?/, '');
   var app = document.getElementById('app');
-  if (h === 'users') return renderUserList(app);
-  if (h.indexOf('users/') === 0) return renderUserDetail(app, h.slice(6));
-  if (h === 'vitals') return renderVitals(app);
-  if (h === 'exercise') return renderExerciseScan(app);
-  if (h.indexOf('exercise/') === 0) return renderExerciseForm(app, h.slice(9));
-  if (h.indexOf('admin') === 0 && !S.adminVerified) return renderAdminGate(app, h);
-  if (h === 'admin') return renderAdminResults(app);
-  if (h === 'admin/users') return renderAdminUsers(app);
-  if (h === 'admin/today') return renderAdminToday(app);
-  if (h === 'admin/master') return renderAdminMaster(app);
-  if (h === 'admin/monthly') return renderAdminMonthly(app);
-  if (h === 'admin/notebook') return renderCommunicationBook(app);
+  if (h === 'users') return renderUserList(app, renderId);
+  if (h.indexOf('users/') === 0) return renderUserDetail(app, h.slice(6), renderId);
+  if (h === 'vitals') return renderVitals(app, renderId);
+  if (h === 'exercise') return renderExerciseScan(app, renderId);
+  if (h.indexOf('exercise/') === 0) return renderExerciseForm(app, h.slice(9), renderId);
+  if (h.indexOf('admin') === 0 && !S.adminVerified) return renderAdminGate(app, h, renderId);
+  if (h === 'admin') return renderAdminResults(app, renderId);
+  if (h === 'admin/users') return renderAdminUsers(app, renderId);
+  if (h === 'admin/today') return renderAdminToday(app, renderId);
+  if (h === 'admin/master') return renderAdminMaster(app, renderId);
+  if (h === 'admin/monthly') return renderAdminMonthly(app, renderId);
+  if (h === 'admin/notebook') return renderCommunicationBook(app, renderId);
   return renderCheckin(app);
+}
+
+function isCurrentRender(renderId) {
+  return renderId === S.renderId;
 }
 
 function loadingHtml() {
@@ -2475,13 +2573,45 @@ function loadingHtml() {
 
 // ---------------------------------------------------------------- 1a 来所受付
 
-function renderCheckin(app) {
-  var clock = nowClock();
+function checkinStatusView() {
+  var usersById = {};
   var checkedIds = {};
+  S.users.forEach(function (u) { usersById[u.id] = u; });
   S.todayCheckins.forEach(function (c) { checkedIds[c.userId] = c.time; });
   var todayWeekday = WEEKDAYS[new Date().getDay()];
   var scheduled = S.users.filter(function (u) { return String(u.scheduleLabel || '').indexOf(todayWeekday) >= 0; });
   var pending = scheduled.filter(function (u) { return !checkedIds[u.id]; });
+  var rows = S.todayCheckins.map(function (c) {
+    var u = usersById[c.userId];
+    if (!u) return '';
+    return (
+      '<div class="person-row"><span class="status-dot"></span>' +
+      '<span class="person-name">' + esc(u.name) + '</span>' +
+      '<span class="person-care">' + esc(u.careLevel) + '</span>' +
+      '<span class="person-time">' + esc(c.time) + '</span></div>'
+    );
+  }).join('') + pending.map(function (u) {
+    return (
+      '<div class="person-row pending"><span class="status-dot"></span>' +
+      '<span class="person-name">' + esc(u.name) + '</span>' +
+      '<span class="person-care">' + esc(u.careLevel) + '</span>' +
+      '<span class="person-time">未着</span></div>'
+    );
+  }).join('');
+  return { rows: rows, scheduledCount: scheduled.length };
+}
+
+function updateCheckinStatusDom() {
+  var view = checkinStatusView();
+  var count = document.getElementById('checkin-count');
+  var list = document.getElementById('checkin-list');
+  if (count) count.textContent = S.todayCheckins.length + '名 / 予定' + view.scheduledCount + '名';
+  if (list) list.innerHTML = view.rows;
+}
+
+function renderCheckin(app) {
+  var clock = nowClock();
+  var statusView = checkinStatusView();
 
   var toastHtml = '';
   if (S.toast && (S.toast.type === 'success' || S.toast.type === 'info')) {
@@ -2498,25 +2628,6 @@ function renderCheckin(app) {
       '<span class="t-sub">' + esc(S.toast.sub) + '</span></span></div>';
   }
 
-  var rows = S.todayCheckins.map(function (c) {
-    var u = null;
-    S.users.forEach(function (x) { if (x.id === c.userId) u = x; });
-    if (!u) return '';
-    return (
-      '<div class="person-row"><span class="status-dot"></span>' +
-      '<span class="person-name">' + esc(u.name) + '</span>' +
-      '<span class="person-care">' + esc(u.careLevel) + '</span>' +
-      '<span class="person-time">' + esc(c.time) + '</span></div>'
-    );
-  }).join('') + pending.map(function (u) {
-    return (
-      '<div class="person-row pending"><span class="status-dot"></span>' +
-      '<span class="person-name">' + esc(u.name) + '</span>' +
-      '<span class="person-care">' + esc(u.careLevel) + '</span>' +
-      '<span class="person-time">未着</span></div>'
-    );
-  }).join('');
-
   app.innerHTML =
     '<div class="phone-wrap"><div class="phone">' +
     '<header class="phone-header">' +
@@ -2531,8 +2642,8 @@ function renderCheckin(app) {
     cameraHtml('利用者のQRカードをかざしてください') +
     toastHtml +
     '<div><div class="section-head"><span class="section-title">本日の来所状況</span>' +
-    '<span class="section-note">' + S.todayCheckins.length + '名 / 予定' + scheduled.length + '名</span></div>' +
-    '<div class="row-list">' + rows + '</div></div>' +
+    '<span class="section-note" id="checkin-count">' + S.todayCheckins.length + '名 / 予定' + statusView.scheduledCount + '名</span></div>' +
+    '<div class="row-list" id="checkin-list">' + statusView.rows + '</div></div>' +
     '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users\')">👥 利用者の状況を確認(一覧)</button>' +
     '<button class="link-plain" onclick="Actions.openPicker()">QRを読み取れない場合は名前から選択 ›</button>' +
     (isStandalone() && !window.GAS_API_URL
@@ -2568,7 +2679,9 @@ function renderCheckin(app) {
       if (res.today !== S.today) { location.reload(); return; }
       if (JSON.stringify(res.todayCheckins) !== JSON.stringify(S.todayCheckins)) {
         S.todayCheckins = res.todayCheckins;
-        render();
+        // カメラを止めず、来所状況だけを差し替える。
+        if (document.getElementById('checkin-list')) updateCheckinStatusDom();
+        else render();
       }
     }).catch(function () { /* 一時的な通信断は次回ポーリングで回復 */ });
   }, 60000);
@@ -2589,12 +2702,13 @@ function precautionHtml(user, confirmable) {
   );
 }
 
-function renderVitals(app) {
+function renderVitals(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
   app.innerHTML = loadingHtml();
 
   rpc('apiGetVitalContext', user.id).then(function (ctx) {
+    if (!isCurrentRender(renderId)) return;
     S.prevVital = ctx.prev;
     if (!S.vDraft) S.vDraft = { systolic: '', diastolic: '', pulse: '', temp: '', spo2: '', weight: '', conditionNote: '' };
     var prev = S.prevVital;
@@ -2647,6 +2761,9 @@ function renderVitals(app) {
       '</div></div></div></div>';
 
     Actions.vRefresh();
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = renderErrorHtml('バイタル画面を読み込めませんでした', 'vitals');
   });
 }
 
@@ -2687,12 +2804,22 @@ function plannedExercises(user) {
   return user.plan.map(exerciseById).filter(Boolean);
 }
 
-function renderExerciseScan(app) {
+function getTodayExerciseRecords(userId) {
+  var cached = S.exerciseCache[userId];
+  if (cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
+  return rpc('apiGetTodayExercises', userId).then(function (records) {
+    S.exerciseCache[userId] = { data: records, expires: Date.now() + 15000 };
+    return records;
+  });
+}
+
+function renderExerciseScan(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
   app.innerHTML = loadingHtml();
 
-  rpc('apiGetTodayExercises', user.id).then(function (records) {
+  getTodayExerciseRecords(user.id).then(function (records) {
+    if (!isCurrentRender(renderId)) return;
     var errHtml = '';
     if (S.toast && S.toast.type === 'error') {
       errHtml =
@@ -2730,10 +2857,13 @@ function renderExerciseScan(app) {
       S.toast = null;
       Actions.pickExercise(ex.id);
     }, 'exercise');
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = renderErrorHtml('訓練記録を読み込めませんでした', 'exercise');
   });
 }
 
-function renderExerciseForm(app, exerciseId) {
+function renderExerciseForm(app, exerciseId, renderId) {
   var user = currentUser();
   if (!user) return go('');
   var ex = exerciseById(exerciseId);
@@ -2743,7 +2873,8 @@ function renderExerciseForm(app, exerciseId) {
   }
   app.innerHTML = loadingHtml();
 
-  rpc('apiGetTodayExercises', user.id).then(function (records) {
+  getTodayExerciseRecords(user.id).then(function (records) {
+    if (!isCurrentRender(renderId)) return;
     var d = S.exDraft;
     function segs(options, key, small) {
       return options.map(function (opt) {
@@ -2778,6 +2909,9 @@ function renderExerciseForm(app, exerciseId) {
       '</div></div></div>';
 
     Actions.exRefresh();
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = renderErrorHtml('訓練入力画面を読み込めませんでした', 'exercise/' + exerciseId);
   });
 }
 
@@ -2816,9 +2950,10 @@ function userRowHtml(u, state, time, hasAlert) {
   );
 }
 
-function renderUserList(app) {
+function renderUserList(app, renderId) {
   app.innerHTML = loadingHtml();
   rpc('apiGetTodayAlerts').then(function (alerts) {
+    if (!isCurrentRender(renderId)) return;
     var checkedTime = {};
     S.todayCheckins.forEach(function (c) { checkedTime[c.userId] = c.time; });
     var todayWeekday = WEEKDAYS[new Date().getDay()];
@@ -2867,6 +3002,7 @@ function renderUserList(app) {
 
     Actions.applyUserFilters();
   }).catch(function (e) {
+    if (!isCurrentRender(renderId)) return;
     app.innerHTML = renderErrorHtml('利用者一覧を読み込めませんでした', 'users');
   });
 }
@@ -2891,13 +3027,14 @@ function vitalLineText(v) {
   return parts.join(' · ');
 }
 
-function renderUserDetail(app, userId) {
+function renderUserDetail(app, userId, renderId) {
   var user = null;
   S.users.forEach(function (u) { if (u.id === userId) user = u; });
   if (!user) return go('users');
   app.innerHTML = loadingHtml();
 
   rpc('apiGetUserDetail', userId).then(function (res) {
+    if (!isCurrentRender(renderId)) return;
     var planned = plannedExercises(user);
     var doneIds = {};
     res.todayExercises.forEach(function (e) { doneIds[e.exerciseId] = true; });
@@ -3033,6 +3170,7 @@ function renderUserDetail(app, userId) {
       '<div class="row-list">' + alertsHtml + '</div></div>' +
       '</div></div></div>';
   }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
     app.innerHTML = renderErrorHtml('利用者情報を読み込めませんでした', 'users');
   });
 }
@@ -3065,18 +3203,20 @@ function adminShell(active, contentHtml) {
   );
 }
 
-function renderAdminGate(app, requested) {
+function renderAdminGate(app, requested, renderId) {
   var savedPin = sessionStorage.getItem('adminPin');
   if (savedPin !== null && !S.adminVerifying) {
     S.adminVerifying = true;
     app.innerHTML = adminShell(requested, loadingHtml());
     rpc('apiVerifyAdmin', savedPin).then(function (res) {
+      if (!isCurrentRender(renderId)) return;
       S.adminVerified = true;
       S.adminPin = savedPin;
       S.pinConfigured = res.pinConfigured;
       S.adminVerifying = false;
       render();
     }).catch(function () {
+      if (!isCurrentRender(renderId)) return;
       S.adminVerifying = false;
       sessionStorage.removeItem('adminPin');
       render();
@@ -3154,12 +3294,13 @@ function barColor(ratio) {
 
 var lastResults = null; // CSV出力用キャッシュ
 
-function renderAdminResults(app) {
+function renderAdminResults(app, renderId) {
   if (!S.admin.userId) S.admin.userId = S.users.length ? S.users[0].id : '';
   if (!S.admin.month) S.admin.month = S.today.slice(0, 7);
   app.innerHTML = adminShell('admin', loadingHtml());
 
   rpc('apiGetUserResults', S.admin.userId, S.admin.month).then(function (res) {
+    if (!isCurrentRender(renderId)) return;
     lastResults = res;
     var user = null;
     S.users.forEach(function (u) { if (u.id === S.admin.userId) user = u; });
@@ -3235,6 +3376,9 @@ function renderAdminResults(app) {
       '</div>';
 
     app.innerHTML = adminShell('admin', content);
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = adminShell('admin', renderErrorHtml('利用者実績を読み込めませんでした', 'admin'));
   });
 }
 
@@ -3259,7 +3403,7 @@ function buildDays(res) {
 
 var CARE_LEVELS = ['要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
 
-function renderAdminUsers(app) {
+function renderAdminUsers(app, renderId) {
   // PIN未検証ならロック画面
   if (!S.adminVerified) {
     var savedPin = sessionStorage.getItem('adminPin');
@@ -3267,9 +3411,11 @@ function renderAdminUsers(app) {
       // この端末で解錠済みなら自動再検証
       S.adminVerifying = true;
       rpc('apiVerifyAdmin', savedPin).then(function (res) {
+        if (!isCurrentRender(renderId)) return;
         S.adminVerified = true; S.adminPin = savedPin; S.pinConfigured = res.pinConfigured;
         S.adminVerifying = false; render();
       }).catch(function () {
+        if (!isCurrentRender(renderId)) return;
         S.adminVerifying = false;
         sessionStorage.removeItem('adminPin');
         render();
@@ -3358,9 +3504,10 @@ function renderAdminUsers(app) {
 
 // ---------------------------------------------------------------- 管理: 本日の記録一覧
 
-function renderAdminToday(app) {
+function renderAdminToday(app, renderId) {
   app.innerHTML = adminShell('admin/today', loadingHtml());
   rpc('apiGetTodayRecords').then(function (res) {
+    if (!isCurrentRender(renderId)) return;
     var checkins = res.checkins.slice().sort(function (a, b) {
       return timeKey(a.time) < timeKey(b.time) ? -1 : 1;
     });
@@ -3401,12 +3548,15 @@ function renderAdminToday(app) {
       '</tbody></table></div></div>';
 
     app.innerHTML = adminShell('admin/today', content);
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = adminShell('admin/today', renderErrorHtml('本日の記録を読み込めませんでした', 'admin/today'));
   });
 }
 
 // ---------------------------------------------------------------- 管理: 種目マスタ / QR発行
 
-function renderAdminMaster(app) {
+function renderAdminMaster(app, renderId) {
   var exCards = S.exercises.map(function (ex) {
     return (
       '<div class="qr-card"><div id="qr-' + ex.id + '"></div>' +
@@ -3433,23 +3583,33 @@ function renderAdminMaster(app) {
 
   app.innerHTML = adminShell('admin/master', content);
 
-  if (typeof QRCode !== 'undefined') {
+  function drawQrCodes() {
+    if (!isCurrentRender(renderId) || typeof QRCode === 'undefined') return;
     S.exercises.forEach(function (ex) {
-      new QRCode(document.getElementById('qr-' + ex.id), { text: ex.qrCode, width: 120, height: 120, colorDark: '#1F2A22' });
+      var el = document.getElementById('qr-' + ex.id);
+      if (el && !el.firstChild) new QRCode(el, { text: ex.qrCode, width: 120, height: 120, colorDark: '#1F2A22' });
     });
     S.users.forEach(function (u) {
-      new QRCode(document.getElementById('qr-' + u.id), { text: u.qrCode, width: 120, height: 120, colorDark: '#1F2A22' });
+      var el = document.getElementById('qr-' + u.id);
+      if (el && !el.firstChild) new QRCode(el, { text: u.qrCode, width: 120, height: 120, colorDark: '#1F2A22' });
     });
   }
+  if (typeof QRCode !== 'undefined') drawQrCodes();
+  else ensureQrGenerator().then(drawQrCodes).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    var adminContentEl = app.querySelector('.admin-content');
+    if (adminContentEl) adminContentEl.insertAdjacentHTML('afterbegin', '<div class="toast-error" role="alert"><span class="x-circle">!</span><span>QRコードを読み込めませんでした。通信環境をご確認ください。</span></div>');
+  });
 }
 
 // ---------------------------------------------------------------- 管理: 月次レポート
 
-function renderAdminMonthly(app) {
+function renderAdminMonthly(app, renderId) {
   if (!S.admin.month) S.admin.month = S.today.slice(0, 7);
   app.innerHTML = adminShell('admin/monthly', loadingHtml());
 
   rpc('apiGetMonthly', S.admin.month).then(function (res) {
+    if (!isCurrentRender(renderId)) return;
     var months = res.months.length ? res.months : [S.admin.month];
     var alertCount = res.vitals.filter(function (v) { return v.flagged; }).length;
     var tiles = [
@@ -3493,6 +3653,9 @@ function renderAdminMonthly(app) {
       '<tbody>' + rows + '</tbody></table></div>';
 
     app.innerHTML = adminShell('admin/monthly', content);
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = adminShell('admin/monthly', renderErrorHtml('月次レポートを読み込めませんでした', 'admin/monthly'));
   });
 }
 
@@ -3520,11 +3683,12 @@ function defaultNotebookComment(data) {
   return parts.join('');
 }
 
-function renderCommunicationBook(app) {
+function renderCommunicationBook(app, renderId) {
   if (!S.admin.notebookUserId) S.admin.notebookUserId = S.users.length ? S.users[0].id : '';
   if (!S.admin.notebookDate) S.admin.notebookDate = S.today;
   app.innerHTML = adminShell('admin/notebook', loadingHtml());
   rpc('apiGetCommunicationBook', S.admin.notebookUserId, S.admin.notebookDate).then(function (data) {
+    if (!isCurrentRender(renderId)) return;
     S.notebook.data = data;
     if (!S.notebook.comment) S.notebook.comment = defaultNotebookComment(data);
     var userSel = S.users.map(function (u) {
@@ -3575,6 +3739,7 @@ function renderCommunicationBook(app) {
       '<footer class="notebook-footer">機能訓練デイサービス 弐番館　担当: ' + esc(S.staff) + '</footer></section>';
     app.innerHTML = adminShell('admin/notebook', content);
   }).catch(function (e) {
+    if (!isCurrentRender(renderId)) return;
     app.innerHTML = adminShell('admin/notebook', '<div class="toast-error"><span class="x-circle">✕</span><span>' + esc((e && e.message) || '連絡帳を作成できませんでした') + '</span></div>');
   });
 }
@@ -3584,6 +3749,10 @@ function renderCommunicationBook(app) {
 var Actions = {
   // --- 受付 ---
   checkin: function (userId) {
+    if (S.checkinPending) return;
+    S.checkinPending = userId;
+    var hint = document.getElementById('camera-hint');
+    if (hint) hint.textContent = '受付を記録しています…';
     rpc('apiCheckin', userId).then(function (res) {
       S.todayCheckins = res.todayCheckins;
       var user = null;
@@ -3603,8 +3772,10 @@ var Actions = {
           sub: res.record.time + ' チェックイン → バイタル測定へ',
         };
       }
+      S.checkinPending = '';
       render();
     }).catch(function () {
+      S.checkinPending = '';
       S.toast = { type: 'error', title: '通信エラー', sub: '受付を記録できませんでした。もう一度お試しください' };
       render();
     });
@@ -3779,9 +3950,16 @@ var Actions = {
     }).then(function (res) {
       var ex = exerciseById(S.exDraft.exerciseId);
       S.lastSaved = { kind: 'records', id: res.record.id, label: (ex ? ex.name : '種目') + 'を記録しました' };
+      if (res.todayExercises) {
+        S.exerciseCache[S.currentUserId] = { data: res.todayExercises, expires: Date.now() + 15000 };
+      } else {
+        var cachedExercises = S.exerciseCache[S.currentUserId];
+        var nextExercises = cachedExercises && cachedExercises.data ? cachedExercises.data.slice() : [];
+        nextExercises.push(res.record);
+        S.exerciseCache[S.currentUserId] = { data: nextExercises, expires: Date.now() + 15000 };
+      }
       S.exDraft = null;
       go('exercise');
-      render(); // 同一ハッシュに戻る場合もあるため明示再描画
     }).catch(function (e) {
       showSaveError('保存できませんでした。電波状況をご確認のうえ、もう一度お試しください');
       if (btn) { btn.disabled = false; btn.textContent = 'この内容で記録する'; }
@@ -3793,6 +3971,7 @@ var Actions = {
     if (!last) return;
     S.lastSaved = null;
     rpc('apiVoidRecord', last.kind, last.id).then(function () {
+      delete S.exerciseCache[S.currentUserId];
       render();
     }).catch(function () {
       S.lastSaved = last;
