@@ -2005,6 +2005,21 @@ function rpc(name) {
   return Mock.call(name, args); // ローカルプレビュー用モック
 }
 
+/** 未登録端末を管理者PINでGASへペアリングする。 */
+function pairDeviceRpc(pin) {
+  if (!window.GAS_API_URL) return Promise.reject(new Error('GAS URLが未設定です'));
+  return fetch(window.GAS_API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ fn: 'apiPairDevice', args: [String(pin || '')], token: '' }),
+  }).then(function (r) {
+    if (!r.ok) throw new Error('通信エラー(' + r.status + ')');
+    return r.json();
+  }).then(function (res) {
+    if (!res.ok) throw new Error(res.error || '端末を認証できませんでした');
+    return res.data;
+  });
+}
+
 // ---------------------------------------------------------------- 状態
 
 var S = {
@@ -4026,10 +4041,26 @@ var Actions = {
       ' value="' + esc(window.GAS_API_URL) + '" style="min-height:44px;">' +
       '<input class="note-area" id="set-token" placeholder="共有トークン(API_TOKEN未設定なら空のまま)"' +
       ' value="' + esc(window.GAS_API_TOKEN) + '" style="min-height:44px;">' +
+      '<div class="section-note">共有トークンが分からない場合は、管理者PINでこの端末を接続できます。</div>' +
+      '<input type="password" inputmode="numeric" class="note-area" id="pair-pin" placeholder="管理者PIN" autocomplete="current-password" style="min-height:44px;">' +
+      '<div id="pair-error" class="section-note" role="alert"></div>' +
+      '<button class="btn-outline" onclick="Actions.pairDevice()">管理者PINで端末を接続</button>' +
       '<div id="set-error" class="section-note" style="color:var(--alert-text);"></div>' +
       '<button class="btn-primary" style="flex:none;width:100%;" onclick="Actions.saveSettings()">接続を確認して保存</button>' +
       '<button class="link-plain" onclick="Actions.closePicker()">閉じる</button>' +
       '</div></div>';
+  },
+  pairDevice: function () {
+    var pin = (document.getElementById('pair-pin') || {}).value || '';
+    var err = document.getElementById('pair-error');
+    if (err) err.textContent = '確認中…';
+    pairDeviceRpc(pin).then(function (res) {
+      window.GAS_API_TOKEN = res.token;
+      localStorage.setItem('gasApiToken', res.token);
+      location.reload();
+    }).catch(function (e) {
+      if (err) err.textContent = (e && e.message) || '端末を接続できませんでした';
+    });
   },
   saveSettings: function () {
     var url = document.getElementById('set-url').value.trim();
@@ -4447,9 +4478,20 @@ rpc('apiGetBootstrap').then(function (boot) {
   S.ready = true;
   render();
 }).catch(function (e) {
+  var message = String((e && e.message) || e || '');
+  if (isStandalone() && window.GAS_API_URL && message.indexOf('認証エラー') >= 0) {
+    document.getElementById('app').innerHTML =
+      '<div class="phone-wrap"><div class="phone"><header class="phone-header">' +
+      '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ"><div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">端末の初回認証</div></div></header>' +
+      '<div class="phone-body"><div class="screen-intro"><span class="eyebrow">SECURE SETUP</span><h1>この端末を接続</h1><p>管理者PINを一度入力すると、以後この端末で安全に記録できます。</p></div>' +
+      '<div class="card" style="display:grid;gap:12px;"><input type="password" inputmode="numeric" class="note-area" id="pair-pin" placeholder="管理者PIN" aria-label="管理者PIN" autocomplete="current-password">' +
+      '<div id="pair-error" class="section-note" role="alert"></div><button class="btn-primary" onclick="Actions.pairDevice()">この端末を接続する</button></div>' +
+      '<div class="section-note">端末内には接続情報のみを保存します。PINは保存しません。</div></div></div></div>';
+    return;
+  }
   document.getElementById('app').innerHTML =
     '<div style="padding:48px;text-align:center;color:#8A4560;font-weight:700;">' +
-    '起動エラー: ' + esc(e && e.message ? e.message : e) +
+    '起動エラー: ' + esc(message) +
     '<br><span style="font-weight:400;font-size:13px;">Apps Script エディタで setup() を実行済みか確認してください</span></div>';
 });
 </script>
