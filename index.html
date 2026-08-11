@@ -2019,6 +2019,38 @@ textarea {
   }
 }
 
+
+/* ---------- 記録メニュー(ハブ画面) ---------- */
+.menu-action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  min-height: 76px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 2px solid var(--green);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(31, 42, 34, 0.08);
+}
+.menu-action:active { background: var(--green-l4); transform: scale(0.99); }
+.menu-action.training { border-color: var(--purple); }
+.menu-action.training:active { background: var(--purple-pale); }
+.menu-icon { flex: none; font-size: 30px; line-height: 1; }
+.menu-text { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.menu-text strong { font-size: 18px; font-weight: 900; color: var(--text); }
+.menu-text small { font-size: 13px; color: var(--text-aux); font-weight: 700; }
+.menu-done {
+  flex: none;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 99px;
+  background: var(--success-bg);
+  border: 1px solid var(--border-success);
+  color: var(--green); font-size: 16px; font-weight: 900;
+}
+
 </style>
 
   </head>
@@ -2198,6 +2230,7 @@ var S = {
   precautionConfirmed: false,
   exDraft: null,        // 訓練記録下書き {amount, load, note}
   exerciseCache: {},    // userId -> {data, expires}（画面往復時の再通信を削減）
+  todayStatusCache: null, // 本日の全記録 {data, expires}（記録メニューの状況表示用）
   admin: { userId: '', month: '', notebookUserId: '', notebookDate: '' },
   adminVerifying: false,
   adminVerifyPromise: null,
@@ -2643,6 +2676,7 @@ function render() {
   var app = document.getElementById('app');
   if (h === 'users') return renderUserList(app, renderId);
   if (h.indexOf('users/') === 0) return renderUserDetail(app, h.slice(6), renderId);
+  if (h === 'menu') return renderUserMenu(app, renderId);
   if (h === 'vitals') return renderVitals(app, renderId);
   if (h === 'exercise') return renderExerciseScan(app, renderId);
   if (h.indexOf('exercise/') === 0) return renderExerciseForm(app, h.slice(9), renderId);
@@ -2674,14 +2708,17 @@ function checkinStatusView() {
   var todayWeekday = WEEKDAYS[new Date().getDay()];
   var scheduled = S.users.filter(function (u) { return String(u.scheduleLabel || '').indexOf(todayWeekday) >= 0; });
   var pending = scheduled.filter(function (u) { return !checkedIds[u.id]; });
+  // 受付済みの行はタップで記録メニューへ(受付後はいつでも記録できる)
   var rows = S.todayCheckins.map(function (c) {
     var u = usersById[c.userId];
     if (!u) return '';
     return (
-      '<div class="person-row"><span class="status-dot"></span>' +
-      '<span class="person-name">' + esc(u.name) + '</span>' +
-      '<span class="person-care">' + esc(u.careLevel) + '</span>' +
-      '<span class="person-time">' + esc(c.time) + '</span></div>'
+      '<button class="person-row tappable" onclick="Actions.startSession(\'' + u.id + '\')">' +
+      '<span class="status-dot"></span>' +
+      '<span class="person-main"><span class="person-name">' + esc(u.name) + '</span>' +
+      '<span class="person-care">' + esc(u.careLevel) + '</span></span>' +
+      '<span class="person-time">' + esc(c.time) + '</span>' +
+      '<span class="chev" aria-hidden="true">›</span></button>'
     );
   }).join('') + pending.map(function (u) {
     return (
@@ -2691,7 +2728,8 @@ function checkinStatusView() {
       '<span class="person-time">未着</span></div>'
     );
   }).join('');
-  return { rows: rows, scheduledCount: scheduled.length };
+  // 予定外の来所(振替など)も分母に含める
+  return { rows: rows, scheduledCount: pending.length + S.todayCheckins.length };
 }
 
 function updateCheckinStatusDom() {
@@ -2710,7 +2748,7 @@ function renderCheckin(app) {
   if (S.toast && (S.toast.type === 'success' || S.toast.type === 'info')) {
     toastHtml =
       '<button class="toast-success' + (S.toast.type === 'info' ? ' toast-info' : '') + '"' +
-      ' onclick="Actions.goVitals(\'' + S.toast.userId + '\')">' +
+      ' onclick="Actions.startSession(\'' + S.toast.userId + '\')">' +
       '<span class="check-circle">' + (S.toast.type === 'info' ? 'ℹ' : '✓') + '</span><span>' +
       '<span class="t-title" style="display:block;">' + esc(S.toast.title) + '</span>' +
       '<span class="t-sub">' + esc(S.toast.sub) + '</span></span></button>';
@@ -2730,8 +2768,8 @@ function renderCheckin(app) {
     '<div style="font-size:16px;font-weight:700;" id="clock-time">' + clock.time + '</div></div>' +
     '</header>' +
     '<div class="phone-body">' +
-    '<nav class="workflow-steps" aria-label="記録の進み具合"><div class="workflow-step current" aria-current="step"><span class="workflow-number">1</span><span>受付</span></div><div class="workflow-step upcoming"><span class="workflow-number">2</span><span>バイタル</span></div><div class="workflow-step upcoming"><span class="workflow-number">3</span><span>機能訓練</span></div></nav>' +
-    '<div class="screen-intro"><span class="eyebrow">STEP 1</span><h1>利用者カードを読み取る</h1><p>緑の枠にQRコードを合わせてください。</p></div>' +
+    '<div class="screen-intro"><span class="eyebrow">来所受付</span><h1>利用者カードを読み取る</h1>' +
+    '<p>受付後は、下の一覧から利用者を選べばいつでも記録できます。</p></div>' +
     cameraHtml('利用者のQRカードをかざしてください') +
     toastHtml +
     '<div><div class="section-head"><span class="section-title">本日の来所状況</span>' +
@@ -2795,6 +2833,96 @@ function precautionHtml(user, confirmable) {
   );
 }
 
+/** 本日の全記録(15秒キャッシュ)。メニューの状況表示に使う */
+function getTodayStatus() {
+  var cached = S.todayStatusCache;
+  if (cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
+  return rpc('apiGetTodayRecords').then(function (res) {
+    S.todayStatusCache = { data: res, expires: Date.now() + 15000 };
+    return res;
+  });
+}
+
+/**
+ * 利用者メニュー(記録のハブ)。
+ * 受付後はこの画面から、バイタルと機能訓練をいつでも・どちらからでも記録できる。
+ */
+function renderUserMenu(app, renderId) {
+  var user = currentUser();
+  if (!user) return go('');
+  app.innerHTML = loadingHtml();
+
+  Promise.all([getTodayStatus(), getTodayExerciseRecords(user.id)]).then(function (both) {
+    if (!isCurrentRender(renderId)) return;
+    var today = both[0];
+    var exRecords = both[1] || [];
+
+    var checkin = null;
+    (today.checkins || []).forEach(function (c) { if (c.userId === user.id && !checkin) checkin = c; });
+    var vital = null;
+    (today.vitals || []).forEach(function (v) {
+      if (v.userId === user.id && (!vital || timeKey(v.time) > timeKey(vital.time))) vital = v;
+    });
+
+    var planned = plannedExercises(user);
+    var doneIds = {};
+    exRecords.forEach(function (e) { doneIds[e.exerciseId] = true; });
+    var doneCount = planned.filter(function (ex) { return doneIds[ex.id]; }).length;
+
+    var vitalDone = !!vital;
+    var exDone = planned.length > 0 && doneCount >= planned.length;
+
+    var statusHtml =
+      '<div class="card today-card">' +
+      '<div class="today-status"><span class="status-dot"></span>' +
+      (checkin ? esc(checkin.time) + ' 受付済み' : '受付記録なし') + '</div>' +
+      (vital
+        ? '<div class="today-vitals">' + vitalLineText(vital) + '</div>'
+        : '<div class="today-vitals">バイタル未測定</div>') +
+      '<div class="today-vitals">機能訓練 ' + planned.length + '種目中 <b>' + doneCount + '種目</b> 完了</div>' +
+      (vital && vital.flagged
+        ? vital.alerts.map(function (msg) {
+            return '<div class="alert-banner"><span class="alert-dot"></span><span class="alert-text">' + esc(msg) + '</span></div>';
+          }).join('')
+        : '') +
+      '</div>';
+
+    app.innerHTML =
+      '<div class="phone-wrap"><div class="phone">' +
+      '<header class="phone-header compact">' +
+      '<button class="back-btn" onclick="Actions.backToCheckin()" aria-label="受付へ戻る">‹</button>' +
+      '<div><div class="h-sub">記録メニュー</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
+      '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
+      '</header>' +
+      '<div class="phone-body" style="gap:14px;">' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">記録メニュー</span>' +
+      '<h1>記録する内容を選んでください</h1>' +
+      '<p>バイタル・機能訓練は、どちらからでも何度でも記録できます。</p></div>' +
+      precautionHtml(user, false) +
+      snackbarHtml() +
+      statusHtml +
+      '<button class="menu-action" onclick="Actions.goVitals()">' +
+      '<span class="menu-icon">🩺</span>' +
+      '<span class="menu-text"><strong>バイタルを記録</strong>' +
+      '<small>' + (vitalDone ? '記録済み(再測定もできます)' : '血圧・脈拍・体温を入力') + '</small></span>' +
+      (vitalDone ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
+      '</button>' +
+      '<button class="menu-action training" onclick="Actions.goExercise()">' +
+      '<span class="menu-icon">🏃</span>' +
+      '<span class="menu-text"><strong>機能訓練を記録</strong>' +
+      '<small>' + (exDone ? '予定の種目はすべて完了' : '残り' + Math.max(0, planned.length - doneCount) + '種目') + '</small></span>' +
+      (exDone ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
+      '</button>' +
+      '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users/' + user.id + '\')">' +
+      '📋 この方の記録・経過を見る</button>' +
+      '<button class="link-plain" onclick="Actions.backToCheckin()">対応を終了して受付に戻る</button>' +
+      '</div></div></div>';
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = renderErrorHtml('記録メニューを読み込めませんでした', 'menu');
+  });
+}
+
 function renderVitals(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
@@ -2820,13 +2948,12 @@ function renderVitals(app, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
-      '<button class="back-btn" onclick="Actions.backToCheckin()" aria-label="戻る">‹</button>' +
+      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
       '<div><div class="h-sub">バイタル記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:12px;">' +
-      '<nav class="workflow-steps" aria-label="記録の進み具合"><div class="workflow-step done"><span class="workflow-number">✓</span><span>受付</span></div><div class="workflow-step current" aria-current="step"><span class="workflow-number">2</span><span>バイタル</span></div><div class="workflow-step upcoming"><span class="workflow-number">3</span><span>機能訓練</span></div></nav>' +
-      '<div class="screen-intro compact-intro"><span class="eyebrow">STEP 2</span><h1>バイタルを記録</h1><p>血圧・脈拍・体温は必須です(SpO2・体重は任意)。</p></div>' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">バイタル</span><h1>バイタルを記録</h1><p>血圧・脈拍・体温は必須です(SpO2・体重は任意)。</p></div>' +
       precautionHtml(user, true) +
       '<div class="card"><div class="bp-head"><span class="bp-title">血圧</span><span class="bp-unit">mmHg</span>' +
       '<span class="bp-prev">' + (prev ? '前回 ' + prev.systolic + ' / ' + prev.diastolic : '前回記録なし') + '</span></div>' +
@@ -2849,8 +2976,8 @@ function renderVitals(app, renderId) {
       '<div id="save-error"></div>' +
       '<div class="save-hint" id="v-hint"></div>' +
       '<div class="btn-row">' +
-      '<button class="btn-outline" onclick="Actions.vReset()">再測定</button>' +
-      '<button class="btn-primary" id="v-save" onclick="Actions.vSave()">保存して訓練へ</button>' +
+      '<button class="btn-outline" onclick="Actions.vReset()">入力し直す</button>' +
+      '<button class="btn-primary" id="v-save" onclick="Actions.vSave()">バイタルを保存</button>' +
       '</div></div></div></div>';
 
     Actions.vRefresh();
@@ -2923,19 +3050,19 @@ function renderExerciseScan(app, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header training">' +
-      '<button class="back-btn" onclick="Actions.backToCheckin()" aria-label="受付へ戻る">‹</button>' +
+      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
       '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
       '<div class="h-title">種目QRを読取</div></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
-      '<nav class="workflow-steps" aria-label="記録の進み具合"><div class="workflow-step done"><span class="workflow-number">✓</span><span>受付</span></div><div class="workflow-step done"><span class="workflow-number">✓</span><span>バイタル</span></div><div class="workflow-step current" aria-current="step"><span class="workflow-number">3</span><span>機能訓練</span></div></nav>' +
-      '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">STEP 3</span><h1>訓練種目を記録</h1><p>QRを読むか、下の予定から選んでください。</p></div>' +
+      '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">機能訓練</span><h1>訓練種目を記録</h1><p>QRを読むか、下の予定から選んでください。</p></div>' +
       precautionHtml(user, false) +
       snackbarHtml() +
       cameraHtml('訓練機器のQRコードをかざしてください') +
       errHtml +
       '<div id="save-error"></div>' +
       progressHtml(plannedExercises(user), records, true) +
+      '<button class="btn-outline" style="flex:none;width:100%;" onclick="Actions.backToMenu()">‹ 記録メニューへ戻る</button>' +
       '<button class="link-plain" onclick="Actions.backToCheckin()">対応を終了して受付に戻る</button>' +
       '</div></div></div>';
 
@@ -3262,7 +3389,7 @@ function renderUserDetail(app, userId, renderId) {
       '<span class="section-note">' + dayLabel(S.today) + '</span></div>' +
       '<div class="card today-card">' + todayHtml + '</div>' +
       (res.todayCheckin
-        ? '<button class="btn-primary" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.goVitals(\'' + user.id + '\')">▶ この方の記録をはじめる</button>'
+        ? '<button class="btn-primary" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.startSession(\'' + user.id + '\')">▶ この方の記録をはじめる</button>'
         : '') +
       '<button class="btn-outline" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.openNotebook(\'' + user.id + '\')">🖨 本日の連絡帳を作成</button>' +
       '</div>' +
@@ -3946,14 +4073,38 @@ var Actions = {
     var el = document.getElementById('picker');
     if (el) el.innerHTML = '';
   },
-  goVitals: function (userId) {
+  /** 対応開始: 利用者を選び、記録メニュー(ハブ)を開く */
+  startSession: function (userId) {
     S.currentUserId = userId;
     sessionStorage.setItem('currentUserId', userId);
     S.toast = null;
     S.vDraft = null;
+    S.exDraft = null;
     S.precautionConfirmed = false;
+    S.todayStatusCache = null;
     Scanner.autoMode = '';
+    go('menu');
+  },
+  /** メニューからバイタルへ(順序の制約なし) */
+  goVitals: function () {
+    if (!S.currentUserId) return go('');
+    S.vDraft = null;
+    S.precautionConfirmed = false;
     go('vitals');
+  },
+  /** メニューから機能訓練へ(順序の制約なし) */
+  goExercise: function () {
+    if (!S.currentUserId) return go('');
+    S.exDraft = null;
+    go('exercise');
+  },
+  backToMenu: function () {
+    if (!S.currentUserId) return go('');
+    S.toast = null;
+    S.vDraft = null;
+    S.exDraft = null;
+    S.todayStatusCache = null;
+    go('menu');
   },
   backToCheckin: function () {
     S.toast = null;
@@ -3961,6 +4112,7 @@ var Actions = {
     S.vDraft = null;
     S.exDraft = null;
     S.precautionConfirmed = false;
+    S.todayStatusCache = null;
     sessionStorage.removeItem('currentUserId');
     go('');
   },
@@ -4040,10 +4192,11 @@ var Actions = {
       S.vDraft = null;
       S.vitalConfirmed = false;
       S.lastSaved = { kind: 'vitals', id: rec.id, label: 'バイタルを記録しました' };
-      go('exercise');
+      S.todayStatusCache = null; // メニューの状況表示を最新化
+      go('menu');
     }).catch(function (e) {
       showSaveError('保存できませんでした。電波状況をご確認のうえ、もう一度お試しください');
-      if (btn) { btn.disabled = false; btn.textContent = '保存して訓練へ'; }
+      if (btn) { btn.disabled = false; btn.textContent = 'バイタルを保存'; }
     });
   },
 
@@ -4093,6 +4246,7 @@ var Actions = {
         S.exerciseCache[S.currentUserId] = { data: nextExercises, expires: Date.now() + 15000 };
       }
       S.exDraft = null;
+      S.todayStatusCache = null; // メニューの状況表示を最新化
       go('exercise');
     }).catch(function (e) {
       showSaveError('保存できませんでした。電波状況をご確認のうえ、もう一度お試しください');
@@ -4106,6 +4260,7 @@ var Actions = {
     S.lastSaved = null;
     rpc('apiVoidRecord', last.kind, last.id).then(function () {
       delete S.exerciseCache[S.currentUserId];
+      S.todayStatusCache = null;
       render();
     }).catch(function () {
       S.lastSaved = last;
