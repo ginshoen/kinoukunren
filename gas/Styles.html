@@ -2078,4 +2078,20 @@ textarea {
 .signed-in-name { font-size: 13px; font-weight: 700; color: var(--text-aux); }
 .signed-in-bar .link-plain { width: auto; padding: 8px 10px; font-size: 13px; }
 
+
+/* ---------- 入力・操作の体感速度 ---------- */
+.pin-placeholder { font-size: 14px; font-weight: 700; color: var(--text-aux); }
+.pin-count { font-size: 13px; font-weight: 700; color: var(--text-aux); margin-left: 6px; }
+.pin-display { flex-wrap: wrap; }
+
+/* タップ待ち・ハイライトを消して反応を速く見せる */
+button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .segment, .chip {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.pin-key, .segment, .menu-action, .person-row.tappable, .chip {
+  transition: background-color .08s linear, border-color .08s linear, transform .06s linear;
+}
+.pin-key:active { transform: scale(.96); background: var(--green-l4); }
+
 </style>
