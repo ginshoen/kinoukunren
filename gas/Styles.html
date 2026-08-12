@@ -2094,4 +2094,27 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 }
 .pin-key:active { transform: scale(.96); background: var(--green-l4); }
 
+
+/* ---------- アプリ更新の案内 ---------- */
+.update-banner {
+  position: fixed;
+  left: 12px; right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 100;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--sidebar); color: #fff;
+  border-radius: 14px; padding: 12px 14px;
+  box-shadow: 0 8px 24px rgba(20, 45, 36, 0.35);
+  font-size: 14px; font-weight: 700;
+  animation: slide-in .25s cubic-bezier(.2, .8, .3, 1);
+}
+.update-banner span { flex: 1; }
+.update-btn {
+  flex: none; background: var(--green-l1); color: var(--green-dark);
+  border-radius: 99px; padding: 8px 16px; min-height: 40px;
+  font-size: 14px; font-weight: 900;
+}
+.update-close { flex: none; color: #8fa491; font-size: 14px; min-width: 32px; min-height: 40px; }
+.build-tag { text-align: center; font-size: 11px; color: var(--text-disabled); }
+
 </style>
