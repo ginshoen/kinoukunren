@@ -2051,6 +2051,43 @@ textarea {
   color: var(--green); font-size: 16px; font-weight: 900;
 }
 
+
+/* ---------- 職員ログイン ---------- */
+.pin-display {
+  display: flex; justify-content: center; gap: 14px;
+  min-height: 34px; align-items: center; margin: 4px 0 2px;
+}
+.pin-dot {
+  width: 16px; height: 16px; border-radius: 99px;
+  border: 2px solid var(--border); background: #fff;
+}
+.pin-dot.filled { background: var(--green); border-color: var(--green); }
+.pin-pad {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+.pin-key {
+  min-height: 64px; border-radius: 14px;
+  background: #fff; border: 1px solid var(--border);
+  font-size: 26px; font-weight: 900; color: var(--text);
+}
+.pin-key:active { background: var(--green-l4); }
+.pin-key.sub { font-size: 16px; font-weight: 700; color: var(--text-aux); background: var(--input-bg); }
+.role-badge {
+  display: inline-block; flex: none;
+  padding: 2px 9px; border-radius: 99px;
+  background: var(--input-bg); border: 1px solid var(--border);
+  font-size: 11px; font-weight: 900; color: var(--text-aux);
+}
+.role-badge.admin {
+  background: var(--green-l4); border-color: var(--green-l3); color: var(--green-dark);
+}
+.signed-in-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-top: 4px; border-top: 1px solid var(--border);
+}
+.signed-in-name { font-size: 13px; font-weight: 700; color: var(--text-aux); }
+.signed-in-bar .link-plain { width: auto; padding: 8px 10px; font-size: 13px; }
+
 </style>
 
   </head>
@@ -2145,7 +2182,11 @@ function fetchRpc(name, args) {
   return fetch(window.GAS_API_URL, {
     method: 'POST',
     // Content-Type を text/plain のままにして CORS プリフライトを回避する
-    body: JSON.stringify({ fn: name, args: args, token: window.GAS_API_TOKEN || '' }),
+    body: JSON.stringify({
+      fn: name, args: args,
+      token: window.GAS_API_TOKEN || '',
+      session: S.session || '', // 職員ログインのセッション(サーバー側で権限判定)
+    }),
     signal: controller ? controller.signal : undefined,
   }).then(function (r) {
     if (!r.ok) throw new Error('通信エラー(' + r.status + ')');
@@ -2177,11 +2218,12 @@ function rpc(name) {
       return delay(350).then(function () { return fetchRpc(name, args); });
     });
   } else if (window.google && google.script && google.script.run) {
+    // GAS版も apiCall 経由に統一し、サーバー側で権限を判定させる
     request = new Promise(function (resolve, reject) {
-      var runner = google.script.run
+      google.script.run
         .withSuccessHandler(resolve)
-        .withFailureHandler(function (e) { reject(e); });
-      runner[name].apply(runner, args);
+        .withFailureHandler(function (e) { reject(e); })
+        .apiCall(name, args, S.session || '');
     });
   } else {
     request = Mock.call(name, args); // ローカルプレビュー用モック
@@ -2215,6 +2257,13 @@ function pairDeviceRpc(pin) {
 
 var S = {
   ready: false,
+  // --- 職員ログイン ---
+  session: localStorage.getItem('staffSession') || '', // 署名付きセッション(12時間)
+  me: null,             // {id, name, role, jobTitle} ログイン中の職員
+  staffList: [],        // ログイン画面の職員一覧
+  loginStaffId: '',     // ログイン画面で選択中の職員
+  loginPin: '',
+  loginError: '',
   users: [],
   exercises: [],
   today: '',
@@ -2649,6 +2698,91 @@ function showSaveError(message) {
   box.scrollIntoView({ block: 'nearest' });
 }
 
+// ---------------------------------------------------------------- 職員ログイン
+
+/** ログイン中の職員が管理者か(画面の出し分け用。実際の防御はサーバー側) */
+function isAdmin() {
+  return !!(S.me && S.me.role === 'admin');
+}
+
+function saveSession(session, me) {
+  S.session = session;
+  S.me = me;
+  if (session) localStorage.setItem('staffSession', session);
+  else localStorage.removeItem('staffSession');
+}
+
+/** ログイン画面(職員を選ぶ → PINを入力) */
+function renderLogin(app) {
+  var selected = null;
+  S.staffList.forEach(function (s) { if (s.id === S.loginStaffId) selected = s; });
+
+  var body;
+  if (!selected) {
+    var rows = S.staffList.length
+      ? S.staffList.map(function (s) {
+          return (
+            '<button class="person-row tappable" onclick="Actions.pickLoginStaff(\'' + s.id + '\')">' +
+            '<span class="person-main"><span class="person-name">' + esc(s.name) + '</span>' +
+            '<span class="person-care">' + esc(s.jobTitle || '職員') + '</span></span>' +
+            '<span class="chev" aria-hidden="true">›</span></button>'
+          );
+        }).join('')
+      : '<div class="toast-error" role="alert"><span class="x-circle">!</span><span>' +
+        '<span class="t-title" style="display:block;">職員が登録されていません</span>' +
+        '<span class="t-sub">Apps Script エディタで setup() を実行すると、管理者アカウントと初期PINが実行ログに表示されます。</span></span></div>';
+    body =
+      '<div class="screen-intro"><span class="eyebrow">ログイン</span><h1>お名前を選んでください</h1>' +
+      '<p>記録には職員名が残ります。ご自身の名前を選んでください。</p></div>' +
+      '<div class="row-list">' + rows + '</div>';
+  } else {
+    var dots = '';
+    for (var i = 0; i < 8; i++) {
+      dots += i < S.loginPin.length ? '<span class="pin-dot filled"></span>' : (i < 4 ? '<span class="pin-dot"></span>' : '');
+    }
+    var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back'];
+    var pad = keys.map(function (k) {
+      if (k === 'clear') return '<button class="pin-key sub" onclick="Actions.pinInput(\'clear\')">消去</button>';
+      if (k === 'back') return '<button class="pin-key sub" onclick="Actions.pinInput(\'back\')">←</button>';
+      return '<button class="pin-key" onclick="Actions.pinInput(\'' + k + '\')">' + k + '</button>';
+    }).join('');
+    body =
+      '<div class="screen-intro"><span class="eyebrow">ログイン</span><h1>' + esc(selected.name) + ' さん</h1>' +
+      '<p>PINを入力してください。</p></div>' +
+      '<div class="pin-display">' + dots + '</div>' +
+      (S.loginError ? '<div class="toast-error" role="alert"><span class="x-circle">!</span><span class="t-sub">' + esc(S.loginError) + '</span></div>' : '') +
+      '<div class="pin-pad">' + pad + '</div>' +
+      '<button class="btn-primary" style="flex:none;width:100%;" id="login-btn" onclick="Actions.doLogin()">ログイン</button>' +
+      '<button class="link-plain" onclick="Actions.backToStaffList()">‹ 名前を選び直す</button>';
+  }
+
+  app.innerHTML =
+    '<div class="phone-wrap"><div class="phone">' +
+    '<header class="phone-header">' +
+    '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ">' +
+    '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">職員ログイン</div></div>' +
+    '</header>' +
+    '<div class="phone-body">' + body + '</div>' +
+    '</div></div>';
+}
+
+/** 権限のない画面を開こうとしたとき */
+function renderNoPermission(app) {
+  app.innerHTML =
+    '<div class="phone-wrap"><div class="phone">' +
+    '<header class="phone-header compact">' +
+    '<button class="back-btn" onclick="go(\'\')" aria-label="受付へ戻る">‹</button>' +
+    '<div><div class="h-sub">アクセス権限</div><div class="h-title">管理者専用の画面です</div></div>' +
+    '</header>' +
+    '<div class="phone-body">' +
+    '<div class="toast-error" role="alert"><span class="x-circle">!</span><span>' +
+    '<span class="t-title" style="display:block;">この画面は管理者のみ利用できます</span>' +
+    '<span class="t-sub">利用者情報の登録・編集や帳票の作成は管理者にご依頼ください。</span></span></div>' +
+    '<button class="btn-primary" style="flex:none;width:100%;" onclick="go(\'\')">受付画面に戻る</button>' +
+    '<button class="link-plain" onclick="Actions.logout()">別の職員でログインし直す</button>' +
+    '</div></div></div>';
+}
+
 // ---------------------------------------------------------------- ルーター
 
 function go(hash) {
@@ -2671,16 +2805,20 @@ function render() {
   Scanner.stop();
   if (S.toastTimer) { clearTimeout(S.toastTimer); S.toastTimer = null; }
   if (S.pollTimer) { clearInterval(S.pollTimer); S.pollTimer = null; }
+  var app = document.getElementById('app');
+  // 未ログインなら常にログイン画面(以降の画面はログイン後のみ)
+  if (!S.me) return renderLogin(app);
   if (!S.ready) return;
   var h = location.hash.replace(/^#\/?/, '');
-  var app = document.getElementById('app');
+  // 管理画面は管理者のみ。現場職員には権限がない旨だけ表示する
+  if (h.indexOf('admin') === 0 && !isAdmin()) return renderNoPermission(app);
+  if (h === 'admin/staff') return renderAdminStaff(app, renderId);
   if (h === 'users') return renderUserList(app, renderId);
   if (h.indexOf('users/') === 0) return renderUserDetail(app, h.slice(6), renderId);
   if (h === 'menu') return renderUserMenu(app, renderId);
   if (h === 'vitals') return renderVitals(app, renderId);
   if (h === 'exercise') return renderExerciseScan(app, renderId);
   if (h.indexOf('exercise/') === 0) return renderExerciseForm(app, h.slice(9), renderId);
-  if (h.indexOf('admin') === 0 && !S.adminVerified) return renderAdminGate(app, h, renderId);
   if (h === 'admin') return renderAdminResults(app, renderId);
   if (h === 'admin/users') return renderAdminUsers(app, renderId);
   if (h === 'admin/today') return renderAdminToday(app, renderId);
@@ -2782,8 +2920,14 @@ function renderCheckin(app) {
         '<span class="t-title" style="display:block;">デモモードで動作中(記録は保存されません)</span>' +
         '<span class="t-sub">GASと接続するには下の「接続設定」からURLを貼り付けてください</span></span></div>'
       : '') +
+    '<div class="signed-in-bar">' +
+    '<span class="signed-in-name">' + esc(S.me ? S.me.name : '') + ' さん でログイン中' +
+    (isAdmin() ? ' <span class="role-badge admin">管理者</span>' : '') + '</span>' +
+    '<button class="link-plain" onclick="Actions.logout()">ログアウト</button>' +
+    '</div>' +
     '<div class="footer-links">' +
-    '<button class="link-plain" onclick="go(\'admin\')">📊 管理画面</button>' +
+    // 管理画面は管理者のみ表示(サーバー側でも権限を再判定する)
+    (isAdmin() ? '<button class="link-plain" onclick="go(\'admin\')">📊 管理画面</button>' : '') +
     (isStandalone()
       ? '<button class="link-plain" onclick="Actions.openSettings()">⚙ 接続設定</button>'
       : '') +
@@ -3425,7 +3569,8 @@ var NAV_ITEMS = [
   ['admin', '利用者別 実績'],
   ['admin/today', '本日の記録一覧'],
   ['admin/notebook', '連絡帳 作成・印刷'],
-  ['admin/users', '利用者管理 🔒'],
+  ['admin/users', '利用者管理'],
+  ['admin/staff', '職員管理'],
   ['admin/master', '種目マスタ / QR発行'],
   ['admin/monthly', '月次レポート'],
 ];
@@ -3472,59 +3617,14 @@ function adminShell(active, contentHtml) {
     '<div class="brand"><img src="' + LOGO + '" alt="銀松苑ロゴ"><span class="brand-name">銀松苑 管理</span></div>' +
     nav +
     '<button type="button" class="nav-item" style="font-size:13px;color:#8FA491;" onclick="return go(\'\')">‹ 受付画面へ</button>' +
-    '<div class="admin-staff">スタッフ:' + esc(S.staff) + '</div>' +
+    '<div class="admin-staff">' + esc(S.me ? S.me.name : '') +
+    (isAdmin() ? ' <span class="role-badge admin">管理者</span>' : '') + '</div>' +
+    '<button type="button" class="nav-item" style="font-size:13px;color:#8FA491;" onclick="Actions.logout()">ログアウト</button>' +
     '</nav><main class="admin-content">' + contentHtml + '</main></div></div>'
   );
 }
 
 /** 保存済みPINの再検証を全メニューで共有し、連続タップ時の競合を防ぐ。 */
-function verifySavedAdminPin(savedPin) {
-  if (S.adminVerifyPromise) return S.adminVerifyPromise;
-  S.adminVerifying = true;
-  S.adminVerifyPromise = rpc('apiVerifyAdmin', savedPin).then(function (res) {
-    S.adminVerified = true;
-    S.adminPin = savedPin;
-    S.pinConfigured = res.pinConfigured;
-    return res;
-  }).catch(function (err) {
-    S.adminVerified = false;
-    S.adminPin = '';
-    sessionStorage.removeItem('adminPin');
-    throw err;
-  }).finally(function () {
-    S.adminVerifying = false;
-    S.adminVerifyPromise = null;
-  });
-  return S.adminVerifyPromise;
-}
-
-function renderAdminGate(app, requested, renderId) {
-  var savedPin = sessionStorage.getItem('adminPin');
-  if (savedPin !== null) {
-    app.innerHTML = adminShell(requested, loadingHtml());
-    verifySavedAdminPin(savedPin).then(function () {
-      if (!isCurrentRender(renderId)) return;
-      render();
-    }).catch(function () {
-      if (!isCurrentRender(renderId)) return;
-      render();
-    });
-    return;
-  }
-  app.innerHTML = adminShell(requested,
-    '<div class="admin-page-head"><div><div class="breadcrumb">管理画面</div>' +
-    '<div class="admin-h1">🔒 管理者確認</div></div></div>' +
-    '<div class="panel admin-gate"><div class="section-note">利用者情報・記録・連絡帳を保護するため、管理者PINを入力してください。</div>' +
-    '<input type="password" inputmode="numeric" class="note-area" id="admin-pin" aria-label="管理者PIN" placeholder="PIN" autocomplete="current-password">' +
-    '<div id="pin-error" class="form-error" role="alert"></div>' +
-    '<button class="btn-primary" onclick="Actions.adminUnlock()">管理画面を開く</button>' +
-    '<div class="section-note">PINが未設定の場合は空欄のまま開けます。運用前にApps Scriptのスクリプトプロパティ「ADMIN_PIN」を設定してください。</div></div>');
-  setTimeout(function () {
-    var pin = document.getElementById('admin-pin');
-    if (pin) pin.focus();
-  }, 0);
-}
-
 function exerciseLabel(rec) {
   var ex = exerciseById(rec.exerciseId);
   if (!ex) return '?';
@@ -3691,12 +3791,83 @@ function buildDays(res) {
 
 var CARE_LEVELS = ['要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
 
-function renderAdminUsers(app, renderId) {
-  // 通常はルーター側で検証済み。直接呼ばれた場合も共通処理へ戻す。
-  if (!S.adminVerified) {
-    return renderAdminGate(app, 'admin/users', renderId);
+/** 職員管理(管理者のみ): 職員の登録・権限設定・PIN再設定・削除 */
+function renderAdminStaff(app, renderId) {
+  app.innerHTML = adminShell('admin/staff', loadingHtml());
+
+  rpc('apiAdminGetStaff').then(function (res) {
+    if (!isCurrentRender(renderId)) return;
+    S.staffAdminList = res.staff;
+    drawAdminStaff(app);
+  }).catch(function (e) {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = adminShell('admin/staff',
+      '<div class="panel"><div class="toast-error" role="alert"><span class="x-circle">!</span>' +
+      '<span class="t-sub">' + esc((e && e.message) || '職員一覧を読み込めませんでした') + '</span></div></div>');
+  });
+}
+
+function drawAdminStaff(app) {
+  var list = S.staffAdminList || [];
+  var e0 = S.editingStaff;
+  var formHtml = '';
+  if (e0) {
+    formHtml =
+      '<div class="panel" id="staff-form">' +
+      '<div class="panel-title">' + (e0.id ? '職員を編集' : '職員を新規登録') + '</div>' +
+      '<div class="form-grid">' +
+      '<label>氏名 <input class="note-area" id="s-name" value="' + esc(e0.name || '') + '" placeholder="例: 山本 太郎" style="min-height:44px;"></label>' +
+      '<label>ふりがな <input class="note-area" id="s-kana" value="' + esc(e0.kana || '') + '" placeholder="例: やまもと たろう" style="min-height:44px;"></label>' +
+      '<label>職種 <input class="note-area" id="s-job" value="' + esc(e0.jobTitle || '') + '" placeholder="例: 機能訓練指導員 / 看護職員" style="min-height:44px;"></label>' +
+      '<div>権限<div class="check-row">' +
+      '<label class="check-item"><input type="radio" name="s-role" value="staff"' + (e0.role !== 'admin' ? ' checked' : '') + '>現場職員(記録・閲覧のみ)</label>' +
+      '<label class="check-item"><input type="radio" name="s-role" value="admin"' + (e0.role === 'admin' ? ' checked' : '') + '>管理者(すべて操作可)</label>' +
+      '</div></div>' +
+      '<label>PIN(4〜8桁の数字)<input class="note-area" id="s-pin" inputmode="numeric" type="password" autocomplete="new-password" placeholder="' +
+      (e0.id ? '変更する場合のみ入力' : '例: 1234') + '" style="min-height:44px;max-width:200px;"></label>' +
+      '<div>状態<div class="check-row">' +
+      '<label class="check-item"><input type="checkbox" id="s-active"' + (e0.active === false ? '' : ' checked') + '>この職員はログインできる</label>' +
+      '</div></div>' +
+      '</div>' +
+      '<div class="section-note" id="staff-error" style="color:var(--alert-text);min-height:18px;"></div>' +
+      '<div class="btn-row" style="margin-top:8px;">' +
+      '<button class="btn-outline" onclick="Actions.staffCancelEdit()">キャンセル</button>' +
+      '<button class="btn-primary" id="s-save" onclick="Actions.staffSave()">保存する</button>' +
+      '</div></div>';
   }
 
+  var rows = list.map(function (x) {
+    return (
+      '<tr><td style="font-weight:700;">' + esc(x.name) +
+      (S.me && S.me.id === x.id ? ' <span class="role-badge">自分</span>' : '') +
+      '<br><span class="section-note">' + esc(x.kana || '') + '</span></td>' +
+      '<td>' + esc(x.jobTitle || '') + '</td>' +
+      '<td>' + (x.role === 'admin' ? '<span class="role-badge admin">管理者</span>' : '現場職員') + '</td>' +
+      '<td>' + (x.active ? (x.hasPin ? '利用中' : '<span class="flag-mark">PIN未設定</span>') : '停止中') + '</td>' +
+      '<td style="white-space:nowrap;">' +
+      '<button class="btn-csv" style="margin-right:6px;" onclick="Actions.staffEdit(\'' + x.id + '\')">編集</button>' +
+      '<button class="btn-danger" data-del="' + x.id + '" onclick="Actions.staffDelete(\'' + x.id + '\', this)">削除</button>' +
+      '</td></tr>'
+    );
+  }).join('');
+
+  app.innerHTML = adminShell('admin/staff',
+    '<div class="admin-page-head"><div><div class="breadcrumb">職員管理</div>' +
+    '<div class="admin-h1">職員の登録・権限設定 <span class="attrs">全' + list.length + '名</span></div></div>' +
+    '<div class="admin-actions">' +
+    '<button class="btn-csv" onclick="Actions.staffNew()">+ 新規登録</button>' +
+    '</div></div>' +
+    formHtml +
+    '<div class="panel"><div style="overflow-x:auto;"><table class="gen-table"><thead><tr>' +
+    '<th>氏名</th><th>職種</th><th>権限</th><th>状態</th><th></th>' +
+    '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="section-note" style="margin-top:8px;">' +
+    'PINは暗号化して保存されます(シートには残りません)。忘れた場合はここで再設定してください。' +
+    '現場職員は受付・記録・閲覧のみ、管理者はこの画面を含むすべての操作ができます。</div>' +
+    '</div>');
+}
+
+function renderAdminUsers(app, renderId) {
   var u = S.editingUser;
   var formHtml = '';
   if (u) {
@@ -3750,11 +3921,7 @@ function renderAdminUsers(app, renderId) {
     '<div class="admin-h1">利用者の登録・編集 <span class="attrs">全' + S.users.length + '名</span></div></div>' +
     '<div class="admin-actions">' +
     '<button class="btn-csv" onclick="Actions.adminNewUser()">+ 新規登録</button>' +
-    '<button class="select-plain" onclick="Actions.adminLock()">🔒 ロックする</button>' +
     '</div></div>' +
-    (S.pinConfigured ? '' :
-      '<div class="alert-banner"><span class="alert-dot"></span><span class="alert-text">' +
-      '管理者PINが未設定のため、誰でもこの画面を開けます。Apps Script の「プロジェクトの設定 → スクリプトプロパティ」で ADMIN_PIN を設定してください</span></div>') +
     formHtml +
     '<div class="panel"><div style="overflow-x:auto;"><table class="gen-table"><thead><tr>' +
     '<th>氏名</th><th>年齢</th><th>介護度</th><th>利用曜日</th><th>予定種目</th><th></th>' +
@@ -4336,34 +4503,140 @@ var Actions = {
     go('admin/notebook');
   },
 
-  // --- 利用者管理(管理者専用) ---
-  adminUnlock: function () {
-    if (S.adminUnlockPromise) return;
-    var pin = (document.getElementById('admin-pin') || {}).value || '';
-    var err = document.getElementById('pin-error');
-    var btn = document.querySelector('.admin-gate .btn-primary');
-    if (err) err.textContent = '確認中…';
-    if (btn) btn.disabled = true;
-    S.adminUnlockPromise = rpc('apiVerifyAdmin', pin).then(function (res) {
-      S.adminVerified = true;
-      S.adminPin = pin;
-      S.pinConfigured = res.pinConfigured;
-      sessionStorage.setItem('adminPin', pin);
-      render();
-    }).catch(function (e) {
-      if (err) err.textContent = (e && e.message) || 'PINが正しくありません';
-    }).finally(function () {
-      S.adminUnlockPromise = null;
-      if (btn && document.body.contains(btn)) btn.disabled = false;
-    });
-  },
-  adminLock: function () {
-    S.adminVerified = false;
-    S.adminPin = '';
-    S.editingUser = null;
-    sessionStorage.removeItem('adminPin');
+  // --- 職員ログイン ---
+  pickLoginStaff: function (staffId) {
+    S.loginStaffId = staffId;
+    S.loginPin = '';
+    S.loginError = '';
     render();
   },
+  backToStaffList: function () {
+    S.loginStaffId = '';
+    S.loginPin = '';
+    S.loginError = '';
+    render();
+  },
+  pinInput: function (key) {
+    if (key === 'clear') S.loginPin = '';
+    else if (key === 'back') S.loginPin = S.loginPin.slice(0, -1);
+    else if (S.loginPin.length < 8) S.loginPin += key;
+    S.loginError = '';
+    // 入力中は全描画せずドットだけ更新する
+    var display = document.querySelector('.pin-display');
+    if (display) {
+      var html = '';
+      for (var i = 0; i < Math.max(4, S.loginPin.length); i++) {
+        html += i < S.loginPin.length ? '<span class="pin-dot filled"></span>' : '<span class="pin-dot"></span>';
+      }
+      display.innerHTML = html;
+    }
+  },
+  doLogin: function () {
+    if (!S.loginStaffId || S.loginPin.length < 4) {
+      S.loginError = 'PINを4桁以上入力してください';
+      return render();
+    }
+    var btn = document.getElementById('login-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'ログイン中…'; }
+    rpc('apiLogin', S.loginStaffId, S.loginPin).then(function (res) {
+      saveSession(res.session, res.staff);
+      S.loginPin = '';
+      S.loginError = '';
+      S.loginStaffId = '';
+      clearRpcCache();
+      return bootAfterLogin();
+    }).catch(function (e) {
+      S.loginPin = '';
+      S.loginError = (e && e.message) || 'ログインできませんでした';
+      render();
+    });
+  },
+  logout: function () {
+    saveSession('', null);
+    sessionStorage.removeItem('currentUserId');
+    S.currentUserId = '';
+    S.ready = false;
+    S.loginStaffId = '';
+    S.loginPin = '';
+    S.loginError = '';
+    S.staffAdminList = null;
+    S.editingStaff = null;
+    clearRpcCache();
+    location.hash = '';
+    loadStaffListThenRender();
+  },
+
+  // --- 職員管理(管理者専用) ---
+  staffNew: function () {
+    S.editingStaff = { id: '', name: '', kana: '', jobTitle: '', role: 'staff', active: true };
+    drawAdminStaff(document.getElementById('app'));
+  },
+  staffEdit: function (id) {
+    var target = null;
+    (S.staffAdminList || []).forEach(function (x) { if (x.id === id) target = x; });
+    if (!target) return;
+    S.editingStaff = {
+      id: target.id, name: target.name, kana: target.kana,
+      jobTitle: target.jobTitle, role: target.role, active: target.active,
+    };
+    drawAdminStaff(document.getElementById('app'));
+  },
+  staffCancelEdit: function () {
+    S.editingStaff = null;
+    drawAdminStaff(document.getElementById('app'));
+  },
+  staffSave: function () {
+    var err = document.getElementById('staff-error');
+    var roleEl = document.querySelector('input[name="s-role"]:checked');
+    var payload = {
+      id: S.editingStaff.id,
+      name: document.getElementById('s-name').value.trim(),
+      kana: document.getElementById('s-kana').value.trim(),
+      jobTitle: document.getElementById('s-job').value.trim(),
+      role: roleEl ? roleEl.value : 'staff',
+      pin: document.getElementById('s-pin').value.trim(),
+      active: document.getElementById('s-active').checked,
+    };
+    if (!payload.name) { if (err) err.textContent = '氏名を入力してください'; return; }
+    if (!payload.id && !payload.pin) { if (err) err.textContent = '新規登録にはPINが必要です'; return; }
+    if (payload.pin && !/^\d{4,8}$/.test(payload.pin)) {
+      if (err) err.textContent = 'PINは4〜8桁の数字で入力してください';
+      return;
+    }
+    var btn = document.getElementById('s-save');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+    rpc('apiAdminSaveStaff', payload).then(function (res) {
+      S.staffAdminList = res.staff;
+      S.editingStaff = null;
+      drawAdminStaff(document.getElementById('app'));
+    }).catch(function (e) {
+      if (err) err.textContent = (e && e.message) || '保存できませんでした';
+      if (btn) { btn.disabled = false; btn.textContent = '保存する'; }
+    });
+  },
+  staffDelete: function (id, btn) {
+    if (btn.getAttribute('data-confirm') !== '1') {
+      btn.setAttribute('data-confirm', '1');
+      btn.textContent = '本当に削除?';
+      setTimeout(function () {
+        if (!document.body.contains(btn)) return;
+        btn.removeAttribute('data-confirm');
+        btn.textContent = '削除';
+      }, 3000);
+      return;
+    }
+    btn.disabled = true;
+    rpc('apiAdminDeleteStaff', id).then(function (res) {
+      S.staffAdminList = res.staff;
+      drawAdminStaff(document.getElementById('app'));
+    }).catch(function (e) {
+      btn.disabled = false;
+      btn.textContent = '削除';
+      showSaveError((e && e.message) || '削除できませんでした');
+    });
+  },
+
+  // --- 利用者管理(管理者専用) ---
   adminNewUser: function () {
     S.editingUser = { id: '', name: '', kana: '', age: '', careLevel: CARE_LEVELS[0], scheduleLabel: '', plan: [], goal: '', medicalHistory: '', precautions: '' };
     render();
@@ -4401,7 +4674,7 @@ var Actions = {
     if (!payload.age || !isFinite(Number(payload.age))) { if (err) err.textContent = '年齢を数字で入力してください'; return; }
     var btn = document.getElementById('f-save');
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
-    rpc('apiAdminSaveUser', S.adminPin, payload).then(function (res) {
+    rpc('apiAdminSaveUser', payload).then(function (res) {
       S.users = res.users;
       S.editingUser = null;
       render();
@@ -4422,7 +4695,7 @@ var Actions = {
       return;
     }
     btn.disabled = true;
-    rpc('apiAdminDeleteUser', S.adminPin, id).then(function (res) {
+    rpc('apiAdminDeleteUser', id).then(function (res) {
       S.users = res.users;
       render();
     }).catch(function (e) {
@@ -4727,10 +5000,83 @@ var Mock = (function () {
   }
   function save(db) { localStorage.setItem(KEY, JSON.stringify(db)); }
 
+  function mockDefaultStaff() {
+    return [
+      { id: 'st-admin', name: '山本 管理', kana: 'やまもと かんり', jobTitle: '管理者', role: 'admin', pin: '1234', active: true },
+      { id: 'st-staff', name: '中川 職員', kana: 'なかがわ しょくいん', jobTitle: '機能訓練指導員', role: 'staff', pin: '1111', active: true },
+    ];
+  }
+  function mockMe() {
+    var db = load();
+    if (!db.staff) { db.staff = mockDefaultStaff(); save(db); }
+    var id = localStorage.getItem('mockStaffId');
+    var me = null;
+    db.staff.forEach(function (x) { if (x.id === id) me = x; });
+    return me;
+  }
+
   var fns = {
     apiGetBootstrap: function () {
       var db = load();
-      return { apiVersion: 4, capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook'], users: db.users, exercises: db.exercises, today: todayStr(), staff: 'プレビュー', todayCheckins: fns.apiGetTodayCheckins() };
+      var me = mockMe();
+      return { apiVersion: 5, capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin'], users: db.users, exercises: db.exercises, today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+    },
+    // --- 職員ログイン(プレビュー用の簡易実装) ---
+    apiGetStaffList: function () {
+      var db = load();
+      if (!db.staff) { db.staff = mockDefaultStaff(); save(db); }
+      return { staff: db.staff.filter(function (x) { return x.active !== false; }).map(function (x) {
+        return { id: x.id, name: x.name, kana: x.kana, jobTitle: x.jobTitle };
+      }), needsSetup: false };
+    },
+    apiLogin: function (staffId, pin) {
+      var db = load();
+      if (!db.staff) { db.staff = mockDefaultStaff(); save(db); }
+      var target = null;
+      db.staff.forEach(function (x) { if (x.id === staffId) target = x; });
+      if (!target) throw new Error('この職員アカウントは利用できません');
+      if (String(target.pin) !== String(pin)) throw new Error('PINが正しくありません');
+      localStorage.setItem('mockStaffId', target.id);
+      return { session: 'mock.' + target.id, staff: { id: target.id, name: target.name, role: target.role, jobTitle: target.jobTitle } };
+    },
+    apiGetSession: function () {
+      var me = mockMe();
+      if (!me) throw new Error('ログインが必要です');
+      return { staff: { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } };
+    },
+    apiAdminGetStaff: function () {
+      var db = load();
+      if (!db.staff) { db.staff = mockDefaultStaff(); save(db); }
+      return { staff: db.staff.map(function (x) {
+        return { id: x.id, name: x.name, kana: x.kana, jobTitle: x.jobTitle, role: x.role, active: x.active !== false, hasPin: !!x.pin };
+      }) };
+    },
+    apiAdminSaveStaff: function (payload) {
+      var db = load();
+      if (!db.staff) db.staff = mockDefaultStaff();
+      if (payload.id) {
+        db.staff.forEach(function (x) {
+          if (x.id !== payload.id) return;
+          x.name = payload.name; x.kana = payload.kana; x.jobTitle = payload.jobTitle;
+          x.role = payload.role; x.active = payload.active !== false;
+          if (payload.pin) x.pin = payload.pin;
+        });
+      } else {
+        db.staff.push({ id: 's' + Date.now().toString(36), name: payload.name, kana: payload.kana,
+          jobTitle: payload.jobTitle, role: payload.role, pin: payload.pin, active: true });
+      }
+      save(db);
+      return fns.apiAdminGetStaff();
+    },
+    apiAdminDeleteStaff: function (id) {
+      var db = load();
+      var admins = db.staff.filter(function (x) { return x.role === 'admin'; });
+      var target = null;
+      db.staff.forEach(function (x) { if (x.id === id) target = x; });
+      if (target && target.role === 'admin' && admins.length <= 1) throw new Error('最後の管理者は削除できません');
+      db.staff = db.staff.filter(function (x) { return x.id !== id; });
+      save(db);
+      return fns.apiAdminGetStaff();
     },
     apiGetTodayCheckins: function () {
       var db = load();
@@ -4800,7 +5146,7 @@ var Mock = (function () {
     apiVerifyAdmin: function () {
       return { ok: true, pinConfigured: false };
     },
-    apiAdminSaveUser: function (pin, u) {
+    apiAdminSaveUser: function (u) {
       var db = load();
       var plan = String(u.plan || '').split(',').filter(String);
       if (u.id) {
@@ -4818,7 +5164,7 @@ var Mock = (function () {
       save(db);
       return { users: db.users };
     },
-    apiAdminDeleteUser: function (pin, id) {
+    apiAdminDeleteUser: function (id) {
       var db = load();
       db.users = db.users.filter(function (x) { return x.id !== id; });
       save(db);
@@ -4952,19 +5298,7 @@ var Mock = (function () {
 
 // ---------------------------------------------------------------- 起動
 
-rpc('apiGetBootstrap').then(function (boot) {
-  if (!boot.apiVersion || boot.apiVersion < 4) {
-    throw new Error('GASが旧バージョンです。Apps Scriptを最新版として再デプロイしてください');
-  }
-  S.users = boot.users;
-  S.exercises = boot.exercises;
-  S.today = boot.today;
-  S.staff = boot.staff;
-  S.todayCheckins = boot.todayCheckins;
-  S.ready = true;
-  render();
-}).catch(function (e) {
-  var message = String((e && e.message) || e || '');
+function showBootError(message) {
   if (isStandalone() && window.GAS_API_URL && message.indexOf('認証エラー') >= 0) {
     document.getElementById('app').innerHTML =
       '<div class="phone-wrap"><div class="phone"><header class="phone-header">' +
@@ -4979,7 +5313,51 @@ rpc('apiGetBootstrap').then(function (boot) {
     '<div style="padding:48px;text-align:center;color:#8A4560;font-weight:700;">' +
     '起動エラー: ' + esc(message) +
     '<br><span style="font-weight:400;font-size:13px;">Apps Script エディタで setup() を実行済みか確認してください</span></div>';
-});
+}
+
+/** ログイン画面に出す職員一覧を取得する */
+function loadStaffListThenRender() {
+  return rpc('apiGetStaffList').then(function (res) {
+    S.staffList = (res && res.staff) || [];
+    render();
+  }).catch(function (e) {
+    showBootError(String((e && e.message) || e || ''));
+  });
+}
+
+/** ログイン後のマスタ読み込み */
+function bootAfterLogin() {
+  return rpc('apiGetBootstrap').then(function (boot) {
+    if (!boot.apiVersion || boot.apiVersion < 5) {
+      throw new Error('GASが旧バージョンです。Apps Scriptを最新版として再デプロイしてください');
+    }
+    S.users = boot.users;
+    S.exercises = boot.exercises;
+    S.today = boot.today;
+    S.staff = boot.staff;
+    if (S.me && boot.role) S.me.role = boot.role; // 権限はサーバーの現在値を優先
+    S.todayCheckins = boot.todayCheckins;
+    S.ready = true;
+    render();
+  });
+}
+
+// ---- 起動: セッションがあれば復帰、無ければログイン画面 ----
+if (S.session) {
+  rpc('apiGetSession').then(function (res) {
+    S.me = res.staff;
+    return bootAfterLogin();
+  }).catch(function (e) {
+    var message = String((e && e.message) || e || '');
+    if (message.indexOf('ログイン') >= 0 || message.indexOf('職員アカウント') >= 0) {
+      saveSession('', null);
+      return loadStaffListThenRender();
+    }
+    showBootError(message);
+  });
+} else {
+  loadStaffListThenRender();
+}
 </script>
 
   </body>
