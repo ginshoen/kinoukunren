@@ -2104,11 +2104,34 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 }
 .pin-key:active { transform: scale(.96); background: var(--green-l4); }
 
+
+/* ---------- アプリ更新の案内 ---------- */
+.update-banner {
+  position: fixed;
+  left: 12px; right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 100;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--sidebar); color: #fff;
+  border-radius: 14px; padding: 12px 14px;
+  box-shadow: 0 8px 24px rgba(20, 45, 36, 0.35);
+  font-size: 14px; font-weight: 700;
+  animation: slide-in .25s cubic-bezier(.2, .8, .3, 1);
+}
+.update-banner span { flex: 1; }
+.update-btn {
+  flex: none; background: var(--green-l1); color: var(--green-dark);
+  border-radius: 99px; padding: 8px 16px; min-height: 40px;
+  font-size: 14px; font-weight: 900;
+}
+.update-close { flex: none; color: #8fa491; font-size: 14px; min-width: 32px; min-height: 40px; }
+.build-tag { text-align: center; font-size: 11px; color: var(--text-disabled); }
+
 </style>
 
   </head>
   <body>
-<script>window.GAS_API_URL='';window.GAS_API_TOKEN='';</script>
+<script>window.GAS_API_URL='';window.GAS_API_TOKEN='';window.APP_BUILD='20260812-1430';</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -2752,6 +2775,43 @@ function showLoading(app, fresh, wrap) {
   app.innerHTML = wrap ? wrap(loadingHtml()) : loadingHtml();
 }
 
+/**
+ * ホーム画面に追加したアプリは iOS の仕様で「引っ張って更新」ができない。
+ * 版番号(APP_BUILD)を見比べて、新しい版があればアプリ内から更新できるようにする。
+ */
+var APP_BUILD = window.APP_BUILD || '';
+
+function reloadApp() {
+  var base = location.origin + location.pathname;
+  // 保存済みデータを迂回するため、毎回異なるURLで読み直す
+  location.replace(base + '?v=' + Date.now() + location.hash);
+}
+
+/** 公開中の版番号を確認し、新しければ更新の案内を出す */
+function checkForUpdate() {
+  if (!APP_BUILD) return; // GAS版は毎回サーバーから配信されるため不要
+  fetch('version.txt?t=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.ok ? r.text() : ''; })
+    .then(function (text) {
+      var latest = String(text || '').trim();
+      if (!latest || latest === APP_BUILD) return;
+      showUpdateBanner(latest);
+    })
+    .catch(function () { /* オフライン時は何もしない */ });
+}
+
+function showUpdateBanner(latest) {
+  if (document.getElementById('update-banner')) return;
+  var bar = document.createElement('div');
+  bar.id = 'update-banner';
+  bar.className = 'update-banner';
+  bar.innerHTML =
+    '<span>新しいバージョンがあります</span>' +
+    '<button class="update-btn" onclick="reloadApp()">今すぐ更新</button>' +
+    '<button class="update-close" onclick="this.parentNode.remove()" aria-label="閉じる">✕</button>';
+  document.body.appendChild(bar);
+}
+
 /** 入力済みの桁数どおりに●を表示する(PINの桁数は職員ごとに異なるため固定枠は置かない) */
 function pinDotsHtml() {
   if (!S.loginPin.length) return '<span class="pin-placeholder">PINを入力してください</span>';
@@ -2971,12 +3031,14 @@ function renderCheckin(app) {
     '<button class="link-plain" onclick="Actions.logout()">ログアウト</button>' +
     '</div>' +
     '<div class="footer-links">' +
+    (APP_BUILD ? '<button class="link-plain" onclick="reloadApp()">⟳ アプリを更新</button>' : '') +
     // 管理画面は管理者のみ表示(サーバー側でも権限を再判定する)
     (isAdmin() ? '<button class="link-plain" onclick="go(\'admin\')">📊 管理画面</button>' : '') +
     (isStandalone()
       ? '<button class="link-plain" onclick="Actions.openSettings()">⚙ 接続設定</button>'
       : '') +
     '</div>' +
+    (APP_BUILD ? '<div class="build-tag">バージョン ' + esc(APP_BUILD) + '</div>' : '') +
     '</div></div></div>' +
     '<div id="picker"></div>';
 
@@ -5385,6 +5447,7 @@ function bootAfterLogin() {
     setTimeout(function () {
       rpc('apiGetTodayAlerts').catch(function () {});
       rpc('apiGetTodayRecords').catch(function () {});
+      checkForUpdate();
     }, 300);
   });
 }
