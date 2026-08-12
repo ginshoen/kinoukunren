@@ -55,15 +55,17 @@ var RPC_INFLIGHT = {};
 var RPC_CACHE_EPOCH = 0;
 var RPC_READ_TTL = {
   apiGetBootstrap: 300000,
-  apiRefreshToday: 5000,
+  apiRefreshToday: 15000,
   apiGetVitalContext: 60000,
-  apiGetTodayExercises: 8000,
-  apiGetTodayAlerts: 30000,
-  apiGetUserDetail: 15000,
+  apiGetTodayExercises: 45000,
+  apiGetTodayAlerts: 60000,
+  apiGetUserDetail: 45000,
   apiGetUserResults: 30000,
-  apiGetTodayRecords: 10000,
+  apiGetTodayRecords: 45000,
   apiGetMonthly: 60000,
   apiGetCommunicationBook: 15000,
+  apiAdminGetStaff: 20000,
+  apiGetStaffList: 60000,
 };
 function rpcCacheKey(name, args) {
   return name + ':' + JSON.stringify(args || []);
@@ -612,6 +614,36 @@ function saveSession(session, me) {
   else localStorage.removeItem('staffSession');
 }
 
+/** 直近の取得結果がまだ新しいか(読み込み画面のちらつきを避ける判定) */
+function isRpcFresh(name, args) {
+  var c = RPC_CACHE[rpcCacheKey(name, args || [])];
+  return !!(c && c.expires > Date.now());
+}
+
+function hasExerciseCache(userId) {
+  var c = S.exerciseCache[userId];
+  return !!(c && c.expires > Date.now());
+}
+
+function hasTodayStatusCache() {
+  var c = S.todayStatusCache;
+  return !!(c && c.expires > Date.now());
+}
+
+/** キャッシュ済みなら読み込み表示を出さずに即描画する */
+function showLoading(app, fresh, wrap) {
+  if (fresh) return;
+  app.innerHTML = wrap ? wrap(loadingHtml()) : loadingHtml();
+}
+
+/** 入力済みの桁数どおりに●を表示する(PINの桁数は職員ごとに異なるため固定枠は置かない) */
+function pinDotsHtml() {
+  if (!S.loginPin.length) return '<span class="pin-placeholder">PINを入力してください</span>';
+  var html = '';
+  for (var i = 0; i < S.loginPin.length; i++) html += '<span class="pin-dot filled"></span>';
+  return html + '<span class="pin-count">' + S.loginPin.length + '桁</span>';
+}
+
 /** ログイン画面(職員を選ぶ → PINを入力) */
 function renderLogin(app) {
   var selected = null;
@@ -636,10 +668,7 @@ function renderLogin(app) {
       '<p>記録には職員名が残ります。ご自身の名前を選んでください。</p></div>' +
       '<div class="row-list">' + rows + '</div>';
   } else {
-    var dots = '';
-    for (var i = 0; i < 8; i++) {
-      dots += i < S.loginPin.length ? '<span class="pin-dot filled"></span>' : (i < 4 ? '<span class="pin-dot"></span>' : '');
-    }
+    var dots = pinDotsHtml();
     var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'clear', '0', 'back'];
     var pad = keys.map(function (k) {
       if (k === 'clear') return '<button class="pin-key sub" onclick="Actions.pinInput(\'clear\')">消去</button>';
@@ -882,7 +911,7 @@ function getTodayStatus() {
   var cached = S.todayStatusCache;
   if (cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
   return rpc('apiGetTodayRecords').then(function (res) {
-    S.todayStatusCache = { data: res, expires: Date.now() + 15000 };
+    S.todayStatusCache = { data: res, expires: Date.now() + 45000 };
     return res;
   });
 }
@@ -894,7 +923,7 @@ function getTodayStatus() {
 function renderUserMenu(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
-  app.innerHTML = loadingHtml();
+  showLoading(app, hasTodayStatusCache() && hasExerciseCache(user.id));
 
   Promise.all([getTodayStatus(), getTodayExerciseRecords(user.id)]).then(function (both) {
     if (!isCurrentRender(renderId)) return;
@@ -970,7 +999,7 @@ function renderUserMenu(app, renderId) {
 function renderVitals(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
-  app.innerHTML = loadingHtml();
+  showLoading(app, isRpcFresh('apiGetVitalContext', [user.id]));
 
   rpc('apiGetVitalContext', user.id).then(function (ctx) {
     if (!isCurrentRender(renderId)) return;
@@ -1072,7 +1101,7 @@ function getTodayExerciseRecords(userId) {
   var cached = S.exerciseCache[userId];
   if (cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
   return rpc('apiGetTodayExercises', userId).then(function (records) {
-    S.exerciseCache[userId] = { data: records, expires: Date.now() + 15000 };
+    S.exerciseCache[userId] = { data: records, expires: Date.now() + 45000 };
     return records;
   });
 }
@@ -1080,7 +1109,7 @@ function getTodayExerciseRecords(userId) {
 function renderExerciseScan(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
-  app.innerHTML = loadingHtml();
+  showLoading(app, hasExerciseCache(user.id));
 
   getTodayExerciseRecords(user.id).then(function (records) {
     if (!isCurrentRender(renderId)) return;
@@ -1135,7 +1164,7 @@ function renderExerciseForm(app, exerciseId, renderId) {
   if (!S.exDraft || S.exDraft.exerciseId !== exerciseId) {
     S.exDraft = { exerciseId: exerciseId, amount: '', load: '', note: '' };
   }
-  app.innerHTML = loadingHtml();
+  showLoading(app, hasExerciseCache(user.id));
 
   getTodayExerciseRecords(user.id).then(function (records) {
     if (!isCurrentRender(renderId)) return;
@@ -1319,7 +1348,7 @@ function renderUserDetail(app, userId, renderId) {
   var user = null;
   S.users.forEach(function (u) { if (u.id === userId) user = u; });
   if (!user) return go('users');
-  app.innerHTML = loadingHtml();
+  showLoading(app, isRpcFresh('apiGetUserDetail', [userId]));
 
   rpc('apiGetUserDetail', userId).then(function (res) {
     if (!isCurrentRender(renderId)) return;
@@ -1585,7 +1614,8 @@ var lastResults = null; // CSV出力用キャッシュ
 function renderAdminResults(app, renderId) {
   if (!S.admin.userId) S.admin.userId = S.users.length ? S.users[0].id : '';
   if (!S.admin.month) S.admin.month = S.today.slice(0, 7);
-  app.innerHTML = adminShell('admin', loadingHtml());
+  showLoading(app, isRpcFresh('apiGetUserResults', [S.admin.userId, S.admin.month]),
+    function (h) { return adminShell('admin', h); });
 
   rpc('apiGetUserResults', S.admin.userId, S.admin.month).then(function (res) {
     if (!isCurrentRender(renderId)) return;
@@ -1693,7 +1723,8 @@ var CARE_LEVELS = ['要支援1', '要支援2', '要介護1', '要介護2', '要�
 
 /** 職員管理(管理者のみ): 職員の登録・権限設定・PIN再設定・削除 */
 function renderAdminStaff(app, renderId) {
-  app.innerHTML = adminShell('admin/staff', loadingHtml());
+  showLoading(app, isRpcFresh('apiAdminGetStaff', []),
+    function (h) { return adminShell('admin/staff', h); });
 
   rpc('apiAdminGetStaff').then(function (res) {
     if (!isCurrentRender(renderId)) return;
@@ -1833,7 +1864,8 @@ function renderAdminUsers(app, renderId) {
 // ---------------------------------------------------------------- 管理: 本日の記録一覧
 
 function renderAdminToday(app, renderId) {
-  app.innerHTML = adminShell('admin/today', loadingHtml());
+  showLoading(app, isRpcFresh('apiGetTodayRecords', []),
+    function (h) { return adminShell('admin/today', h); });
   rpc('apiGetTodayRecords').then(function (res) {
     if (!isCurrentRender(renderId)) return;
     var checkins = res.checkins.slice().sort(function (a, b) {
@@ -1934,7 +1966,8 @@ function renderAdminMaster(app, renderId) {
 
 function renderAdminMonthly(app, renderId) {
   if (!S.admin.month) S.admin.month = S.today.slice(0, 7);
-  app.innerHTML = adminShell('admin/monthly', loadingHtml());
+  showLoading(app, isRpcFresh('apiGetMonthly', [S.admin.month]),
+    function (h) { return adminShell('admin/monthly', h); });
 
   rpc('apiGetMonthly', S.admin.month).then(function (res) {
     if (!isCurrentRender(renderId)) return;
@@ -2014,7 +2047,8 @@ function defaultNotebookComment(data) {
 function renderCommunicationBook(app, renderId) {
   if (!S.admin.notebookUserId) S.admin.notebookUserId = S.users.length ? S.users[0].id : '';
   if (!S.admin.notebookDate) S.admin.notebookDate = S.today;
-  app.innerHTML = adminShell('admin/notebook', loadingHtml());
+  showLoading(app, isRpcFresh('apiGetCommunicationBook', [S.admin.notebookUserId, S.admin.notebookDate]),
+    function (h) { return adminShell('admin/notebook', h); });
   rpc('apiGetCommunicationBook', S.admin.notebookUserId, S.admin.notebookDate).then(function (data) {
     if (!isCurrentRender(renderId)) return;
     S.notebook.data = data;
@@ -2148,7 +2182,6 @@ var Actions = {
     S.vDraft = null;
     S.exDraft = null;
     S.precautionConfirmed = false;
-    S.todayStatusCache = null;
     Scanner.autoMode = '';
     go('menu');
   },
@@ -2170,7 +2203,6 @@ var Actions = {
     S.toast = null;
     S.vDraft = null;
     S.exDraft = null;
-    S.todayStatusCache = null;
     go('menu');
   },
   backToCheckin: function () {
@@ -2305,12 +2337,12 @@ var Actions = {
       var ex = exerciseById(S.exDraft.exerciseId);
       S.lastSaved = { kind: 'records', id: res.record.id, label: (ex ? ex.name : '種目') + 'を記録しました' };
       if (res.todayExercises) {
-        S.exerciseCache[S.currentUserId] = { data: res.todayExercises, expires: Date.now() + 15000 };
+        S.exerciseCache[S.currentUserId] = { data: res.todayExercises, expires: Date.now() + 45000 };
       } else {
         var cachedExercises = S.exerciseCache[S.currentUserId];
         var nextExercises = cachedExercises && cachedExercises.data ? cachedExercises.data.slice() : [];
         nextExercises.push(res.record);
-        S.exerciseCache[S.currentUserId] = { data: nextExercises, expires: Date.now() + 15000 };
+        S.exerciseCache[S.currentUserId] = { data: nextExercises, expires: Date.now() + 45000 };
       }
       S.exDraft = null;
       S.todayStatusCache = null; // メニューの状況表示を最新化
@@ -2423,13 +2455,7 @@ var Actions = {
     S.loginError = '';
     // 入力中は全描画せずドットだけ更新する
     var display = document.querySelector('.pin-display');
-    if (display) {
-      var html = '';
-      for (var i = 0; i < Math.max(4, S.loginPin.length); i++) {
-        html += i < S.loginPin.length ? '<span class="pin-dot filled"></span>' : '<span class="pin-dot"></span>';
-      }
-      display.innerHTML = html;
-    }
+    if (display) display.innerHTML = pinDotsHtml();
   },
   doLogin: function () {
     if (!S.loginStaffId || S.loginPin.length < 4) {
@@ -3239,6 +3265,11 @@ function bootAfterLogin() {
     S.todayCheckins = boot.todayCheckins;
     S.ready = true;
     render();
+    // 次に開かれやすい画面のデータを裏で温めておく(初回タップの待ちを消す)
+    setTimeout(function () {
+      rpc('apiGetTodayAlerts').catch(function () {});
+      rpc('apiGetTodayRecords').catch(function () {});
+    }, 300);
   });
 }
 
