@@ -9,6 +9,21 @@ var WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 // ホスティング版の接続設定: ファイル編集不要。画面の「接続設定」から入力し端末に保存される
 window.GAS_API_URL = window.GAS_API_URL || localStorage.getItem('gasApiUrl') || '';
 window.GAS_API_TOKEN = window.GAS_API_TOKEN || localStorage.getItem('gasApiToken') || '';
+
+/**
+ * 施設コード。管理者が配布するリンク( .../?c=ginshoen )に含まれる合言葉。
+ * 一度開けば端末に保存されるので、ホーム画面から起動しても引き継がれる。
+ * これがないとログイン画面の職員一覧を取得できない(第三者への氏名流出を防ぐ)。
+ */
+var FACILITY_CODE = (function () {
+  var m = location.search.match(/[?&]c=([^&]+)/);
+  var fromUrl = m ? decodeURIComponent(m[1]).trim() : '';
+  if (fromUrl) {
+    localStorage.setItem('facilityCode', fromUrl);
+    return fromUrl;
+  }
+  return localStorage.getItem('facilityCode') || '';
+})();
 /** GAS iframe 外で動作しているか(=ホスティング/プレビュー) */
 function isStandalone() {
   return !(window.google && google.script && google.script.run);
@@ -88,6 +103,7 @@ function fetchRpc(name, args) {
       fn: name, args: args,
       token: window.GAS_API_TOKEN || '',
       session: S.session || '', // 職員ログインのセッション(サーバー側で権限判定)
+      facility: FACILITY_CODE,  // ログイン前APIの保護に使う施設コード
     }),
     signal: controller ? controller.signal : undefined,
   }).then(function (r) {
@@ -125,7 +141,7 @@ function rpc(name) {
       google.script.run
         .withSuccessHandler(resolve)
         .withFailureHandler(function (e) { reject(e); })
-        .apiCall(name, args, S.session || '');
+        .apiCall(name, args, S.session || '', FACILITY_CODE);
     });
   } else {
     request = Mock.call(name, args); // ローカルプレビュー用モック
@@ -2474,6 +2490,16 @@ var Actions = {
     go('admin/notebook');
   },
 
+  /** 施設コードを手入力して開く(リンクを紛失したとき用) */
+  applyFacilityCode: function () {
+    var el = document.getElementById('facility-input');
+    var err = document.getElementById('facility-error');
+    var code = ((el && el.value) || '').trim();
+    if (!code) { if (err) err.textContent = '施設コードを入力してください'; return; }
+    localStorage.setItem('facilityCode', code);
+    location.replace(location.origin + location.pathname + '?c=' + encodeURIComponent(code));
+  },
+
   // --- 職員ログイン ---
   pickLoginStaff: function (staffId) {
     S.loginStaffId = staffId;
@@ -3286,8 +3312,37 @@ function loadStaffListThenRender() {
     S.staffList = (res && res.staff) || [];
     render();
   }).catch(function (e) {
-    showBootError(String((e && e.message) || e || ''));
+    var message = String((e && e.message) || e || '');
+    if (message.indexOf('施設コード') >= 0) return showFacilityCodeScreen();
+    showBootError(message);
   });
+}
+
+/** 配布リンク以外から開かれたとき(施設コードが無い/違う) */
+function showFacilityCodeScreen() {
+  document.getElementById('app').innerHTML =
+    '<div class="phone-wrap"><div class="phone">' +
+    '<header class="phone-header">' +
+    '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ">' +
+    '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">機能訓練記録</div></div>' +
+    '</header>' +
+    '<div class="phone-body">' +
+    '<div class="screen-intro"><span class="eyebrow">確認</span><h1>職員用リンクから開いてください</h1>' +
+    '<p>このアプリは、施設から配布された専用リンクからのみ利用できます。' +
+    'ホーム画面に追加する際も、そのリンクから開いた画面で追加してください。</p></div>' +
+    '<div class="card" style="display:grid;gap:10px;">' +
+    '<span class="card-label">施設コードを入力して開く</span>' +
+    '<input class="note-area" id="facility-input" placeholder="施設コード" autocapitalize="none" ' +
+    'autocorrect="off" style="min-height:48px;font-size:18px;">' +
+    '<div class="section-note" id="facility-error" style="color:var(--alert-text);min-height:18px;"></div>' +
+    '<button class="btn-primary" style="flex:none;width:100%;" onclick="Actions.applyFacilityCode()">開く</button>' +
+    '</div>' +
+    '<div class="section-note">分からない場合は施設の管理者にお問い合わせください。</div>' +
+    '</div></div></div>';
+  setTimeout(function () {
+    var el = document.getElementById('facility-input');
+    if (el) el.focus();
+  }, 0);
 }
 
 /** ログイン後のマスタ読み込み */
