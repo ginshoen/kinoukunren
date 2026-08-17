@@ -159,7 +159,8 @@ function doPost(e) {
     // 新しい端末は管理者PINで一度だけペアリングできる。通常APIは共有トークン必須。
     if (token && body.token !== token && requestedFn !== 'apiPairDevice') throw new Error('認証エラー');
     // ログイン前に触れるAPIは施設コードで保護する(ログイン後はセッションで判定)
-    if (requestedFn === 'apiGetStaffList' || requestedFn === 'apiLogin') {
+    if (requestedFn === 'apiGetStaffList' || requestedFn === 'apiLogin' ||
+        requestedFn === 'apiPairDevice') {
       requireFacilityCode_(body.facility);
     }
     ensureSchema_();
@@ -850,6 +851,22 @@ function adminPin_() {
   return PropertiesService.getScriptProperties().getProperty('ADMIN_PIN') || '';
 }
 
+/** 端末ペアリング用PINが十分に強いか(8桁以上・単一文字や連番でない) */
+function isStrongAdminPin_(pin) {
+  var v = String(pin || '');
+  if (v.length < 8) return false;
+  if (/^(.)\1+$/.test(v)) return false;
+  if ('01234567890'.indexOf(v) >= 0 || '09876543210'.indexOf(v) >= 0) return false;
+  return true;
+}
+
+function randomDigits_(n) {
+  var out = '';
+  for (var i = 0; i < n; i++) out += Math.floor(Math.random() * 10);
+  if (!isStrongAdminPin_(out)) return randomDigits_(n);
+  return out;
+}
+
 /**
  * 端末ペアリング用のPIN照合。
  * 管理者アカウントのPIN、またはスクリプトプロパティ ADMIN_PIN と一致した場合のみ通す。
@@ -874,19 +891,32 @@ function apiVerifyAdmin_(pin) {
 
 /** 新しい端末を管理者PINでペアリングし、共有トークンを端末内へ渡す。 */
 function apiPairDevice_(pin) {
-  var cache = CacheService.getScriptCache();
-  var failures = Number(cache.get('pair-failures') || 0);
-  if (failures >= 10) throw new Error('認証試行が多すぎます。10分後にもう一度お試しください。');
+  var props = PropertiesService.getScriptProperties();
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
   try {
-    requireAdmin_(pin);
-  } catch (err) {
-    cache.put('pair-failures', String(failures + 1), 600);
-    throw err;
+    var state = JSON.parse(props.getProperty('PAIR_LOCKOUT') || '{}');
+    var now = Date.now();
+    if (state.until && now < state.until) {
+      throw new Error('認証試行が多すぎます。しばらくしてからお試しください。');
+    }
+    try {
+      requireAdmin_(pin);
+    } catch (err) {
+      var fails = Number(state.fails || 0) + 1;
+      var next = { fails: fails };
+      // 5回失敗で15分ロック。以降は失敗のたびに待ち時間を倍にする
+      if (fails >= 5) next.until = now + Math.min(15 * 60 * 1000 * Math.pow(2, fails - 5), 6 * 60 * 60 * 1000);
+      props.setProperty('PAIR_LOCKOUT', JSON.stringify(next));
+      throw err;
+    }
+    var token = props.getProperty('API_TOKEN') || '';
+    if (!token) throw new Error('API_TOKENが未設定です。管理者へ連絡してください。');
+    props.deleteProperty('PAIR_LOCKOUT');
+    return { token: token };
+  } finally {
+    lock.releaseLock();
   }
-  var token = PropertiesService.getScriptProperties().getProperty('API_TOKEN') || '';
-  if (!token) throw new Error('API_TOKENが未設定です。管理者へ連絡してください。');
-  cache.remove('pair-failures');
-  return { token: token };
 }
 
 /** 利用者の新規登録・更新(管理者のみ)。u.id が空なら新規 */
@@ -1253,6 +1283,14 @@ function setup_(withDemo) {
   if (!props2.getProperty('FACILITY_CODE')) {
     props2.setProperty('FACILITY_CODE', 'ginshoen');
     Logger.log('施設コードを設定しました: ginshoen(配布リンクの末尾に ?c=ginshoen を付けてください)');
+  }
+
+  // 端末ペアリング用のADMIN_PINが未設定・弱い場合は強い乱数に入れ替える(ログに一度だけ表示)
+  var curPin = props2.getProperty('ADMIN_PIN') || '';
+  if (!isStrongAdminPin_(curPin)) {
+    var newPin = randomDigits_(10);
+    props2.setProperty('ADMIN_PIN', newPin);
+    Logger.log('端末ペアリング用PINを再設定しました: ' + newPin + '(このログでしか表示されません)');
   }
 
   // 初回のみ管理者アカウントを作成(PINは実行ログに表示される)
