@@ -102,9 +102,72 @@ select {
   max-width: 390px;
   background: var(--card-face);
   border-radius: 28px;
-  overflow: hidden;
+  /* overflow:hidden だと下部タブバーの sticky が効かないため、
+     角丸はヘッダー/タブバー側に持たせる */
+  overflow: visible;
   box-shadow: 0 12px 40px rgba(31, 42, 34, 0.14);
   border: 1px solid var(--border);
+  /* タブバーを最下部へ寄せるための縦フレックス */
+  display: flex;
+  flex-direction: column;
+}
+.phone-body { flex: 1 1 auto; }
+.phone > .phone-header:first-child { border-radius: 27px 27px 0 0; }
+.phone > :last-child { border-radius: 0 0 27px 27px; }
+.phone > .phone-body:last-child { border-radius: 0 0 27px 27px; }
+
+/* ---------- 下部タブバー(受付/利用者/管理) ---------- */
+.tab-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  gap: 4px;
+  background: var(--card-face);
+  border-top: 1px solid var(--border);
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -4px 16px rgba(31, 42, 34, 0.06);
+}
+.tab-item {
+  flex: 1 1 0;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--text-aux);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+}
+.tab-item svg { width: 24px; height: 24px; }
+.tab-item.active {
+  color: var(--green);
+  background: var(--green-l4);
+}
+.tab-item:active { transform: scale(0.96); }
+@media print { .tab-bar { display: none !important; } }
+/* 管理画面: PC幅ではサイドバーがあるためタブバーは出さない。
+   admin-wrap 直下のタブバーは画面下に固定する */
+.admin-wrap > .tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 0;
+}
+.admin-wrap { padding-bottom: 76px; }
+@media (min-width: 901px) {
+  .admin-wrap > .tab-bar { display: none; }
+  .admin-wrap { padding-bottom: 0; }
 }
 
 @media (max-width: 430px) {
@@ -117,6 +180,9 @@ select {
     border: none;
     min-height: 100dvh;
   }
+  .phone > .phone-header:first-child,
+  .phone > :last-child,
+  .phone > .phone-body:last-child { border-radius: 0; }
 }
 
 .phone-header {
@@ -2159,7 +2225,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260817-1738';</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260817-1810';</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -2779,6 +2845,40 @@ function cameraHtml(hint) {
   );
 }
 
+/**
+ * 下部タブバー(受付/利用者/管理)。全画面で共通の移動手段として常時表示する。
+ * 記録の途中で移動しても入力中の下書き(S.vDraft/S.exDraft)は保持される。
+ */
+function tabBarHtml(active) {
+  var icoScan =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>' +
+    '<path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>' +
+    '<line x1="7" y1="12" x2="17" y2="12"/></svg>';
+  var icoUsers =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M17 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/>' +
+    '<path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M15.5 3.13a4 4 0 0 1 0 7.75"/></svg>';
+  var icoAdmin =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/>' +
+    '<line x1="6" y1="20" x2="6" y2="14"/></svg>';
+  function item(key, hash, label, svg) {
+    return (
+      '<button class="tab-item' + (active === key ? ' active' : '') + '"' +
+      (active === key ? ' aria-current="page"' : '') +
+      ' onclick="go(\'' + hash + '\')">' + svg + '<span>' + label + '</span></button>'
+    );
+  }
+  return (
+    '<nav class="tab-bar" aria-label="主要画面の切り替え">' +
+    item('checkin', '', '受付', icoScan) +
+    item('users', 'users', '利用者', icoUsers) +
+    (isAdmin() ? item('admin', 'admin', '管理', icoAdmin) : '') +
+    '</nav>'
+  );
+}
+
 /** 直前保存の取り消しスナックバー */
 function snackbarHtml() {
   if (!S.lastSaved) return '';
@@ -3081,8 +3181,7 @@ function renderCheckin(app) {
     '<div><div class="section-head"><span class="section-title">本日の来所状況</span>' +
     '<span class="section-note" id="checkin-count">' + S.todayCheckins.length + '名 / 予定' + statusView.scheduledCount + '名</span></div>' +
     '<div class="row-list" id="checkin-list">' + statusView.rows + '</div></div>' +
-    '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users\')">👥 利用者の状況を確認(一覧)</button>' +
-    '<button class="link-plain" onclick="Actions.openPicker()">QRを読み取れない場合は名前から選択 ›</button>' +
+    '<button class="btn-outline" style="flex:none;width:100%;" onclick="Actions.openPicker()">👤 名前から選んで受付する</button>' +
     (isStandalone() && !window.GAS_API_URL
       ? '<div class="toast-error" role="alert"><span class="x-circle">!</span><span>' +
         '<span class="t-title" style="display:block;">デモモードで動作中(記録は保存されません)</span>' +
@@ -3095,14 +3194,12 @@ function renderCheckin(app) {
     '</div>' +
     '<div class="footer-links">' +
     (APP_BUILD ? '<button class="link-plain" onclick="reloadApp()">⟳ アプリを更新</button>' : '') +
-    // 管理画面は管理者のみ表示(サーバー側でも権限を再判定する)
-    (isAdmin() ? '<button class="link-plain" onclick="go(\'admin\')">📊 管理画面</button>' : '') +
     (isStandalone()
       ? '<button class="link-plain" onclick="Actions.openSettings()">⚙ 接続設定</button>'
       : '') +
     '</div>' +
     (APP_BUILD ? '<div class="build-tag">バージョン ' + esc(APP_BUILD) + '</div>' : '') +
-    '</div></div></div>' +
+    '</div>' + tabBarHtml('checkin') + '</div></div>' +
     '<div id="picker"></div>';
 
   Scanner.prepare(function (value) {
@@ -3229,8 +3326,7 @@ function renderUserMenu(app, renderId) {
       '</button>' +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users/' + user.id + '\')">' +
       '📋 この方の記録・経過を見る</button>' +
-      '<button class="link-plain" onclick="Actions.backToCheckin()">対応を終了して受付に戻る</button>' +
-      '</div></div></div>';
+      '</div>' + tabBarHtml('') + '</div></div>';
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
     app.innerHTML = renderErrorHtml('記録メニューを読み込めませんでした', 'menu');
@@ -3292,7 +3388,7 @@ function renderVitals(app, renderId) {
       '<div class="btn-row">' +
       '<button class="btn-outline" onclick="Actions.vReset()">入力し直す</button>' +
       '<button class="btn-primary" id="v-save" onclick="Actions.vSave()">バイタルを保存</button>' +
-      '</div></div></div></div>';
+      '</div></div>' + tabBarHtml('') + '</div></div>';
 
     Actions.vRefresh();
   }).catch(function () {
@@ -3412,8 +3508,7 @@ function renderExerciseScan(app, renderId) {
       progressHtml(plannedExercises(user), records, true) +
       otherExercisesHtml(user, records) +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="Actions.backToMenu()">‹ 記録メニューへ戻る</button>' +
-      '<button class="link-plain" onclick="Actions.backToCheckin()">対応を終了して受付に戻る</button>' +
-      '</div></div></div>';
+      '</div>' + tabBarHtml('') + '</div></div>';
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
     app.innerHTML = renderErrorHtml('訓練記録を読み込めませんでした', 'exercise');
@@ -3463,7 +3558,7 @@ function renderExerciseForm(app, exerciseId, renderId) {
       '<div id="save-error"></div>' +
       '<button class="btn-training" id="ex-save" disabled onclick="Actions.exSave()">この内容で記録する</button>' +
       progressHtml(plannedExercises(user), records, false) +
-      '</div></div></div>';
+      '</div>' + tabBarHtml('') + '</div></div>';
 
     Actions.exRefresh();
   }).catch(function () {
@@ -3575,7 +3670,7 @@ function renderUserList(app, renderId) {
       '</div></div>' +
       listHtml +
       '<div class="empty-note" id="user-empty" hidden>該当する利用者がいません</div>' +
-      '</div></div></div>';
+      '</div>' + tabBarHtml('users') + '</div></div>';
 
     Actions.applyUserFilters();
 
@@ -3749,7 +3844,7 @@ function renderUserDetail(app, userId, renderId) {
       '<div class="record-list">' + assessmentHtml + '</div></div>' +
       '<div><div class="section-head"><span class="section-title">アラート履歴</span></div>' +
       '<div class="row-list">' + alertsHtml + '</div></div>' +
-      '</div></div></div>';
+      '</div>' + tabBarHtml('users') + '</div></div>';
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
     app.innerHTML = renderErrorHtml('利用者情報を読み込めませんでした', 'users');
@@ -3813,7 +3908,8 @@ function adminShell(active, contentHtml) {
     '<div class="admin-staff">' + esc(S.me ? S.me.name : '') +
     (isAdmin() ? ' <span class="role-badge admin">管理者</span>' : '') + '</div>' +
     '<button type="button" class="nav-item" style="font-size:13px;color:#8FA491;" onclick="Actions.logout()">ログアウト</button>' +
-    '</nav><main class="admin-content">' + contentHtml + '</main></div></div>'
+    '</nav><main class="admin-content">' + contentHtml + '</main></div>' +
+    tabBarHtml('admin') + '</div>'
   );
 }
 
