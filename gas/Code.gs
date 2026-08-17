@@ -128,10 +128,25 @@ function dispatch_(fnName, args, session) {
 }
 
 /** GAS(HtmlService)版クライアントからの唯一の入口 */
-function apiCall(fnName, args, session) {
+function apiCall(fnName, args, session, facility) {
   resetRequestCache_();
+  if (fnName === 'apiGetStaffList' || fnName === 'apiLogin') requireFacilityCode_(facility);
   ensureSchema_();
   return dispatch_(fnName, args, session);
+}
+
+/**
+ * 施設コードの照合。
+ * ログイン前に呼べるAPI(職員一覧・ログイン)は、配布リンクに含まれる施設コードを
+ * 必須にして、URLを知っただけの第三者が職員の氏名一覧を取得できないようにする。
+ * スクリプトプロパティ FACILITY_CODE が未設定なら照合しない(移行期間用)。
+ */
+function requireFacilityCode_(code) {
+  var expected = PropertiesService.getScriptProperties().getProperty('FACILITY_CODE') || '';
+  if (!expected) return;
+  if (String(code || '').trim().toLowerCase() !== expected.trim().toLowerCase()) {
+    throw new Error('施設コードが違います。管理者から配布されたリンクから開いてください');
+  }
 }
 
 function doPost(e) {
@@ -143,6 +158,10 @@ function doPost(e) {
     var requestedFn = String(body.fn || '');
     // 新しい端末は管理者PINで一度だけペアリングできる。通常APIは共有トークン必須。
     if (token && body.token !== token && requestedFn !== 'apiPairDevice') throw new Error('認証エラー');
+    // ログイン前に触れるAPIは施設コードで保護する(ログイン後はセッションで判定)
+    if (requestedFn === 'apiGetStaffList' || requestedFn === 'apiLogin') {
+      requireFacilityCode_(body.facility);
+    }
     ensureSchema_();
     result = { ok: true, data: dispatch_(requestedFn, body.args, body.session) };
   } catch (err) {
@@ -1228,6 +1247,13 @@ function setup_(withDemo) {
 
   var def = ss.getSheetByName('シート1') || ss.getSheetByName('Sheet1');
   if (def && ss.getSheets().length > Object.keys(SHEETS).length) ss.deleteSheet(def);
+
+  // 施設コードが未設定なら既定値を入れる(配布リンクの ?c= に付ける合言葉)
+  var props2 = PropertiesService.getScriptProperties();
+  if (!props2.getProperty('FACILITY_CODE')) {
+    props2.setProperty('FACILITY_CODE', 'ginshoen');
+    Logger.log('施設コードを設定しました: ginshoen(配布リンクの末尾に ?c=ginshoen を付けてください)');
+  }
 
   // 初回のみ管理者アカウントを作成(PINは実行ログに表示される)
   var seededPin = seedFirstAdmin_();
