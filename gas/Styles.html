@@ -1099,6 +1099,28 @@ select {
   font-size: 12px;
   color: var(--text-aux);
 }
+/* 券面の補足情報(利用曜日・介護度)。名前の下に小さく並べる */
+.qr-card .qr-card-copy {
+  min-width: 0;
+  text-align: left;
+}
+.qr-card .qr-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.qr-card .qr-meta-key {
+  color: var(--text-aux);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.qr-card .qr-meta-val {
+  font-weight: 700;
+}
 
 .empty-note {
   font-size: 13px;
@@ -1496,7 +1518,8 @@ textarea {
 }
 
 .qr-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+  /* 券面に利用曜日・介護度も入るため、1枚あたりの最小幅を広めに取る */
+  grid-template-columns: repeat(auto-fit, minmax(min(268px, 100%), 1fr));
 }
 
 @media (max-width: 900px) {
@@ -1968,9 +1991,8 @@ textarea {
     background: #fff !important;
     overflow: visible !important;
   }
-  .qr-print-page .qr-user-panel { break-before: page; }
-  body.qr-print-users .qr-machine-panel { display: none !important; }
-  body.qr-print-users .qr-user-panel { break-before: auto; }
+  /* 印刷は利用者カードのみ。種目一覧は紙に出さない */
+  .qr-print-page .qr-exercise-list { display: none !important; }
   .qr-print-page .qr-grid {
     display: grid !important;
     grid-template-columns: repeat(3, 91mm) !important;
@@ -2007,6 +2029,12 @@ textarea {
     font-size: 9pt !important;
     line-height: 1.35 !important;
   }
+  .qr-print-page .qr-meta {
+    margin-top: 1.5mm !important;
+    gap: 2mm !important;
+    font-size: 10pt !important;
+  }
+  .qr-print-page .qr-meta-key { font-size: 8pt !important; }
 }
 
 
