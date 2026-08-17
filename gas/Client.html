@@ -24,6 +24,22 @@ var FACILITY_CODE = (function () {
   }
   return localStorage.getItem('facilityCode') || '';
 })();
+
+// 配布リンクの ?k= に含まれる端末トークン。一度開けば端末に保存され、以後は不要。
+// トークンは公開ページには含めず、リンクだけで配る。
+(function () {
+  var m = location.search.match(/[?&]k=([^&]+)/);
+  var fromUrl = m ? decodeURIComponent(m[1]).trim() : '';
+  if (fromUrl) {
+    localStorage.setItem('gasApiToken', fromUrl);
+    window.GAS_API_TOKEN = fromUrl;
+  }
+  // URLに秘密情報を残さない(履歴・共有からの漏れを防ぐ)
+  if (m && window.history && history.replaceState) {
+    var clean = location.pathname + location.search.replace(/([?&])k=[^&]*/, '$1').replace(/[?&]$/, '').replace(/\?&/, '?') + location.hash;
+    history.replaceState(null, '', clean);
+  }
+})();
 /** GAS iframe 外で動作しているか(=ホスティング/プレビュー) */
 function isStandalone() {
   return !(window.google && google.script && google.script.run);
@@ -161,7 +177,10 @@ function pairDeviceRpc(pin) {
   if (!window.GAS_API_URL) return Promise.reject(new Error('GAS URLが未設定です'));
   return fetch(window.GAS_API_URL, {
     method: 'POST',
-    body: JSON.stringify({ fn: 'apiPairDevice', args: [String(pin || '')], token: '' }),
+    body: JSON.stringify({
+      fn: 'apiPairDevice', args: [String(pin || '')], token: '',
+      facility: FACILITY_CODE, // ペアリングも施設コードで保護する
+    }),
   }).then(function (r) {
     if (!r.ok) throw new Error('通信エラー(' + r.status + ')');
     return r.json();
@@ -768,7 +787,7 @@ function renderNoPermission(app) {
 // ---------------------------------------------------------------- ルーター
 
 function go(hash) {
-  if (hash !== '' && hash !== 'exercise' && hash.indexOf('exercise/') !== 0) Scanner.autoMode = '';
+  if (hash !== '') Scanner.autoMode = ''; // スキャナーは受付画面(空ハッシュ)でのみ使う
   var current = location.hash.replace(/^#\/?/, '');
   // 同じメニューをもう一度押した場合も再読み込みし、無反応に見えないようにする。
   if (current === hash) {
@@ -1152,6 +1171,41 @@ function plannedExercises(user) {
   return user.plan.map(exerciseById).filter(Boolean);
 }
 
+/**
+ * 予定に入っていない種目の選択リスト。
+ * 機器QRを廃止したため、どの機器でも画面から選んで記録できるようにする。
+ */
+function otherExercisesHtml(user, records) {
+  var planned = {};
+  plannedExercises(user).forEach(function (ex) { planned[ex.id] = true; });
+  var latest = {};
+  records.forEach(function (r) { latest[r.exerciseId] = r; });
+
+  var rows = S.exercises.filter(function (ex) { return !planned[ex.id]; }).map(function (ex) {
+    var rec = latest[ex.id];
+    if (rec) {
+      return (
+        '<div class="exercise-row"><span class="check">✓</span>' +
+        '<span class="ex-name">' + esc(ex.name) + '</span>' +
+        '<span class="ex-summary">' + esc(rec.time) + ' · ' + esc(rec.amount) + '</span></div>'
+      );
+    }
+    return (
+      '<button class="exercise-row undone" style="width:100%;text-align:left;"' +
+      ' onclick="Actions.pickExercise(\'' + ex.id + '\')"><span class="check">＋</span>' +
+      '<span class="ex-name">' + esc(ex.name) + '</span>' +
+      '<span class="ex-summary">予定外で記録</span></button>'
+    );
+  }).join('');
+  if (!rows) return '';
+
+  return (
+    '<div><div class="section-head" style="margin-bottom:8px;">' +
+    '<span class="section-title">その他の種目</span></div>' +
+    '<div class="row-list">' + rows + '</div></div>'
+  );
+}
+
 function getTodayExerciseRecords(userId) {
   var cached = S.exerciseCache[userId];
   if (cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
@@ -1180,31 +1234,19 @@ function renderExerciseScan(app, renderId) {
       '<header class="phone-header training">' +
       '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
       '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
-      '<div class="h-title">種目QRを読取</div></div>' +
+      '<div class="h-title">訓練種目を選択</div></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
-      '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">機能訓練</span><h1>訓練種目を記録</h1><p>QRを読むか、下の予定から選んでください。</p></div>' +
+      '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">機能訓練</span><h1>訓練種目を記録</h1><p>実施した種目をタップしてください。</p></div>' +
       precautionHtml(user, false) +
       snackbarHtml() +
-      cameraHtml('訓練機器のQRコードをかざしてください') +
       errHtml +
       '<div id="save-error"></div>' +
       progressHtml(plannedExercises(user), records, true) +
+      otherExercisesHtml(user, records) +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="Actions.backToMenu()">‹ 記録メニューへ戻る</button>' +
       '<button class="link-plain" onclick="Actions.backToCheckin()">対応を終了して受付に戻る</button>' +
       '</div></div></div>';
-
-    Scanner.prepare(function (value) {
-      var ex = null;
-      S.exercises.forEach(function (e) { if (e.qrCode === value.trim()) ex = e; });
-      if (!ex) {
-        S.toast = { type: 'error', title: '読み取りエラー', sub: '未登録のQRコードです。機器のQRラベルをご確認ください' };
-        render();
-        return;
-      }
-      S.toast = null;
-      Actions.pickExercise(ex.id);
-    }, 'exercise');
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
     app.innerHTML = renderErrorHtml('訓練記録を読み込めませんでした', 'exercise');
@@ -1241,7 +1283,7 @@ function renderExerciseForm(app, exerciseId, renderId) {
       '<button class="back-btn" onclick="Actions.backToScan()" aria-label="戻る">‹</button>' +
       '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
       '<div class="h-title">' + esc(ex.name) + '</div></div>' +
-      '<div class="h-right"><span class="qr-read-badge">QR<br>読取済</span></div>' +
+      '<div class="h-right"><span class="qr-read-badge">種目<br>選択中</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
       precautionHtml(user, false) +
@@ -1972,38 +2014,43 @@ function renderAdminToday(app, renderId) {
 // ---------------------------------------------------------------- 管理: 種目マスタ / QR発行
 
 function renderAdminMaster(app, renderId) {
-  var exCards = S.exercises.map(function (ex) {
-    return (
-      '<div class="qr-card qr-card-machine"><div class="qr-code" id="qr-' + ex.id + '"></div>' +
-      '<div class="qr-card-copy"><div class="qr-name">' + esc(ex.name) + '</div>' +
-      '<div class="qr-sub">' + esc(ex.amountLabel) + ': ' + esc(ex.amountOptions.join(' / ')) + '</div></div></div>'
-    );
-  }).join('');
+  // 利用者カードは 氏名・利用曜日・介護度 を券面に印字する(現場で本人確認しやすくするため)
   var userCards = S.users.map(function (u) {
+    var meta = '';
+    if (u.scheduleLabel) meta += '<div class="qr-meta"><span class="qr-meta-key">利用曜日</span>' +
+      '<span class="qr-meta-val">' + esc(u.scheduleLabel) + '</span></div>';
+    if (u.careLevel) meta += '<div class="qr-meta"><span class="qr-meta-key">介護度</span>' +
+      '<span class="qr-meta-val">' + esc(u.careLevel) + '</span></div>';
     return (
       '<div class="qr-card qr-card-user"><div class="qr-code" id="qr-' + u.id + '"></div>' +
-      '<div class="qr-card-copy"><div class="qr-name">' + esc(u.name) + ' 様</div></div></div>'
+      '<div class="qr-card-copy"><div class="qr-name">' + esc(u.name) + ' 様</div>' +
+      meta + '</div></div>'
+    );
+  }).join('');
+
+  // 種目は一覧のみ(機器QRは廃止。記録時は画面から機器を選ぶ)
+  var exRows = S.exercises.map(function (ex) {
+    return (
+      '<div class="exercise-row"><span class="ex-name">' + esc(ex.name) + '</span>' +
+      '<span class="ex-summary">' + esc(ex.amountLabel) + ': ' + esc(ex.amountOptions.join(' / ')) + '</span></div>'
     );
   }).join('');
 
   var content =
     '<div class="qr-print-page"><div class="admin-page-head"><div><div class="breadcrumb">種目マスタ / QR発行</div>' +
-    '<div class="admin-h1">QRコード発行 <span class="attrs">印刷して機器・利用者カードに貼付</span></div></div>' +
-    '<div class="admin-actions"><button class="btn-csv" onclick="Actions.printQrCards(\'users\')">利用者カードを印刷</button>' +
-    '<button class="btn-outline" onclick="Actions.printQrCards(\'all\')">機器を含めて印刷</button></div></div>' +
-    '<div class="panel qr-machine-panel"><div class="panel-title">訓練機器QR <span class="sub">機器に貼付</span></div>' +
-    '<div class="qr-grid">' + exCards + '</div></div>' +
-    '<div class="panel qr-user-panel"><div class="panel-title">利用者QRカード <span class="sub">名刺サイズ・来所受付用</span></div>' +
-    '<div class="qr-grid">' + userCards + '</div></div></div>';
+    '<div class="admin-h1">利用者QRカード発行 <span class="attrs">印刷して来所受付カードに使用</span></div></div>' +
+    '<div class="admin-actions"><button class="btn-csv" onclick="Actions.printQrCards(\'users\')">利用者カードを印刷</button></div></div>' +
+    '<div class="panel qr-user-panel"><div class="panel-title">利用者QRカード ' +
+    '<span class="sub">名刺サイズ・氏名/利用曜日/介護度を印字</span></div>' +
+    '<div class="qr-grid">' + userCards + '</div></div>' +
+    '<div class="panel qr-exercise-list"><div class="panel-title">訓練種目一覧 ' +
+    '<span class="sub">記録画面で選択します(機器QRは不要)</span></div>' +
+    '<div class="row-list">' + exRows + '</div></div></div>';
 
   app.innerHTML = adminShell('admin/master', content);
 
   function drawQrCodes() {
     if (!isCurrentRender(renderId) || typeof QRCode === 'undefined') return;
-    S.exercises.forEach(function (ex) {
-      var el = document.getElementById('qr-' + ex.id);
-      if (el && !el.firstChild) new QRCode(el, { text: ex.qrCode, width: 320, height: 320, colorDark: '#1F2A22' });
-    });
     S.users.forEach(function (u) {
       var el = document.getElementById('qr-' + u.id);
       if (el && !el.firstChild) new QRCode(el, { text: u.qrCode, width: 320, height: 320, colorDark: '#1F2A22' });
