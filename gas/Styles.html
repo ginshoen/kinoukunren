@@ -160,6 +160,48 @@ select {
   .admin-wrap { padding-bottom: 0; }
 }
 
+/* ---------- 管理画面: スマホ用ヘッダー ---------- */
+/* PCではサイドバーを使うため非表示。スマホでは横スクロールタブの代わりに
+   「‹ 管理メニュー」+ 現在の機能名を固定表示する */
+.admin-mobile-head { display: none; }
+@media (max-width: 900px) {
+  .admin-sidebar { display: none !important; }
+  .admin-mobile-head {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--green);
+    color: #fff;
+    padding: 12px 16px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  }
+  .admin-mobile-head .back-btn {
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .admin-mobile-head .h-sub {
+    font-size: 11px;
+    opacity: 0.85;
+    letter-spacing: 0.06em;
+  }
+  .admin-mobile-head .h-title {
+    font-size: 18px;
+    font-weight: 800;
+  }
+}
+
 @media (max-width: 430px) {
   .phone-wrap {
     padding: 0;
@@ -2035,13 +2077,24 @@ textarea {
   .gen-table, .gen-table tbody, .gen-table tr, .gen-table td { display: block; width: 100%; }
   .gen-table tr { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
   .gen-table td { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 8px; padding: 6px 0; border: 0; white-space: normal !important; }
-  .gen-table td::before { color: var(--text-aux); font-size: 11px; font-weight: 800; }
-  .gen-table td:nth-child(1)::before { content: '利用者'; }
-  .gen-table td:nth-child(2)::before { content: '年齢'; }
-  .gen-table td:nth-child(3)::before { content: '介護度'; }
-  .gen-table td:nth-child(4)::before { content: '曜日'; }
-  .gen-table td:nth-child(5)::before { content: '予定種目'; }
-  .gen-table td:nth-child(6)::before { content: '操作'; }
+  /* ラベルは JS が thead から data-label に転記する(表ごとの列ずれ防止) */
+  .gen-table td::before {
+    content: attr(data-label);
+    color: var(--text-aux);
+    font-size: 11px;
+    font-weight: 800;
+  }
+  /* 見出しなし(操作ボタン列・全幅メッセージ)はラベル欄を作らない */
+  .gen-table td[data-label=''] { display: block; }
+  .gen-table td[data-label='']::before { content: none; }
+  /* 帰苑登録などの操作類はラベルの下に全幅で並べ、はみ出させない */
+  .gen-table .checkout-controls {
+    min-width: 0;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .gen-table .checkout-controls .select-plain { flex: 1 1 130px; min-width: 0; }
+  .gen-table .checkout-controls .btn-csv { flex: 1 1 110px; }
 }
 
 /* QRカード印刷: 日本標準の名刺サイズ 91mm × 55mm */
