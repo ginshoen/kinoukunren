@@ -170,6 +170,48 @@ select {
   .admin-wrap { padding-bottom: 0; }
 }
 
+/* ---------- 管理画面: スマホ用ヘッダー ---------- */
+/* PCではサイドバーを使うため非表示。スマホでは横スクロールタブの代わりに
+   「‹ 管理メニュー」+ 現在の機能名を固定表示する */
+.admin-mobile-head { display: none; }
+@media (max-width: 900px) {
+  .admin-sidebar { display: none !important; }
+  .admin-mobile-head {
+    position: sticky;
+    top: 0;
+    z-index: 35;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--green);
+    color: #fff;
+    padding: 12px 16px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  }
+  .admin-mobile-head .back-btn {
+    flex: none;
+    width: 42px;
+    height: 42px;
+    border: 0;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .admin-mobile-head .h-sub {
+    font-size: 11px;
+    opacity: 0.85;
+    letter-spacing: 0.06em;
+  }
+  .admin-mobile-head .h-title {
+    font-size: 18px;
+    font-weight: 800;
+  }
+}
+
 @media (max-width: 430px) {
   .phone-wrap {
     padding: 0;
@@ -2045,13 +2087,24 @@ textarea {
   .gen-table, .gen-table tbody, .gen-table tr, .gen-table td { display: block; width: 100%; }
   .gen-table tr { margin: 12px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
   .gen-table td { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 8px; padding: 6px 0; border: 0; white-space: normal !important; }
-  .gen-table td::before { color: var(--text-aux); font-size: 11px; font-weight: 800; }
-  .gen-table td:nth-child(1)::before { content: '利用者'; }
-  .gen-table td:nth-child(2)::before { content: '年齢'; }
-  .gen-table td:nth-child(3)::before { content: '介護度'; }
-  .gen-table td:nth-child(4)::before { content: '曜日'; }
-  .gen-table td:nth-child(5)::before { content: '予定種目'; }
-  .gen-table td:nth-child(6)::before { content: '操作'; }
+  /* ラベルは JS が thead から data-label に転記する(表ごとの列ずれ防止) */
+  .gen-table td::before {
+    content: attr(data-label);
+    color: var(--text-aux);
+    font-size: 11px;
+    font-weight: 800;
+  }
+  /* 見出しなし(操作ボタン列・全幅メッセージ)はラベル欄を作らない */
+  .gen-table td[data-label=''] { display: block; }
+  .gen-table td[data-label='']::before { content: none; }
+  /* 帰苑登録などの操作類はラベルの下に全幅で並べ、はみ出させない */
+  .gen-table .checkout-controls {
+    min-width: 0;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .gen-table .checkout-controls .select-plain { flex: 1 1 130px; min-width: 0; }
+  .gen-table .checkout-controls .btn-csv { flex: 1 1 110px; }
 }
 
 /* QRカード印刷: 日本標準の名刺サイズ 91mm × 55mm */
@@ -2225,7 +2278,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260817-1810';</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260817-1843';</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -2874,7 +2927,7 @@ function tabBarHtml(active) {
     '<nav class="tab-bar" aria-label="主要画面の切り替え">' +
     item('checkin', '', '受付', icoScan) +
     item('users', 'users', '利用者', icoUsers) +
-    (isAdmin() ? item('admin', 'admin', '管理', icoAdmin) : '') +
+    (isAdmin() ? item('admin', 'admin/menu', '管理', icoAdmin) : '') +
     '</nav>'
   );
 }
@@ -3067,9 +3120,35 @@ function go(hash) {
 
 window.addEventListener('hashchange', render);
 
+/**
+ * スマホ幅では表をカード形式に組み替える。その際の項目ラベルを
+ * 各表の見出し(thead)から自動で付与する(表ごとの列ずれを防ぐ)。
+ */
+function labelGenTables() {
+  document.querySelectorAll('table.gen-table').forEach(function (table) {
+    var heads = [].map.call(table.querySelectorAll('thead th'), function (th) {
+      return th.textContent.trim();
+    });
+    [].forEach.call(table.querySelectorAll('tbody tr'), function (tr) {
+      [].forEach.call(tr.children, function (td, i) {
+        var label = td.hasAttribute('colspan') ? '' : (heads[i] || '');
+        if (td.getAttribute('data-label') !== label) td.setAttribute('data-label', label);
+      });
+    });
+  });
+}
+
 function render() {
   var renderId = (S.renderId || 0) + 1;
   S.renderId = renderId;
+  // 画面描画のたびに表ラベルを付け直す(非同期描画にも追従する)
+  if (!S.tableObserver) {
+    var appRoot = document.getElementById('app');
+    if (appRoot) {
+      S.tableObserver = new MutationObserver(labelGenTables);
+      S.tableObserver.observe(appRoot, { childList: true, subtree: true });
+    }
+  }
   Scanner.stop();
   if (S.toastTimer) { clearTimeout(S.toastTimer); S.toastTimer = null; }
   if (S.pollTimer) { clearInterval(S.pollTimer); S.pollTimer = null; }
@@ -3080,6 +3159,7 @@ function render() {
   var h = location.hash.replace(/^#\/?/, '');
   // 管理画面は管理者のみ。現場職員には権限がない旨だけ表示する
   if (h.indexOf('admin') === 0 && !isAdmin()) return renderNoPermission(app);
+  if (h === 'admin/menu') return renderAdminMenu(app);
   if (h === 'admin/staff') return renderAdminStaff(app, renderId);
   if (h === 'users') return renderUserList(app, renderId);
   if (h.indexOf('users/') === 0) return renderUserDetail(app, h.slice(6), renderId);
@@ -3851,6 +3931,49 @@ function renderUserDetail(app, userId, renderId) {
   });
 }
 
+// ---------------------------------------------------------------- 管理メニュー(ハブ)
+
+/** 管理機能の一覧。[ルート, アイコン, 名称, 説明] */
+var ADMIN_MENU_ITEMS = [
+  ['admin',          '📊', '利用者別 実績',     'グラフ・月別実績・CSV出力'],
+  ['admin/today',    '📝', '本日の記録一覧',   '帰苑時刻・送迎の登録、記録の取り消し'],
+  ['admin/notebook', '🖨️', '連絡帳 作成・印刷', '当日の記録から自動で下書きを作成'],
+  ['admin/users',    '👥', '利用者管理',       '利用者の登録・編集・削除'],
+  ['admin/staff',    '🔑', '職員管理',         '職員の追加・権限・PIN再設定'],
+  ['admin/master',   '🪪', 'QRカード発行',     '利用者カードの印刷・訓練種目の一覧'],
+  ['admin/monthly',  '📅', '月次レポート',     '月間の実施集計'],
+];
+
+/**
+ * 管理タブの入口。スマホの横スクロールタブは操作しづらいため、
+ * 大きなボタンの一覧から各機能へ入る方式にする。
+ */
+function renderAdminMenu(app) {
+  var rows = ADMIN_MENU_ITEMS.map(function (it) {
+    return (
+      '<button class="menu-action" onclick="go(\'' + it[0] + '\')">' +
+      '<span class="menu-icon">' + it[1] + '</span>' +
+      '<span class="menu-text"><strong>' + it[2] + '</strong>' +
+      '<small>' + it[3] + '</small></span>' +
+      '<span class="chev">›</span></button>'
+    );
+  }).join('');
+
+  app.innerHTML =
+    '<div class="phone-wrap"><div class="phone">' +
+    '<header class="phone-header">' +
+    '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ">' +
+    '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">管理メニュー</div></div>' +
+    '</header>' +
+    '<div class="phone-body" style="gap:10px;">' +
+    rows +
+    '<div class="signed-in-bar">' +
+    '<span class="signed-in-name">' + esc(S.me ? S.me.name : '') + ' さん <span class="role-badge admin">管理者</span></span>' +
+    '<button class="link-plain" onclick="Actions.logout()">ログアウト</button>' +
+    '</div>' +
+    '</div>' + tabBarHtml('admin') + '</div></div>';
+}
+
 // ---------------------------------------------------------------- 管理画面 共通
 
 var NAV_ITEMS = [
@@ -3899,8 +4022,15 @@ function adminShell(active, contentHtml) {
       (item[0] === active ? ' aria-current="page"' : '') +
       ' onclick="return go(\'' + item[0] + '\')">' + item[1] + '</button>';
   }).join('');
+  var activeLabel = '';
+  NAV_ITEMS.forEach(function (it) { if (it[0] === active) activeLabel = it[1]; });
   return (
     '<div class="admin-wrap"><div class="admin-frame">' +
+    // スマホ用: 横スクロールタブの代わりに「‹ 管理メニュー」ヘッダーを出す(PCでは非表示)
+    '<header class="admin-mobile-head">' +
+    '<button class="back-btn" onclick="return go(\'admin/menu\')" aria-label="管理メニューへ戻る">‹</button>' +
+    '<div><div class="h-sub">管理画面</div><div class="h-title">' + esc(activeLabel) + '</div></div>' +
+    '</header>' +
     '<nav class="admin-sidebar" aria-label="管理画面メニュー">' +
     '<div class="brand"><img src="' + LOGO + '" alt="銀松苑ロゴ"><span class="brand-name">銀松苑 管理</span></div>' +
     nav +
