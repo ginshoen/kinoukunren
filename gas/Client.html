@@ -91,6 +91,7 @@ var RPC_READ_TTL = {
   apiGetTodayExercises: 45000,
   apiGetTodayAlerts: 60000,
   apiGetUserDetail: 45000,
+  apiGetUserPhotos: 300000,
   apiGetUserResults: 30000,
   apiGetTodayRecords: 45000,
   apiGetMonthly: 60000,
@@ -208,6 +209,10 @@ var S = {
   todayCheckins: [],
   todayAlerts: {},      // 利用者一覧は先に表示し、アラートだけバックグラウンド更新
   currentUserId: sessionStorage.getItem('currentUserId') || '',
+  photos: {},           // 利用者ID -> 顔写真dataURL(裏で一括取得)
+  photosPromise: null,
+  arrival: null,        // QR受付直後の表示情報 {userId, time, already}
+  arrivalTimer: null,   // 受付確認画面の自動復帰タイマー
   toast: null,          // {type:'success'|'error', title, sub, userId}
   toastTimer: null,
   vDraft: null,         // バイタル下書き
@@ -221,12 +226,58 @@ var S = {
   adminVerifying: false,
   adminVerifyPromise: null,
   adminUnlockPromise: null,
-  notebook: { data: null, photo: '', comment: '' },
+  notebook: { data: null, photo: '', comment: '', variant: 0 },
 };
 
 function currentUser() {
   for (var i = 0; i < S.users.length; i++) if (S.users[i].id === S.currentUserId) return S.users[i];
   return null;
+}
+function userById(id) {
+  for (var i = 0; i < S.users.length; i++) if (S.users[i].id === id) return S.users[i];
+  return null;
+}
+
+// ---------------------------------------------------------------- 顔写真
+
+/** 顔写真の一括取得(セッション中1回)。失敗しても画面はイニシャル表示で成立する */
+function ensurePhotos() {
+  if (!S.photosPromise) {
+    S.photosPromise = rpc('apiGetUserPhotos').then(function (map) {
+      S.photos = map || {};
+      updateAvatars();
+      return S.photos;
+    }).catch(function () {
+      S.photosPromise = null; // 次の画面表示時に再試行できるようにする
+      return S.photos;
+    });
+  }
+  return S.photosPromise;
+}
+
+/** 丸型の顔写真。未登録(または未取得)の間は氏名の頭文字を表示する */
+function avatarHtml(user, cls) {
+  var photo = user && S.photos[user.id];
+  var base = 'avatar' + (cls ? ' ' + cls : '');
+  if (photo) {
+    return '<img class="' + base + '" data-avatar="' + esc(user.id) + '" data-has-photo="1" src="' + esc(photo) + '" alt="">';
+  }
+  var ch = String(user && user.name || '?').trim().charAt(0);
+  return '<span class="' + base + '" data-avatar="' + esc(user ? user.id : '') + '" aria-hidden="true">' + esc(ch) + '</span>';
+}
+
+/** 写真の取得完了後、表示中のイニシャルを実写真に差し替える */
+function updateAvatars() {
+  var els = document.querySelectorAll('[data-avatar]');
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    var id = el.getAttribute('data-avatar');
+    if (!id || el.getAttribute('data-has-photo') === '1' || !S.photos[id]) continue;
+    var user = userById(id);
+    if (!user) continue;
+    var m = /(?:^|\s)avatar-(sm|md|lg)(?:\s|$)/.exec(el.className);
+    el.outerHTML = avatarHtml(user, m ? 'avatar-' + m[1] : '');
+  }
 }
 function exerciseById(id) {
   for (var i = 0; i < S.exercises.length; i++) if (S.exercises[i].id === id) return S.exercises[i];
@@ -865,6 +916,7 @@ function render() {
   }
   Scanner.stop();
   if (S.toastTimer) { clearTimeout(S.toastTimer); S.toastTimer = null; }
+  if (S.arrivalTimer) { clearTimeout(S.arrivalTimer); S.arrivalTimer = null; }
   if (S.pollTimer) { clearInterval(S.pollTimer); S.pollTimer = null; }
   var app = document.getElementById('app');
   // 未ログインなら常にログイン画面(以降の画面はログイン後のみ)
@@ -877,6 +929,7 @@ function render() {
   if (h === 'admin/staff') return renderAdminStaff(app, renderId);
   if (h === 'users') return renderUserList(app, renderId);
   if (h.indexOf('users/') === 0) return renderUserDetail(app, h.slice(6), renderId);
+  if (h.indexOf('arrival/') === 0) return renderArrival(app, h.slice(8));
   if (h === 'menu') return renderUserMenu(app, renderId);
   if (h === 'vitals') return renderVitals(app, renderId);
   if (h === 'exercise') return renderExerciseScan(app, renderId);
@@ -914,7 +967,7 @@ function checkinStatusView() {
     if (!u) return '';
     return (
       '<button class="person-row tappable" onclick="Actions.startSession(\'' + u.id + '\')">' +
-      '<span class="status-dot"></span>' +
+      avatarHtml(u, 'avatar-sm') +
       '<span class="person-main"><span class="person-name">' + esc(u.name) + '</span>' +
       '<span class="person-care">' + esc(u.careLevel) + '</span></span>' +
       '<span class="person-time">' + esc(c.time) + '</span>' +
@@ -922,7 +975,7 @@ function checkinStatusView() {
     );
   }).join('') + pending.map(function (u) {
     return (
-      '<div class="person-row pending"><span class="status-dot"></span>' +
+      '<div class="person-row pending">' + avatarHtml(u, 'avatar-sm') +
       '<span class="person-name">' + esc(u.name) + '</span>' +
       '<span class="person-care">' + esc(u.careLevel) + '</span>' +
       '<span class="person-time">未着</span></div>'
@@ -1023,6 +1076,68 @@ function renderCheckin(app) {
   }, 60000);
 }
 
+// ---------------------------------------------------------------- 1a-2 受付確認(QR読み取り直後の本人確認)
+
+/**
+ * QRカード読み取り直後に、顔写真と基本情報をひと目で確認できる画面。
+ * 受付(チェックイン)自体はスキャン時に完了しており、ここは本人確認と次の操作への入口。
+ */
+function renderArrival(app, userId) {
+  var user = userById(userId);
+  if (!user) return go('');
+  ensurePhotos();
+
+  var info = S.arrival && S.arrival.userId === userId ? S.arrival : null;
+  var time = info ? info.time : '';
+  if (!time) {
+    S.todayCheckins.forEach(function (c) { if (c.userId === userId && !time) time = c.time; });
+  }
+  var already = info ? info.already : true;
+
+  var statusHtml = time
+    ? '<div class="arrival-status' + (already ? ' info' : '') + '">' +
+      '<span class="check-circle">' + (already ? 'ℹ' : '✓') + '</span>' +
+      '<span>' + (already ? esc(time) + ' に受付済みです' : '受付完了 ' + esc(time)) + '</span></div>'
+    : '<div class="arrival-status info"><span class="check-circle">ℹ</span><span>本日はまだ受付されていません</span></div>';
+
+  function infoRow(label, value) {
+    return '<div class="arrival-row"><span class="arrival-label">' + label + '</span>' +
+      '<span class="arrival-value">' + (value ? esc(value) : '未登録') + '</span></div>';
+  }
+
+  app.innerHTML =
+    '<div class="phone-wrap"><div class="phone">' +
+    '<header class="phone-header compact">' +
+    '<button class="back-btn" onclick="go(\'\')" aria-label="受付へ戻る">‹</button>' +
+    '<div><div class="h-sub">来所受付</div><div class="h-title">ご本人の確認</div></div>' +
+    '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
+    '</header>' +
+    '<div class="phone-body" style="gap:14px;">' +
+    '<div class="card arrival-card">' +
+    '<div class="arrival-photo">' + avatarHtml(user, 'avatar-lg') + '</div>' +
+    (user.kana ? '<div class="arrival-kana">' + esc(user.kana) + '</div>' : '') +
+    '<div class="arrival-name">' + esc(user.name) + ' さま</div>' +
+    statusHtml +
+    '<div class="arrival-grid">' +
+    infoRow('年齢', user.age + '歳') +
+    infoRow('介護度', user.careLevel) +
+    infoRow('利用曜日', user.scheduleLabel) +
+    infoRow('個人目標', user.goal) +
+    infoRow('既往歴', user.medicalHistory) +
+    '</div></div>' +
+    precautionHtml(user, false) +
+    '<button class="btn-primary" style="flex:none;width:100%;" onclick="Actions.startSession(\'' + user.id + '\')">▶ バイタル・訓練を記録する</button>' +
+    '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'\')">‹ 受付にもどる(次の方へ)</button>' +
+    '<div class="section-note" style="text-align:center;">30秒後に自動で受付画面へ戻ります</div>' +
+    '</div>' + tabBarHtml('checkin') + '</div></div>';
+
+  // 受付タブレット常時運用向け: 置きっぱなしでも次の方のスキャンに戻れるようにする
+  S.arrivalTimer = setTimeout(function () {
+    var h = location.hash.replace(/^#\/?/, '');
+    if (h.indexOf('arrival/') === 0) go('');
+  }, 30000);
+}
+
 // ---------------------------------------------------------------- 1b バイタル記録
 
 function precautionHtml(user, confirmable) {
@@ -1069,13 +1184,12 @@ function renderUserMenu(app, renderId) {
       if (v.userId === user.id && (!vital || timeKey(v.time) > timeKey(vital.time))) vital = v;
     });
 
-    var planned = plannedExercises(user);
     var doneIds = {};
     exRecords.forEach(function (e) { doneIds[e.exerciseId] = true; });
-    var doneCount = planned.filter(function (ex) { return doneIds[ex.id]; }).length;
+    var doneCount = Object.keys(doneIds).length;
 
     var vitalDone = !!vital;
-    var exDone = planned.length > 0 && doneCount >= planned.length;
+    var exDone = doneCount > 0;
 
     var statusHtml =
       '<div class="card today-card">' +
@@ -1084,7 +1198,7 @@ function renderUserMenu(app, renderId) {
       (vital
         ? '<div class="today-vitals">' + vitalLineText(vital) + '</div>'
         : '<div class="today-vitals">バイタル未測定</div>') +
-      '<div class="today-vitals">機能訓練 ' + planned.length + '種目中 <b>' + doneCount + '種目</b> 完了</div>' +
+      '<div class="today-vitals">機能訓練 本日 <b>' + doneCount + '種目</b> 実施</div>' +
       (vital && vital.flagged
         ? vital.alerts.map(function (msg) {
             return '<div class="alert-banner"><span class="alert-dot"></span><span class="alert-text">' + esc(msg) + '</span></div>';
@@ -1096,6 +1210,7 @@ function renderUserMenu(app, renderId) {
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
       '<button class="back-btn" onclick="Actions.backToCheckin()" aria-label="受付へ戻る">‹</button>' +
+      avatarHtml(user, 'avatar-md') +
       '<div><div class="h-sub">記録メニュー</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
@@ -1115,7 +1230,7 @@ function renderUserMenu(app, renderId) {
       '<button class="menu-action training" onclick="Actions.goExercise()">' +
       '<span class="menu-icon">🏃</span>' +
       '<span class="menu-text"><strong>機能訓練を記録</strong>' +
-      '<small>' + (exDone ? '予定の種目はすべて完了' : '残り' + Math.max(0, planned.length - doneCount) + '種目') + '</small></span>' +
+      '<small>' + (exDone ? doneCount + '種目 記録済み(追加もできます)' : '実施した種目を選んで記録') + '</small></span>' +
       (exDone ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
       '</button>' +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users/' + user.id + '\')">' +
@@ -1193,13 +1308,16 @@ function renderVitals(app, renderId) {
 
 // ---------------------------------------------------------------- 1c 機能訓練
 
-function progressHtml(planned, records, pickable) {
-  var doneCount = 0;
+/**
+ * 全種目の実施状況リスト。個人別の予定種目は廃止したため、
+ * 種目マスタの全種目から実施したものをタップして記録する。
+ */
+function progressHtml(records, pickable) {
   var latest = {};
   records.forEach(function (r) { latest[r.exerciseId] = r; });
-  planned.forEach(function (ex) { if (latest[ex.id]) doneCount++; });
+  var doneCount = Object.keys(latest).length;
 
-  var rows = planned.map(function (ex) {
+  var rows = S.exercises.map(function (ex) {
     var rec = latest[ex.id];
     if (rec) {
       return (
@@ -1219,46 +1337,7 @@ function progressHtml(planned, records, pickable) {
 
   return (
     '<div><div class="section-head" style="margin-bottom:8px;"><span class="section-title">' +
-    '本日の実施状況(' + planned.length + '種目中' + doneCount + '種目完了)</span></div>' +
-    '<div class="row-list">' + rows + '</div></div>'
-  );
-}
-
-function plannedExercises(user) {
-  return user.plan.map(exerciseById).filter(Boolean);
-}
-
-/**
- * 予定に入っていない種目の選択リスト。
- * 機器QRを廃止したため、どの機器でも画面から選んで記録できるようにする。
- */
-function otherExercisesHtml(user, records) {
-  var planned = {};
-  plannedExercises(user).forEach(function (ex) { planned[ex.id] = true; });
-  var latest = {};
-  records.forEach(function (r) { latest[r.exerciseId] = r; });
-
-  var rows = S.exercises.filter(function (ex) { return !planned[ex.id]; }).map(function (ex) {
-    var rec = latest[ex.id];
-    if (rec) {
-      return (
-        '<div class="exercise-row"><span class="check">✓</span>' +
-        '<span class="ex-name">' + esc(ex.name) + '</span>' +
-        '<span class="ex-summary">' + esc(rec.time) + ' · ' + esc(rec.amount) + '</span></div>'
-      );
-    }
-    return (
-      '<button class="exercise-row undone" style="width:100%;text-align:left;"' +
-      ' onclick="Actions.pickExercise(\'' + ex.id + '\')"><span class="check">＋</span>' +
-      '<span class="ex-name">' + esc(ex.name) + '</span>' +
-      '<span class="ex-summary">予定外で記録</span></button>'
-    );
-  }).join('');
-  if (!rows) return '';
-
-  return (
-    '<div><div class="section-head" style="margin-bottom:8px;">' +
-    '<span class="section-title">その他の種目</span></div>' +
+    '本日の実施状況(' + doneCount + '種目 実施)</span></div>' +
     '<div class="row-list">' + rows + '</div></div>'
   );
 }
@@ -1299,8 +1378,7 @@ function renderExerciseScan(app, renderId) {
       snackbarHtml() +
       errHtml +
       '<div id="save-error"></div>' +
-      progressHtml(plannedExercises(user), records, true) +
-      otherExercisesHtml(user, records) +
+      progressHtml(records, true) +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="Actions.backToMenu()">‹ 記録メニューへ戻る</button>' +
       '</div>' + tabBarHtml('') + '</div></div>';
   }).catch(function () {
@@ -1351,7 +1429,7 @@ function renderExerciseForm(app, exerciseId, renderId) {
       '<textarea class="note-area" maxlength="200" placeholder="例: ペース安定。息切れなし。" oninput="Actions.exNote(this.value)">' + esc(d.note) + '</textarea></div>' +
       '<div id="save-error"></div>' +
       '<button class="btn-training" id="ex-save" disabled onclick="Actions.exSave()">この内容で記録する</button>' +
-      progressHtml(plannedExercises(user), records, false) +
+      progressHtml(records, false) +
       '</div>' + tabBarHtml('') + '</div></div>';
 
     Actions.exRefresh();
@@ -1387,7 +1465,7 @@ function userRowHtml(u, state, time, hasAlert) {
   return (
     '<button class="' + cls + '" data-name="' + esc((u.name + (u.kana || '')).replace(/\s/g, '')) + '"' +
     ' onclick="go(\'users/' + u.id + '\')">' +
-    '<span class="status-dot"></span>' +
+    avatarHtml(u, 'avatar-sm') +
     '<span class="person-main"><span class="person-name">' + esc(u.name) + '</span>' +
     '<span class="person-care">' + esc(u.careLevel) + ' · ' + u.age + '歳</span></span>' +
     (hasAlert ? '<span class="badge-alert" title="本日アラートあり">⚑</span>' : '') +
@@ -1505,10 +1583,9 @@ function renderUserDetail(app, userId, renderId) {
 
   rpc('apiGetUserDetail', userId).then(function (res) {
     if (!isCurrentRender(renderId)) return;
-    var planned = plannedExercises(user);
     var doneIds = {};
     res.todayExercises.forEach(function (e) { doneIds[e.exerciseId] = true; });
-    var doneCount = planned.filter(function (ex) { return doneIds[ex.id]; }).length;
+    var doneCount = Object.keys(doneIds).length;
 
     // ① 本日の状況
     var todayHtml;
@@ -1519,7 +1596,7 @@ function renderUserDetail(app, userId, renderId) {
           ? '<div class="today-vitals">' + vitalLineText(res.todayVital) + '</div>' +
             (res.todayVital.conditionNote ? '<div class="history-note">体調: ' + esc(res.todayVital.conditionNote) + '</div>' : '')
           : '<div class="today-vitals">バイタル未測定</div>') +
-        '<div class="today-vitals">訓練 ' + planned.length + '種目中 <b>' + doneCount + '種目</b> 完了</div>' +
+        '<div class="today-vitals">機能訓練 本日 <b>' + doneCount + '種目</b> 実施</div>' +
         (res.todayVital && res.todayVital.flagged
           ? res.todayVital.alerts.map(function (msg) {
               return '<div class="alert-banner"><span class="alert-dot"></span><span class="alert-text">' + esc(msg) + '</span></div>';
@@ -1601,6 +1678,7 @@ function renderUserDetail(app, userId, renderId) {
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
       '<button class="back-btn" onclick="go(\'users\')" aria-label="一覧へ戻る">‹</button>' +
+      avatarHtml(user, 'avatar-md') +
       '<div>' +
       (user.kana ? '<div class="h-sub">' + esc(user.kana) + '</div>' : '') +
       '<div class="h-title">' + esc(user.name) + ' さま</div>' +
@@ -2002,7 +2080,19 @@ function drawAdminStaff(app) {
     '</div>');
 }
 
+/** 編集フォームの写真プレビュー。photo: null=登録済みを保持 / ''=なし / dataURL=選択済み */
+function editingPhotoHtml(u) {
+  if (u.photo) return '<img class="avatar avatar-lg" src="' + esc(u.photo) + '" alt="顔写真プレビュー">';
+  if (u.photo === null && u.id) {
+    var user = userById(u.id);
+    if (user) return avatarHtml(user, 'avatar-lg'); // 取得済みなら写真、未取得なら頭文字(取得後に自動差し替え)
+  }
+  var ch = String(u.name || '？').trim().charAt(0) || '？';
+  return '<span class="avatar avatar-lg">' + esc(ch) + '</span>';
+}
+
 function renderAdminUsers(app, renderId) {
+  ensurePhotos();
   var u = S.editingUser;
   var formHtml = '';
   if (u) {
@@ -2011,23 +2101,27 @@ function renderAdminUsers(app, renderId) {
         (u.scheduleLabel || '').split('/').indexOf(w) >= 0;
       return '<label class="check-item"><input type="checkbox" name="wd" value="' + w + '"' + (on ? ' checked' : '') + '>' + w + '</label>';
     }).join('');
-    var planChecks = S.exercises.map(function (ex) {
-      var on = (u.plan || []).indexOf(ex.id) >= 0;
-      return '<label class="check-item"><input type="checkbox" name="plan" value="' + ex.id + '"' + (on ? ' checked' : '') + '>' + esc(ex.name) + '</label>';
-    }).join('');
     var careOpts = CARE_LEVELS.map(function (c) {
       return '<option value="' + c + '"' + (u.careLevel === c ? ' selected' : '') + '>' + c + '</option>';
     }).join('');
     formHtml =
       '<div class="panel" id="user-form">' +
       '<div class="panel-title">' + (u.id ? '利用者を編集' : '利用者を新規登録') + '</div>' +
+      '<div class="photo-field">' +
+      '<div id="photo-preview">' + editingPhotoHtml(u) + '</div>' +
+      '<div class="photo-actions">' +
+      '<label class="btn-csv" style="cursor:pointer;">📷 顔写真を選ぶ' +
+      '<input type="file" accept="image/*" onchange="Actions.adminPickPhoto(this.files[0]);this.value=\'\'" hidden></label>' +
+      '<button class="link-plain" id="photo-remove" onclick="Actions.adminRemovePhoto()"' +
+      (u.photo || (u.photo === null && u.hasPhoto) ? '' : ' style="display:none;"') + '>写真を削除</button>' +
+      '<div class="section-note">受付でQRカードを読み取ると、この写真と基本情報が表示されます</div>' +
+      '</div></div>' +
       '<div class="form-grid">' +
       '<label>氏名 <input class="note-area" id="f-name" value="' + esc(u.name || '') + '" placeholder="例: 田中 花子" style="min-height:44px;"></label>' +
       '<label>ふりがな <input class="note-area" id="f-kana" value="' + esc(u.kana || '') + '" placeholder="例: たなか はなこ" style="min-height:44px;"></label>' +
       '<label>年齢 <input class="note-area" id="f-age" inputmode="numeric" value="' + (u.age || '') + '" style="min-height:44px;max-width:120px;"></label>' +
       '<label>介護度 <select class="select-plain" id="f-care" style="min-height:44px;">' + careOpts + '</select></label>' +
       '<div>利用曜日<div class="check-row">' + wdChecks + '</div></div>' +
-      '<div>予定種目<div class="check-row">' + planChecks + '</div></div>' +
       '<label class="form-wide">個人目標(リハビリ目標)<textarea class="note-area" id="f-goal" maxlength="500" placeholder="生活上の目標と機能訓練の目標">' + esc(u.goal || '') + '</textarea></label>' +
       '<label class="form-wide">既往歴<textarea class="note-area" id="f-history" maxlength="500" placeholder="主な既往歴を入力">' + esc(u.medicalHistory || '') + '</textarea></label>' +
       '<label class="form-wide">運動の禁止事項・注意点<textarea class="note-area" id="f-precautions" maxlength="500" placeholder="疼痛、禁忌、転倒リスクなど">' + esc(u.precautions || '') + '</textarea></label>' +
@@ -2041,9 +2135,9 @@ function renderAdminUsers(app, renderId) {
 
   var rows = S.users.map(function (x) {
     return (
-      '<tr><td style="font-weight:700;">' + esc(x.name) + '<br><span class="section-note">' + esc(x.kana || '') + '</span></td>' +
+      '<tr><td><div class="user-cell">' + avatarHtml(x, 'avatar-sm') +
+      '<div style="font-weight:700;">' + esc(x.name) + '<br><span class="section-note">' + esc(x.kana || '') + '</span></div></div></td>' +
       '<td>' + x.age + '歳</td><td>' + esc(x.careLevel) + '</td><td>' + esc(x.scheduleLabel) + '</td>' +
-      '<td>' + x.plan.map(function (id) { var ex = exerciseById(id); return ex ? ex.shortName : id; }).join('・') + '</td>' +
       '<td style="white-space:nowrap;">' +
       '<button class="btn-csv" style="margin-right:6px;" onclick="Actions.adminEditUser(\'' + x.id + '\')">編集</button>' +
       '<button class="btn-danger" data-del="' + x.id + '" onclick="Actions.adminDeleteUser(\'' + x.id + '\', this)">削除</button>' +
@@ -2059,7 +2153,7 @@ function renderAdminUsers(app, renderId) {
     '</div></div>' +
     formHtml +
     '<div class="panel"><div style="overflow-x:auto;"><table class="gen-table"><thead><tr>' +
-    '<th>氏名</th><th>年齢</th><th>介護度</th><th>利用曜日</th><th>予定種目</th><th></th>' +
+    '<th>氏名</th><th>年齢</th><th>介護度</th><th>利用曜日</th><th></th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div class="section-note" style="margin-top:8px;">削除しても過去の記録は残ります。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
     '</div>');
@@ -2236,20 +2330,41 @@ function notebookDateLabel(date) {
   return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日(' + WEEKDAYS[d.getDay()] + ')';
 }
 
-function defaultNotebookComment(data) {
+/**
+ * 連絡文の自動作成。variant を変えると言い回しが変わるため、
+ * 「文章を自動作成し直す」を押すたびに違う下書きが得られる。
+ */
+var NOTEBOOK_OPENINGS = [
+  '本日は{n}種目の運動に取り組まれました。',
+  '本日も意欲的に{n}種目の運動を実施されました。',
+  '本日は{n}種目のプログラムを最後まで頑張られました。',
+];
+var NOTEBOOK_OPENINGS_REST = [
+  '本日も体調に配慮しながら、無理のない範囲で過ごしていただきました。',
+  '本日は体調に合わせて、ゆったりとお過ごしいただきました。',
+  '本日も無理のないペースで、穏やかに過ごされました。',
+];
+var NOTEBOOK_CLOSINGS = [
+  '最後までしっかりと体を動かしていただきました。',
+  '終始落ち着いて取り組まれ、良い運動になりました。',
+  '次回も安全に気をつけながら進めてまいります。',
+];
+function defaultNotebookComment(data, variant) {
+  var v = Math.abs(Number(variant) || 0);
+  function pick(list) { return list[v % list.length]; }
   var notes = data.exercises.map(function (e) { return e.note; }).filter(String);
   var parts = [];
   if (data.exercises.length) {
-    parts.push('本日は' + data.exercises.length + '種目の運動に取り組まれました。');
+    parts.push(pick(NOTEBOOK_OPENINGS).replace('{n}', data.exercises.length));
   } else {
-    parts.push('本日も体調に配慮しながら、無理のない範囲で過ごしていただきました。');
+    parts.push(pick(NOTEBOOK_OPENINGS_REST));
   }
   if (data.vital && data.vital.conditionNote) parts.push(data.vital.conditionNote);
   if (notes.length) parts.push(notes.join(' '));
   if (data.cognitiveRecords && data.cognitiveRecords.length) {
     parts.push('脳トレは「' + data.cognitiveRecords.map(function (r) { return r.activity; }).join('、') + '」を実施しました。');
   }
-  if (parts.length === 1 && data.exercises.length) parts.push('最後までしっかりと体を動かしていただきました。');
+  if (parts.length === 1 && data.exercises.length) parts.push(pick(NOTEBOOK_CLOSINGS));
   return parts.join('');
 }
 
@@ -2261,20 +2376,15 @@ function renderCommunicationBook(app, renderId) {
   rpc('apiGetCommunicationBook', S.admin.notebookUserId, S.admin.notebookDate).then(function (data) {
     if (!isCurrentRender(renderId)) return;
     S.notebook.data = data;
-    if (!S.notebook.comment) S.notebook.comment = defaultNotebookComment(data);
+    if (!S.notebook.comment) S.notebook.comment = defaultNotebookComment(data, S.notebook.variant || 0);
     var userSel = S.users.map(function (u) {
       return '<option value="' + u.id + '"' + (u.id === S.admin.notebookUserId ? ' selected' : '') + '>' + esc(u.name) + '</option>';
     }).join('');
-    var programs = data.exercises.length
-      ? data.exercises.map(function (r, i) {
-          var ex = exerciseById(r.exerciseId);
-          return '<li><span>' + (i + 1) + '</span><b>' + esc(ex ? ex.name : r.exerciseId) + '</b><small>' + esc(r.amount) + '</small></li>';
-        }).join('')
-      : data.user.plan.map(function (id, i) {
-          var ex = exerciseById(id);
-          return '<li class="planned"><span>' + (i + 1) + '</span><b>' + esc(ex ? ex.name : id) + '</b><small>予定</small></li>';
-        }).join('');
-    if (!programs) programs = '<li class="planned"><b>本日のプログラムは未登録です</b></li>';
+    var programs = data.exercises.map(function (r, i) {
+      var ex = exerciseById(r.exerciseId);
+      return '<li><span>' + (i + 1) + '</span><b>' + esc(ex ? ex.name : r.exerciseId) + '</b><small>' + esc(r.amount) + '</small></li>';
+    }).join('');
+    if (!programs) programs = '<li class="planned"><b>本日の訓練記録はまだありません</b></li>';
     var attendance = data.checkin
       ? '来苑 ' + esc(data.checkin.time) + (data.checkin.checkoutTime ? ' ／ 帰苑 ' + esc(data.checkin.checkoutTime) : '') +
         (data.checkin.transport ? ' ／ ' + esc(data.checkin.transport) : '')
@@ -2294,7 +2404,7 @@ function renderCommunicationBook(app, renderId) {
       '<input class="select-plain" type="date" value="' + esc(S.admin.notebookDate) + '" onchange="Actions.notebookDate(this.value)">' +
       '<button class="btn-csv" onclick="Actions.printNotebook()">🖨 印刷</button></div></div>' +
       '<div class="notebook-tools no-print"><label class="btn-outline">📷 写真を選ぶ<input type="file" accept="image/*" capture="environment" onchange="Actions.notebookPhoto(this.files[0])" hidden></label>' +
-      '<button class="select-plain" onclick="Actions.resetNotebookComment()">文章を自動作成し直す</button>' +
+      '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
       '<span>黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 420 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / 600文字</span></div>' +
       '<section class="communication-sheet' + (densePrint ? ' compact-print' : '') + '" aria-label="弐番館デイサービス連絡帳">' +
       '<header class="notebook-head"><div class="notebook-brand"><img src="' + LOGO + '" alt=""><div><small>機能訓練デイサービス</small><h1>弐番館 連絡帳</h1></div></div>' +
@@ -2326,25 +2436,12 @@ var Actions = {
     if (hint) hint.textContent = '受付を記録しています…';
     rpc('apiCheckin', userId).then(function (res) {
       S.todayCheckins = res.todayCheckins;
-      var user = null;
-      S.users.forEach(function (u) { if (u.id === userId) user = u; });
       if (navigator.vibrate) navigator.vibrate(80);
-      if (res.already) {
-        // 受付済みの再スキャン: 二重受付と誤認させない(自動遷移なし)
-        S.toast = {
-          type: 'info', userId: userId,
-          title: user.name + ' さまは ' + res.record.time + ' に受付済みです',
-          sub: 'タップするとバイタル・訓練の記録に進みます',
-        };
-      } else {
-        S.toast = {
-          type: 'success', userId: userId,
-          title: user.name + ' さま 受付完了',
-          sub: res.record.time + ' チェックイン → バイタル測定へ',
-        };
-      }
       S.checkinPending = '';
-      render();
+      S.toast = null;
+      // QR読み取り直後は本人確認画面(顔写真+基本情報)を表示する
+      S.arrival = { userId: userId, time: res.record.time, already: !!res.already };
+      go('arrival/' + userId);
     }).catch(function () {
       S.checkinPending = '';
       S.toast = { type: 'error', title: '通信エラー', sub: '受付を記録できませんでした。もう一度お試しください' };
@@ -2640,7 +2737,7 @@ var Actions = {
   openNotebook: function (userId) {
     S.admin.notebookUserId = userId;
     S.admin.notebookDate = S.today;
-    S.notebook = { data: null, photo: '', comment: '' };
+    S.notebook = { data: null, photo: '', comment: '', variant: 0 };
     go('admin/notebook');
   },
 
@@ -2783,14 +2880,15 @@ var Actions = {
 
   // --- 利用者管理(管理者専用) ---
   adminNewUser: function () {
-    S.editingUser = { id: '', name: '', kana: '', age: '', careLevel: CARE_LEVELS[0], scheduleLabel: '', plan: [], goal: '', medicalHistory: '', precautions: '' };
+    S.editingUser = { id: '', name: '', kana: '', age: '', careLevel: CARE_LEVELS[0], scheduleLabel: '', goal: '', medicalHistory: '', precautions: '', photo: '', hasPhoto: false };
     render();
   },
   adminEditUser: function (id) {
     var u = null;
     S.users.forEach(function (x) { if (x.id === id) u = x; });
     if (!u) return;
-    S.editingUser = { id: u.id, name: u.name, kana: u.kana, age: u.age, careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, plan: u.plan.slice(), goal: u.goal || '', medicalHistory: u.medicalHistory || '', precautions: u.precautions || '' };
+    // photo=null は「登録済みの写真を変更しない」。選択・削除したときだけ文字列になる
+    S.editingUser = { id: u.id, name: u.name, kana: u.kana, age: u.age, careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, goal: u.goal || '', medicalHistory: u.medicalHistory || '', precautions: u.precautions || '', photo: null, hasPhoto: !!(u.hasPhoto || S.photos[u.id]) };
     render();
   },
   adminCancelEdit: function () {
@@ -2801,8 +2899,6 @@ var Actions = {
     var err = document.getElementById('form-error');
     var wds = [];
     document.querySelectorAll('input[name="wd"]:checked').forEach(function (el) { wds.push(el.value); });
-    var plan = [];
-    document.querySelectorAll('input[name="plan"]:checked').forEach(function (el) { plan.push(el.value); });
     var payload = {
       id: S.editingUser.id,
       name: document.getElementById('f-name').value.trim(),
@@ -2810,10 +2906,10 @@ var Actions = {
       age: document.getElementById('f-age').value.trim(),
       careLevel: document.getElementById('f-care').value,
       scheduleLabel: wds.join('/'),
-      plan: plan.join(','),
       goal: document.getElementById('f-goal').value.trim(),
       medicalHistory: document.getElementById('f-history').value.trim(),
       precautions: document.getElementById('f-precautions').value.trim(),
+      photo: S.editingUser.photo, // null=変更なし / ''=削除 / dataURL=新しい写真
     };
     if (!payload.name) { if (err) err.textContent = '氏名を入力してください'; return; }
     if (!payload.age || !isFinite(Number(payload.age))) { if (err) err.textContent = '年齢を数字で入力してください'; return; }
@@ -2821,12 +2917,56 @@ var Actions = {
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
     rpc('apiAdminSaveUser', payload).then(function (res) {
       S.users = res.users;
+      if (typeof payload.photo === 'string' && res.savedId) {
+        if (payload.photo) S.photos[res.savedId] = payload.photo;
+        else delete S.photos[res.savedId];
+      }
       S.editingUser = null;
       render();
     }).catch(function (e) {
       if (err) err.textContent = (e && e.message) || '保存できませんでした';
       if (btn) { btn.disabled = false; btn.textContent = '保存する'; }
     });
+  },
+  /** 顔写真を選択→中央を正方形に切り抜き→320pxに縮小→セル上限内のJPEGに圧縮 */
+  adminPickPhoto: function (file) {
+    if (!file || !S.editingUser) return;
+    if (!/^image\//.test(file.type)) { alert('画像ファイルを選択してください'); return; }
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      var min = Math.min(img.naturalWidth, img.naturalHeight);
+      var side = Math.min(320, min);
+      var canvas = document.createElement('canvas');
+      canvas.width = canvas.height = Math.max(1, side);
+      var ctx = canvas.getContext('2d');
+      if (!ctx) { URL.revokeObjectURL(url); alert('写真を処理できませんでした'); return; }
+      ctx.drawImage(img, (img.naturalWidth - min) / 2, (img.naturalHeight - min) / 2, min, min, 0, 0, canvas.width, canvas.height);
+      var q = 0.82;
+      var data = canvas.toDataURL('image/jpeg', q);
+      while (data.length > 45000 && q > 0.3) {
+        q -= 0.1;
+        data = canvas.toDataURL('image/jpeg', q);
+      }
+      URL.revokeObjectURL(url);
+      if (data.length > 45000) { alert('写真を十分に圧縮できませんでした。別の写真でお試しください'); return; }
+      S.editingUser.photo = data;
+      Actions.refreshPhotoField();
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); alert('写真を読み込めませんでした。JPEGまたはPNGをご利用ください'); };
+    img.src = url;
+  },
+  adminRemovePhoto: function () {
+    if (!S.editingUser) return;
+    S.editingUser.photo = '';
+    Actions.refreshPhotoField();
+  },
+  /** フォーム全体を再描画すると入力中の他項目が消えるため、写真欄だけを更新する */
+  refreshPhotoField: function () {
+    var box = document.getElementById('photo-preview');
+    if (box) box.innerHTML = editingPhotoHtml(S.editingUser);
+    var removeBtn = document.getElementById('photo-remove');
+    if (removeBtn) removeBtn.style.display = S.editingUser.photo ? '' : 'none';
   },
   adminDeleteUser: function (id, btn) {
     // 誤タップ防止の2段階確認
@@ -2862,12 +3002,12 @@ var Actions = {
 
   notebookUser: function (id) {
     S.admin.notebookUserId = id;
-    S.notebook = { data: null, photo: '', comment: '' };
+    S.notebook = { data: null, photo: '', comment: '', variant: 0 };
     render();
   },
   notebookDate: function (date) {
     S.admin.notebookDate = date;
-    S.notebook = { data: null, photo: '', comment: '' };
+    S.notebook = { data: null, photo: '', comment: '', variant: 0 };
     render();
   },
   notebookComment: function (value) {
@@ -2880,9 +3020,17 @@ var Actions = {
   },
   resetNotebookComment: function () {
     if (!S.notebook.data) return;
-    S.notebook.comment = defaultNotebookComment(S.notebook.data);
+    // 押すたびに言い回しを変えて作り直す(編集した文章は破棄される)
+    S.notebook.variant = (S.notebook.variant || 0) + 1;
+    S.notebook.comment = defaultNotebookComment(S.notebook.data, S.notebook.variant);
     var box = document.getElementById('notebook-comment');
-    if (box) box.textContent = S.notebook.comment;
+    if (box) {
+      box.textContent = S.notebook.comment;
+      box.classList.remove('flash');
+      void box.offsetWidth; // アニメーションを再発火させる
+      box.classList.add('flash');
+    }
+    Actions.notebookComment(S.notebook.comment); // 文字数カウンターも更新
   },
   notebookPhoto: function (file) {
     if (!file) return;
@@ -3164,7 +3312,9 @@ var Mock = (function () {
     apiGetBootstrap: function () {
       var db = load();
       var me = mockMe();
-      return { apiVersion: 5, capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin'], users: db.users, exercises: db.exercises, today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+      var photos = db.photos || {};
+      db.users.forEach(function (x) { x.hasPhoto = !!photos[x.id]; });
+      return { apiVersion: 5, capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin', 'userPhotos'], users: db.users, exercises: db.exercises, today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
     },
     // --- 職員ログイン(プレビュー用の簡易実装) ---
     apiGetStaffList: function () {
@@ -3293,21 +3443,31 @@ var Mock = (function () {
     },
     apiAdminSaveUser: function (u) {
       var db = load();
-      var plan = String(u.plan || '').split(',').filter(String);
-      if (u.id) {
+      if (!db.photos) db.photos = {};
+      var id = u.id;
+      if (id) {
         db.users.forEach(function (x) {
-          if (x.id === u.id) {
+          if (x.id === id) {
             x.name = u.name; x.kana = u.kana; x.age = Number(u.age);
-            x.careLevel = u.careLevel; x.scheduleLabel = u.scheduleLabel; x.plan = plan;
+            x.careLevel = u.careLevel; x.scheduleLabel = u.scheduleLabel;
             x.goal = u.goal || ''; x.medicalHistory = u.medicalHistory || ''; x.precautions = u.precautions || '';
           }
         });
       } else {
-        var id = 'u' + Date.now().toString(36);
-        db.users.push({ id: id, name: u.name, kana: u.kana, age: Number(u.age), careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, plan: plan, qrCode: 'GSU:' + id, goal: u.goal || '', medicalHistory: u.medicalHistory || '', precautions: u.precautions || '' });
+        id = 'u' + Date.now().toString(36);
+        db.users.push({ id: id, name: u.name, kana: u.kana, age: Number(u.age), careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, plan: [], qrCode: 'GSU:' + id, goal: u.goal || '', medicalHistory: u.medicalHistory || '', precautions: u.precautions || '' });
       }
+      if (typeof u.photo === 'string') {
+        if (u.photo) db.photos[id] = u.photo;
+        else delete db.photos[id];
+      }
+      db.users.forEach(function (x) { x.hasPhoto = !!db.photos[x.id]; });
       save(db);
-      return { users: db.users };
+      return { users: db.users, savedId: id };
+    },
+    apiGetUserPhotos: function () {
+      var db = load();
+      return db.photos || {};
     },
     apiAdminDeleteUser: function (id) {
       var db = load();
@@ -3517,6 +3677,7 @@ function bootAfterLogin() {
     setTimeout(function () {
       rpc('apiGetTodayAlerts').catch(function () {});
       rpc('apiGetTodayRecords').catch(function () {});
+      ensurePhotos(); // 顔写真は裏で読み込み、取得後に表示中の画面へ反映される
       checkForUpdate();
     }, 300);
   });
