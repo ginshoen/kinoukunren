@@ -21,7 +21,7 @@ var SHEETS = {
 
 var HEADERS = {
   staff: ['ID', '氏名', 'ふりがな', '職種', '権限', 'PINハッシュ', '有効', 'PINソルト', 'セッション世代'],
-  users: ['ID', '氏名', '年齢', '介護度', '利用曜日', '予定種目', 'QRコード', 'ふりがな', '個人目標', '既往歴', '運動禁止事項'],
+  users: ['ID', '氏名', '年齢', '介護度', '利用曜日', '予定種目', 'QRコード', 'ふりがな', '個人目標', '既往歴', '運動禁止事項', '顔写真'],
   exercises: ['ID', '種目名', '短縮名', '選択肢ラベル', '選択肢', 'QRコード'],
   checkins: ['ID', '日付', '来苑時刻', '利用者ID', '帰苑時刻', '送迎区分', '記録者'],
   vitals: ['ID', '日付', '時刻', '利用者ID', '収縮期', '拡張期', '脈拍', '体温', 'SpO2', '体重', 'アラートフラグ', 'アラート内容', '体調・特記事項', '記録者'],
@@ -95,6 +95,7 @@ var API_REGISTRY = {
   apiGetTodayExercises: { fn: apiGetTodayExercises_, auth: 'staff' },
   apiGetTodayAlerts: { fn: apiGetTodayAlerts_, auth: 'staff' },
   apiGetUserDetail: { fn: apiGetUserDetail_, auth: 'staff' },
+  apiGetUserPhotos: { fn: apiGetUserPhotos_, auth: 'staff' },
   apiGetTodayRecords: { fn: apiGetTodayRecords_, auth: 'staff' },
   apiGetUserResults: { fn: apiGetUserResults_, auth: 'staff' },
 
@@ -201,10 +202,10 @@ function sheet_(key) {
  */
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
-  if (props.getProperty('SCHEMA_VERSION') === '5') return;
+  if (props.getProperty('SCHEMA_VERSION') === '6') return;
   var cache = CacheService.getScriptCache();
-  if (cache.get('schema-v5')) {
-    props.setProperty('SCHEMA_VERSION', '5');
+  if (cache.get('schema-v6')) {
+    props.setProperty('SCHEMA_VERSION', '6');
     return;
   }
   var lock = LockService.getScriptLock();
@@ -231,8 +232,8 @@ function ensureSchema_() {
         .setFontWeight('bold').setBackground('#E3F1E1');
       sh.setFrozenRows(1);
     });
-    props.setProperty('SCHEMA_VERSION', '5');
-    cache.put('schema-v5', '1', 21600);
+    props.setProperty('SCHEMA_VERSION', '6');
+    cache.put('schema-v6', '1', 21600);
   } finally {
     lock.releaseLock();
   }
@@ -333,6 +334,8 @@ function toUser_(r) {
     scheduleLabel: String(r[4]), plan: splitCsv_(r[5]), qrCode: String(r[6]),
     kana: String(r[7] || ''), goal: String(r[8] || ''),
     medicalHistory: String(r[9] || ''), precautions: String(r[10] || ''),
+    // 写真本体は一覧に含めない(通信量とキャッシュ上限のため)。apiGetUserPhotos で別途取得する
+    hasPhoto: String(r[11] || '') !== '',
   };
 }
 
@@ -434,7 +437,7 @@ function apiGetBootstrap_() {
   ensureSchema_();
   return {
     apiVersion: 5,
-    capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin'],
+    capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin', 'userPhotos'],
     users: allUsers_(),
     exercises: allExercises_(),
     today: todayStr_(),
@@ -925,22 +928,26 @@ function apiAdminSaveUser_(u) {
   if (!name) throw new Error('氏名を入力してください');
   var age = Number(u.age);
   if (!isFinite(age) || age < 0 || age > 130) throw new Error('年齢が正しくありません');
+  var photo = normalizePhoto_(u.photo); // null=変更なし / ''=削除 / dataURL=更新
 
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
     var sh = sheet_('users');
     var id = String(u.id || '').trim();
+    // 予定種目(6列目)は個人別設定を廃止したため常に空欄で保存する
     var row = [
       '', name, String(age), String(u.careLevel || ''), String(u.scheduleLabel || ''),
-      splitCsv_(String(u.plan || '')).join(','), '', String(u.kana || '').trim(),
+      '', '', String(u.kana || '').trim(),
       safeText_(u.goal, 500), safeText_(u.medicalHistory, 500), safeText_(u.precautions, 500),
+      '',
     ];
     if (id) {
       var idx = findUserRowIndex_(sh, id);
       if (idx < 0) throw new Error('対象の利用者が見つかりません');
       row[0] = id;
       row[6] = 'GSU:' + id;
+      row[11] = photo === null ? String(sh.getRange(idx, 12).getValue() || '') : photo;
       sh.getRange(idx, 1, 1, row.length).setNumberFormat('@').setValues([row.map(String)]);
       invalidateRequestRows_('users');
       CacheService.getScriptCache().remove('master-v4-users');
@@ -948,12 +955,36 @@ function apiAdminSaveUser_(u) {
       id = 'u' + Date.now().toString(36);
       row[0] = id;
       row[6] = 'GSU:' + id;
+      row[11] = photo === null ? '' : photo;
       appendRowNoLock_('users', row);
     }
     return { users: allUsers_(), savedId: id };
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * 顔写真の検証。端末側で320px四方程度のJPEGに縮小してから送られてくる。
+ * スプレッドシートのセル上限(5万文字)に収まるサイズのみ受け付ける。
+ */
+function normalizePhoto_(v) {
+  if (v === null || v === undefined) return null;
+  var s = String(v);
+  if (s === '') return '';
+  if (!/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(s)) throw new Error('写真データの形式が正しくありません');
+  if (s.length > 45000) throw new Error('写真データが大きすぎます。別の写真でお試しください');
+  return s;
+}
+
+/** 顔写真の一覧(利用者ID → dataURL)。登録がある利用者のみ返す */
+function apiGetUserPhotos_() {
+  var map = {};
+  rows_('users').forEach(function (r) {
+    var p = String(r[11] || '');
+    if (p) map[String(r[0])] = p;
+  });
+  return map;
 }
 
 /** 利用者の削除(管理者のみ)。過去の記録は残る */
