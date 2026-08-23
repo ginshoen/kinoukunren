@@ -15,6 +15,7 @@ var SHEETS = {
   vitals: 'バイタル',
   records: '訓練記録',
   cognitive: '脳トレ記録',
+  cognitiveMenu: '脳トレメニュー',
   assessments: '評価記録',
   voids: '取消記録',
 };
@@ -27,7 +28,8 @@ var HEADERS = {
   vitals: ['ID', '日付', '時刻', '利用者ID', '収縮期', '拡張期', '脈拍', '体温', 'SpO2', '体重', 'アラートフラグ', 'アラート内容', '体調・特記事項', '記録者'],
   records: ['ID', '日付', '時刻', '利用者ID', '種目ID', '実施量', '負荷', '所見', '記録者'],
   cognitive: ['ID', '日付', '時刻', '利用者ID', '実施内容', '結果・所見', '記録者'],
-  assessments: ['ID', '日付', '利用者ID', '評価種別', '結果', '詳細', '記録者'],
+  cognitiveMenu: ['ID', '内容', '有効'],
+  assessments: ['ID', '日付', '利用者ID', '評価種別', '結果', '詳細', '記録者', '種目'],
   voids: ['対象ID', '種別', '取消日時', '取消者'],
 };
 
@@ -105,6 +107,8 @@ var API_REGISTRY = {
   apiAdminGetStaff: { fn: apiAdminGetStaff_, auth: 'admin' },
   apiAdminSaveStaff: { fn: apiAdminSaveStaff_, auth: 'admin' },
   apiAdminDeleteStaff: { fn: apiAdminDeleteStaff_, auth: 'admin' },
+  apiAdminSaveCognitiveMenu: { fn: apiAdminSaveCognitiveMenu_, auth: 'admin' },
+  apiAdminDeleteCognitiveMenu: { fn: apiAdminDeleteCognitiveMenu_, auth: 'admin' },
   apiGetMonthly: { fn: apiGetMonthly_, auth: 'admin' },
   apiGetCommunicationBook: { fn: apiGetCommunicationBook_, auth: 'admin' },
   apiVerifyAdmin: { fn: apiVerifyAdmin_, auth: 'admin' },
@@ -202,10 +206,10 @@ function sheet_(key) {
  */
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
-  if (props.getProperty('SCHEMA_VERSION') === '6') return;
+  if (props.getProperty('SCHEMA_VERSION') === '7') return;
   var cache = CacheService.getScriptCache();
-  if (cache.get('schema-v6')) {
-    props.setProperty('SCHEMA_VERSION', '6');
+  if (cache.get('schema-v7')) {
+    props.setProperty('SCHEMA_VERSION', '7');
     return;
   }
   var lock = LockService.getScriptLock();
@@ -231,9 +235,16 @@ function ensureSchema_() {
       sh.getRange(1, 1, 1, HEADERS[key].length).setValues([HEADERS[key]])
         .setFontWeight('bold').setBackground('#E3F1E1');
       sh.setFrozenRows(1);
+      // 脳トレメニューが空なら標準の選択肢を投入する(あとから管理画面で追加・変更できる)
+      if (key === 'cognitiveMenu' && sh.getLastRow() < 2) {
+        var seed = [['cm1', '計算プリント'], ['cm2', '漢字プリント'], ['cm3', '間違い探し'],
+                    ['cm4', '塗り絵'], ['cm5', 'パズル'], ['cm6', '音読'], ['cm7', '回想法・昔話']];
+        sh.getRange(2, 1, seed.length, 3).setNumberFormat('@')
+          .setValues(seed.map(function (r) { return [r[0], r[1], 'true']; }));
+      }
     });
-    props.setProperty('SCHEMA_VERSION', '6');
-    cache.put('schema-v6', '1', 21600);
+    props.setProperty('SCHEMA_VERSION', '7');
+    cache.put('schema-v7', '1', 21600);
   } finally {
     lock.releaseLock();
   }
@@ -386,6 +397,7 @@ function toAssessment_(r) {
   return {
     id: String(r[0]), date: dateStr_(r[1]), userId: String(r[2]), type: String(r[3]),
     result: String(r[4] || ''), detail: String(r[5] || ''),
+    item: String(r[7] || ''), // 体力測定の種目名(TUG・握力など)
   };
 }
 
@@ -404,6 +416,11 @@ function cachedMaster_(key, converter) {
 
 function allUsers_() { return cachedMaster_('users', toUser_); }
 function allExercises_() { return cachedMaster_('exercises', toExercise_); }
+
+function toCognitiveMenu_(r) {
+  return { id: String(r[0]), name: String(r[1]), active: String(r[2]) !== 'false' };
+}
+function allCognitiveMenu_() { return rows_('cognitiveMenu').map(toCognitiveMenu_); }
 
 /** 取り消し済み記録のIDセット */
 function voidedIds_() {
@@ -437,9 +454,10 @@ function apiGetBootstrap_() {
   ensureSchema_();
   return {
     apiVersion: 5,
-    capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin', 'userPhotos'],
+    capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu'],
     users: allUsers_(),
     exercises: allExercises_(),
+    cognitiveMenu: allCognitiveMenu_(),
     today: todayStr_(),
     staff: currentStaffName_() || '職員',
     role: CURRENT_STAFF_ ? CURRENT_STAFF_.role : 'staff',
@@ -1132,8 +1150,12 @@ function apiSaveExercise_(payload) {
   var userExists = allUsers_().some(function (u) { return u.id === payload.userId; });
   var exercise = allExercises_().filter(function (e) { return e.id === payload.exerciseId; })[0];
   if (!userExists || !exercise) throw new Error('利用者または訓練種目が見つかりません。');
-  if (exercise.amountOptions.indexOf(String(payload.amount)) < 0) throw new Error('実施量が正しくありません。');
-  if (['軽い', 'ふつう', '強い'].indexOf(String(payload.load)) < 0) throw new Error('負荷レベルが正しくありません。');
+  // ワンタップ記録(実績のみ)。旧クライアントからの実施量・負荷つき記録も受け付ける
+  var quick = String(payload.amount) === '実施' && String(payload.load || '') === '';
+  if (!quick) {
+    if (exercise.amountOptions.indexOf(String(payload.amount)) < 0) throw new Error('実施量が正しくありません。');
+    if (['軽い', 'ふつう', '強い'].indexOf(String(payload.load)) < 0) throw new Error('負荷レベルが正しくありません。');
+  }
   var note = String(payload.note || '').trim();
   if (note.length > 200) throw new Error('所見は200文字以内で入力してください。');
   if (/^[=+\-@]/.test(note)) note = "'" + note;
@@ -1182,9 +1204,51 @@ function apiSaveAssessment_(payload) {
   var rec = {
     id: newId_(), date: validDateStr_(payload.date || todayStr_()), userId: payload.userId,
     type: String(payload.type), result: result, detail: safeText_(payload.detail, 500),
+    item: safeText_(payload.item, 40), // 体力測定の種目名(TUG・握力など)
   };
-  appendRow_('assessments', [rec.id, rec.date, rec.userId, rec.type, rec.result, rec.detail, currentStaffName_()]);
+  appendRow_('assessments', [rec.id, rec.date, rec.userId, rec.type, rec.result, rec.detail, currentStaffName_(), rec.item]);
   return rec;
+}
+
+/** 脳トレメニューの追加・変更(管理者のみ)。id が空なら新規 */
+function apiAdminSaveCognitiveMenu_(payload) {
+  var name = safeText_(payload.name, 60);
+  if (!name) throw new Error('内容を入力してください');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = sheet_('cognitiveMenu');
+    var id = String(payload.id || '').trim();
+    var active = payload.active === false ? 'false' : 'true';
+    if (id) {
+      var idx = findRowById_(sh, id);
+      if (idx < 0) throw new Error('対象のメニューが見つかりません');
+      sh.getRange(idx, 1, 1, 3).setNumberFormat('@').setValues([[id, name, active]]);
+      invalidateRequestRows_('cognitiveMenu');
+    } else {
+      id = 'cm' + Date.now().toString(36);
+      appendRowNoLock_('cognitiveMenu', [id, name, active]);
+    }
+    return { cognitiveMenu: allCognitiveMenu_() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** 脳トレメニューの削除(管理者のみ)。過去の記録は残る */
+function apiAdminDeleteCognitiveMenu_(id) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = sheet_('cognitiveMenu');
+    var idx = findRowById_(sh, id);
+    if (idx < 0) throw new Error('対象のメニューが見つかりません');
+    sh.deleteRow(idx);
+    invalidateRequestRows_('cognitiveMenu');
+    return { cognitiveMenu: allCognitiveMenu_() };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /** 連絡帳作成に必要な1日分の記録をまとめて返す。 */
@@ -1233,6 +1297,10 @@ function apiGetUserResults_(userId, month) {
     monthCheckins: checkins.filter(function (c) { return c.userId === userId && inMonth(c.date); }),
     monthVitals: vitalsAll.filter(function (v) { return inMonth(v.date); }),
     monthExercises: allRecords_().filter(function (e) { return e.userId === userId && inMonth(e.date); }),
+    // 評価記録(体力測定・HDS-R・MMSE)は全期間分。管理画面の一覧・CSV出力に使う
+    assessments: allAssessments_()
+      .filter(function (a) { return a.userId === userId; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : 1; }),
   };
 }
 
