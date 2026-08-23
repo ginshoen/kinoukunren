@@ -1078,8 +1078,11 @@ select {
   gap: 6px;
 }
 .legend .chip {
+  flex: none;
   width: 14px;
   height: 3px;
+  min-height: 0;
+  border: 0;
   border-radius: 2px;
 }
 
@@ -1976,7 +1979,8 @@ textarea {
   #notebook-photo { min-height: 310px; }
 }
 
-@page { size: A4 landscape; margin: 8mm; }
+/* 連絡帳は横A5・1枚に収める(現場要望) */
+@page { size: A5 landscape; margin: 5mm; }
 @media print {
   html, body { width: auto; height: auto; background: #fff !important; }
   .admin-wrap, .admin-frame, .admin-content { display: block !important; width: 100% !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }
@@ -1985,40 +1989,54 @@ textarea {
     display: block !important;
     width: 100% !important;
     max-width: none !important;
-    height: 190mm;
-    min-height: 190mm;
+    height: 136mm;
+    min-height: 136mm;
     margin: 0 !important;
-    padding: 7mm 8mm 4mm !important;
+    padding: 3mm 4mm 2mm !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: hidden;
     page-break-inside: avoid;
   }
-  .notebook-brand h1 { font-size: 25px; }
-  .notebook-brand img { width: 44px; height: 44px; }
-  .notebook-head { padding-bottom: 7px; flex-direction: row !important; align-items: flex-end !important; }
-  .notebook-meta { width: auto !important; flex-direction: row !important; gap: 10px !important; }
-  .notebook-meta div { min-width: 50mm; }
-  .notebook-thanks { margin: 8px 0 10px; font-size: 15px; }
-  .notebook-layout { grid-template-columns: 1.08fr .92fr; gap: 10px; height: 139mm; }
-  .notebook-left { gap: 9px; }
-  .notebook-box { padding: 18px 12px 9px; border-radius: 8px; }
-  .notebook-box h2 { top: -12px; font-size: 13px; padding: 4px 12px; }
-  .notebook-box.program li { min-height: 21px; }
-  .notebook-box.program li b { font-size: 12px; }
-  .notebook-box.facility { min-height: 31mm; }
-  .notebook-box.family { min-height: 25mm; }
-  .notebook-box.photo { min-height: 0; height: 139mm; }
-  #notebook-photo { min-height: 0; height: 100%; }
-  #notebook-photo img { max-height: none; }
-  .notebook-comment { min-height: 20mm; font-size: 11px; line-height: 1.55; }
-  .communication-sheet.compact-print .notebook-comment { font-size: 9.5px; line-height: 1.35; }
-  .communication-sheet.compact-print .notebook-box.program li { min-height: 18px; }
+  .notebook-brand h1 { font-size: 16px; }
+  .notebook-brand small { font-size: 8px; }
+  .notebook-brand img { width: 26px; height: 26px; }
+  .notebook-head { padding-bottom: 3px; border-bottom-width: 1.5px; flex-direction: row !important; align-items: flex-end !important; gap: 8px; }
+  .notebook-meta { width: auto !important; flex-direction: row !important; gap: 6px !important; }
+  .notebook-meta div { min-width: 32mm; padding: 2px 6px; }
+  .notebook-meta small { font-size: 8px; }
+  .notebook-meta strong { font-size: 11px; margin-top: 0; }
+  .notebook-thanks { margin: 3px 0 6px; font-size: 10px; }
+  .notebook-layout { grid-template-columns: 1.15fr .85fr; gap: 6px; height: 101mm; }
+  .notebook-left { gap: 6px; }
+  .notebook-box { padding: 11px 8px 6px; border-radius: 6px; border-width: 1.5px; }
+  .notebook-box h2 { top: -8px; left: 12px; font-size: 9px; padding: 2px 8px; border-radius: 5px; }
+  .notebook-box.program ol { gap: 1px; }
+  .notebook-box.program li { min-height: 13px; grid-template-columns: 16px 1fr auto; gap: 5px; }
+  .notebook-box.program li > span { width: 13px; height: 13px; font-size: 9px; }
+  .notebook-box.program li b { font-size: 9px; }
+  .notebook-box.program li small { font-size: 8px; }
+  .notebook-vitals { margin-top: 3px; padding-top: 3px; font-size: 8px; }
+  .notebook-vital-grid { margin-top: 3px; padding-top: 3px; gap: 3px; }
+  .nv-cell { padding: 2px 3px; border-radius: 4px; }
+  .nv-label { font-size: 7px; }
+  .nv-value { font-size: 10px; min-height: 12px; }
+  .nv-unit { font-size: 6px; }
+  .notebook-box.facility { min-height: 20mm; }
+  .notebook-box.family { min-height: 14mm; }
+  .notebook-box.photo { min-height: 0; height: 101mm; padding: 12px 6px 6px; }
+  #notebook-photo { min-height: 0; height: 100%; border-radius: 5px; }
+  #notebook-photo img { max-height: none; border-radius: 5px; }
+  .notebook-photo-empty span { font-size: 22px; }
+  .notebook-photo-empty small { font-size: 7px; max-width: 120px; }
+  .notebook-comment { min-height: 14mm; font-size: 8.5px; line-height: 1.5; }
+  .communication-sheet.compact-print .notebook-comment { font-size: 7.5px; line-height: 1.35; }
+  .communication-sheet.compact-print .notebook-box.program li { min-height: 11px; }
   .communication-sheet.compact-print .notebook-box.program li b,
-  .communication-sheet.compact-print .notebook-box.program li small { font-size: 10px; }
-  .family-lines { gap: 13px; }
-  .notebook-footer { margin-top: 4px; }
+  .communication-sheet.compact-print .notebook-box.program li small { font-size: 8px; }
+  .family-lines { gap: 8px; padding-top: 6px; }
+  .notebook-footer { margin-top: 2px; font-size: 7px; }
 }
 
 /* ---------- 安全情報・管理者ゲート ---------- */
@@ -2325,5 +2343,32 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
   0% { background: #ffe98a; }
   100% { background: transparent; }
 }
+
+/* ---------- 体調・特記事項などの選択チップ ---------- */
+.cond-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.cond-chips .chip { flex: none; padding: 0 14px; text-align: left; min-height: 42px; }
+
+/* ---------- 連絡帳: バイタル欄 ---------- */
+.notebook-vital-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #d5dcd7;
+}
+.nv-cell {
+  display: grid;
+  gap: 1px;
+  padding: 5px 8px;
+  border: 1px solid #e3e8e2;
+  border-radius: 8px;
+  background: #fbfdfb;
+  text-align: center;
+}
+.nv-label { font-size: 10px; font-weight: 800; color: #5f7068; }
+.nv-value { font-size: 15px; font-weight: 900; min-height: 20px; outline: none; }
+.nv-value:focus { background: #fff9e8; border-radius: 4px; }
+.nv-unit { font-size: 9px; color: #8a978f; }
 
 </style>
