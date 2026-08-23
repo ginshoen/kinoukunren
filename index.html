@@ -1088,8 +1088,11 @@ select {
   gap: 6px;
 }
 .legend .chip {
+  flex: none;
   width: 14px;
   height: 3px;
+  min-height: 0;
+  border: 0;
   border-radius: 2px;
 }
 
@@ -1986,7 +1989,8 @@ textarea {
   #notebook-photo { min-height: 310px; }
 }
 
-@page { size: A4 landscape; margin: 8mm; }
+/* 連絡帳は横A5・1枚に収める(現場要望) */
+@page { size: A5 landscape; margin: 5mm; }
 @media print {
   html, body { width: auto; height: auto; background: #fff !important; }
   .admin-wrap, .admin-frame, .admin-content { display: block !important; width: 100% !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }
@@ -1995,40 +1999,54 @@ textarea {
     display: block !important;
     width: 100% !important;
     max-width: none !important;
-    height: 190mm;
-    min-height: 190mm;
+    height: 136mm;
+    min-height: 136mm;
     margin: 0 !important;
-    padding: 7mm 8mm 4mm !important;
+    padding: 3mm 4mm 2mm !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: hidden;
     page-break-inside: avoid;
   }
-  .notebook-brand h1 { font-size: 25px; }
-  .notebook-brand img { width: 44px; height: 44px; }
-  .notebook-head { padding-bottom: 7px; flex-direction: row !important; align-items: flex-end !important; }
-  .notebook-meta { width: auto !important; flex-direction: row !important; gap: 10px !important; }
-  .notebook-meta div { min-width: 50mm; }
-  .notebook-thanks { margin: 8px 0 10px; font-size: 15px; }
-  .notebook-layout { grid-template-columns: 1.08fr .92fr; gap: 10px; height: 139mm; }
-  .notebook-left { gap: 9px; }
-  .notebook-box { padding: 18px 12px 9px; border-radius: 8px; }
-  .notebook-box h2 { top: -12px; font-size: 13px; padding: 4px 12px; }
-  .notebook-box.program li { min-height: 21px; }
-  .notebook-box.program li b { font-size: 12px; }
-  .notebook-box.facility { min-height: 31mm; }
-  .notebook-box.family { min-height: 25mm; }
-  .notebook-box.photo { min-height: 0; height: 139mm; }
-  #notebook-photo { min-height: 0; height: 100%; }
-  #notebook-photo img { max-height: none; }
-  .notebook-comment { min-height: 20mm; font-size: 11px; line-height: 1.55; }
-  .communication-sheet.compact-print .notebook-comment { font-size: 9.5px; line-height: 1.35; }
-  .communication-sheet.compact-print .notebook-box.program li { min-height: 18px; }
+  .notebook-brand h1 { font-size: 16px; }
+  .notebook-brand small { font-size: 8px; }
+  .notebook-brand img { width: 26px; height: 26px; }
+  .notebook-head { padding-bottom: 3px; border-bottom-width: 1.5px; flex-direction: row !important; align-items: flex-end !important; gap: 8px; }
+  .notebook-meta { width: auto !important; flex-direction: row !important; gap: 6px !important; }
+  .notebook-meta div { min-width: 32mm; padding: 2px 6px; }
+  .notebook-meta small { font-size: 8px; }
+  .notebook-meta strong { font-size: 11px; margin-top: 0; }
+  .notebook-thanks { margin: 3px 0 6px; font-size: 10px; }
+  .notebook-layout { grid-template-columns: 1.15fr .85fr; gap: 6px; height: 101mm; }
+  .notebook-left { gap: 6px; }
+  .notebook-box { padding: 11px 8px 6px; border-radius: 6px; border-width: 1.5px; }
+  .notebook-box h2 { top: -8px; left: 12px; font-size: 9px; padding: 2px 8px; border-radius: 5px; }
+  .notebook-box.program ol { gap: 1px; }
+  .notebook-box.program li { min-height: 13px; grid-template-columns: 16px 1fr auto; gap: 5px; }
+  .notebook-box.program li > span { width: 13px; height: 13px; font-size: 9px; }
+  .notebook-box.program li b { font-size: 9px; }
+  .notebook-box.program li small { font-size: 8px; }
+  .notebook-vitals { margin-top: 3px; padding-top: 3px; font-size: 8px; }
+  .notebook-vital-grid { margin-top: 3px; padding-top: 3px; gap: 3px; }
+  .nv-cell { padding: 2px 3px; border-radius: 4px; }
+  .nv-label { font-size: 7px; }
+  .nv-value { font-size: 10px; min-height: 12px; }
+  .nv-unit { font-size: 6px; }
+  .notebook-box.facility { min-height: 20mm; }
+  .notebook-box.family { min-height: 14mm; }
+  .notebook-box.photo { min-height: 0; height: 101mm; padding: 12px 6px 6px; }
+  #notebook-photo { min-height: 0; height: 100%; border-radius: 5px; }
+  #notebook-photo img { max-height: none; border-radius: 5px; }
+  .notebook-photo-empty span { font-size: 22px; }
+  .notebook-photo-empty small { font-size: 7px; max-width: 120px; }
+  .notebook-comment { min-height: 14mm; font-size: 8.5px; line-height: 1.5; }
+  .communication-sheet.compact-print .notebook-comment { font-size: 7.5px; line-height: 1.35; }
+  .communication-sheet.compact-print .notebook-box.program li { min-height: 11px; }
   .communication-sheet.compact-print .notebook-box.program li b,
-  .communication-sheet.compact-print .notebook-box.program li small { font-size: 10px; }
-  .family-lines { gap: 13px; }
-  .notebook-footer { margin-top: 4px; }
+  .communication-sheet.compact-print .notebook-box.program li small { font-size: 8px; }
+  .family-lines { gap: 8px; padding-top: 6px; }
+  .notebook-footer { margin-top: 2px; font-size: 7px; }
 }
 
 /* ---------- 安全情報・管理者ゲート ---------- */
@@ -2336,11 +2354,38 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
   100% { background: transparent; }
 }
 
+/* ---------- 体調・特記事項などの選択チップ ---------- */
+.cond-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.cond-chips .chip { flex: none; padding: 0 14px; text-align: left; min-height: 42px; }
+
+/* ---------- 連絡帳: バイタル欄 ---------- */
+.notebook-vital-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #d5dcd7;
+}
+.nv-cell {
+  display: grid;
+  gap: 1px;
+  padding: 5px 8px;
+  border: 1px solid #e3e8e2;
+  border-radius: 8px;
+  background: #fbfdfb;
+  text-align: center;
+}
+.nv-label { font-size: 10px; font-weight: 800; color: #5f7068; }
+.nv-value { font-size: 15px; font-weight: 900; min-height: 20px; outline: none; }
+.nv-value:focus { background: #fff9e8; border-radius: 4px; }
+.nv-unit { font-size: 9px; color: #8a978f; }
+
 </style>
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260820-1049';</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260821-1626';</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -2352,6 +2397,10 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 
 var LOGO = 'data:image/png;base64,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';
 var LOAD_OPTIONS = ['軽い', 'ふつう', '強い'];
+// 体調・特記事項の定型文(複数選択可+自由記載)。監査記録に残るため文言は変えない
+var CONDITION_CHOICES = ['体調良好', '体調変わらず', '体調不良あり', '準備運動・上下肢・体幹運動(15分×4)実施'];
+// 体力測定の種目(評価記録の「種目」列に保存)
+var FITNESS_ITEMS = ['TUG(立ち上がり歩行)', '握力', '開眼片脚立位', '5m歩行', 'CS-30(立ち上がり)', '長座体前屈'];
 var WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 // ホスティング版の接続設定: ファイル編集不要。画面の「接続設定」から入力し端末に保存される
@@ -2567,7 +2616,10 @@ var S = {
   prevVital: null,
   vitalConfirmed: false,
   precautionConfirmed: false,
-  exDraft: null,        // 訓練記録下書き {amount, load, note}
+  exDraft: null,        // (旧)訓練記録下書き。ワンタップ記録化で未使用
+  cognitiveMenu: [],    // 脳トレメニュー(記録画面の選択肢。管理画面で編集)
+  cogDraft: null,       // 脳トレ記録下書き {activity, free, note}
+  assessDraft: null,    // 評価記録下書き {type, item, freeItem, result, detail}
   exerciseCache: {},    // userId -> {data, expires}（画面往復時の再通信を削減）
   todayStatusCache: null, // 本日の全記録 {data, expires}（記録メニューの状況表示用）
   admin: { userId: '', month: '', notebookUserId: '', notebookDate: '' },
@@ -3281,7 +3333,9 @@ function render() {
   if (h === 'menu') return renderUserMenu(app, renderId);
   if (h === 'vitals') return renderVitals(app, renderId);
   if (h === 'exercise') return renderExerciseScan(app, renderId);
-  if (h.indexOf('exercise/') === 0) return renderExerciseForm(app, h.slice(9), renderId);
+  if (h === 'cognitive') return renderCognitive(app, renderId);
+  if (h === 'assessment') return renderAssessment(app, renderId);
+  if (h.indexOf('exercise/') === 0) return go('exercise'); // 旧: 種目別入力フォーム(ワンタップ記録化で廃止)
   if (h === 'admin') return renderAdminResults(app, renderId);
   if (h === 'admin/users') return renderAdminUsers(app, renderId);
   if (h === 'admin/today') return renderAdminToday(app, renderId);
@@ -3535,6 +3589,7 @@ function renderUserMenu(app, renderId) {
     var doneIds = {};
     exRecords.forEach(function (e) { doneIds[e.exerciseId] = true; });
     var doneCount = Object.keys(doneIds).length;
+    var cogCount = (today.cognitiveRecords || []).filter(function (c) { return c.userId === user.id; }).length;
 
     var vitalDone = !!vital;
     var exDone = doneCount > 0;
@@ -3578,8 +3633,20 @@ function renderUserMenu(app, renderId) {
       '<button class="menu-action training" onclick="Actions.goExercise()">' +
       '<span class="menu-icon">🏃</span>' +
       '<span class="menu-text"><strong>機能訓練を記録</strong>' +
-      '<small>' + (exDone ? doneCount + '種目 記録済み(追加もできます)' : '実施した種目を選んで記録') + '</small></span>' +
+      '<small>' + (exDone ? doneCount + '種目 記録済み(追加もできます)' : '実施した種目をタップして記録') + '</small></span>' +
       (exDone ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
+      '</button>' +
+      '<button class="menu-action" onclick="Actions.goRecord(\'cognitive\')">' +
+      '<span class="menu-icon">🧠</span>' +
+      '<span class="menu-text"><strong>脳トレを記録</strong>' +
+      '<small>' + (cogCount > 0 ? '本日 ' + cogCount + '件 記録済み' : '実施内容を選んで記録') + '</small></span>' +
+      (cogCount > 0 ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
+      '</button>' +
+      '<button class="menu-action" onclick="Actions.goRecord(\'assessment\')">' +
+      '<span class="menu-icon">📏</span>' +
+      '<span class="menu-text"><strong>体力測定・評価を記録</strong>' +
+      '<small>体力測定(種目別)・HDS-R・MMSE</small></span>' +
+      '<span class="chev">›</span>' +
       '</button>' +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users/' + user.id + '\')">' +
       '📋 この方の記録・経過を見る</button>' +
@@ -3598,9 +3665,16 @@ function renderVitals(app, renderId) {
   rpc('apiGetVitalContext', user.id).then(function (ctx) {
     if (!isCurrentRender(renderId)) return;
     S.prevVital = ctx.prev;
-    if (!S.vDraft) S.vDraft = { systolic: '', diastolic: '', pulse: '', temp: '', spo2: '', weight: '', conditionNote: '' };
+    if (!S.vDraft) S.vDraft = { systolic: '', diastolic: '', pulse: '', temp: '', spo2: '', weight: '', conditionNote: '', conditionTags: [] };
+    if (!S.vDraft.conditionTags) S.vDraft.conditionTags = [];
     var prev = S.prevVital;
     var d = S.vDraft;
+
+    var conditionChips = CONDITION_CHOICES.map(function (c) {
+      var on = d.conditionTags.indexOf(c) >= 0;
+      return '<button class="chip cond-chip' + (on ? ' selected' : '') + '" data-cond="' + esc(c) + '"' +
+        ' aria-pressed="' + (on ? 'true' : 'false') + '" onclick="Actions.vTag(this)">' + esc(c) + '</button>';
+    }).join('');
 
     function cell(key, label, unit, prevValue) {
       return (
@@ -3637,8 +3711,9 @@ function renderVitals(app, renderId) {
       cell('spo2', 'SpO2(任意)', '%', prev && prev.spo2 != null ? String(prev.spo2) : null) +
       cell('weight', '体重(任意)', 'kg', prev && prev.weight != null ? prev.weight.toFixed(1) : null) +
       '</div>' +
-      '<label class="card"><span class="card-label">体調・特記事項 <span class="unit">監査記録に残ります</span></span>' +
-      '<textarea class="note-area" maxlength="300" placeholder="例: 食欲・睡眠・痛み・ふらつきなど" oninput="Actions.vCondition(this.value)">' + esc(d.conditionNote || '') + '</textarea></label>' +
+      '<div class="card"><span class="card-label">体調・特記事項 <span class="unit">監査記録に残ります</span></span>' +
+      '<div class="cond-chips">' + conditionChips + '</div>' +
+      '<textarea class="note-area" maxlength="300" placeholder="自由記載(例: 食欲・睡眠・痛み・ふらつきなど)" oninput="Actions.vCondition(this.value)">' + esc(d.conditionNote || '') + '</textarea></div>' +
       '<div id="v-alerts"></div>' +
       '<div id="save-error"></div>' +
       '<div class="save-hint" id="v-hint"></div>' +
@@ -3668,18 +3743,20 @@ function progressHtml(records, pickable) {
   var rows = S.exercises.map(function (ex) {
     var rec = latest[ex.id];
     if (rec) {
+      // ワンタップ記録(実績のみ)は実施量を持たないため時刻だけを表示する
+      var summary = rec.amount && rec.amount !== '実施' ? rec.time + ' · ' + rec.amount : rec.time + ' 実施';
       return (
         '<div class="exercise-row"><span class="check">✓</span>' +
         '<span class="ex-name">' + esc(ex.name) + '</span>' +
-        '<span class="ex-summary">' + esc(rec.time) + ' · ' + esc(rec.amount) + '</span></div>'
+        '<span class="ex-summary">' + esc(summary) + '</span></div>'
       );
     }
     var tag = pickable ? 'button' : 'div';
-    var attr = pickable ? ' style="width:100%;text-align:left;" onclick="Actions.pickExercise(\'' + ex.id + '\')"' : '';
+    var attr = pickable ? ' style="width:100%;text-align:left;" data-ex="' + ex.id + '" onclick="Actions.exQuickSave(this, \'' + ex.id + '\')"' : '';
     return (
       '<' + tag + ' class="exercise-row undone"' + attr + '><span class="check">○</span>' +
       '<span class="ex-name">' + esc(ex.name) + '</span>' +
-      '<span class="ex-summary">未実施</span></' + tag + '>'
+      '<span class="ex-summary">' + (pickable ? 'タップで記録' : '未実施') + '</span></' + tag + '>'
     );
   }).join('');
 
@@ -3718,10 +3795,10 @@ function renderExerciseScan(app, renderId) {
       '<header class="phone-header training">' +
       '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
       '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
-      '<div class="h-title">訓練種目を選択</div></div>' +
+      '<div class="h-title">実施した種目をタップ</div></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
-      '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">機能訓練</span><h1>訓練種目を記録</h1><p>実施した種目をタップしてください。</p></div>' +
+      '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">機能訓練</span><h1>訓練種目を記録</h1><p>実施した種目をタップするとすぐ記録されます(間違えたら「取り消す」)。</p></div>' +
       precautionHtml(user, false) +
       snackbarHtml() +
       errHtml +
@@ -3735,55 +3812,124 @@ function renderExerciseScan(app, renderId) {
   });
 }
 
-function renderExerciseForm(app, exerciseId, renderId) {
+// ---------------------------------------------------------------- 1d 脳トレ記録
+
+function renderCognitive(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
-  var ex = exerciseById(exerciseId);
-  if (!ex) return go('exercise');
-  if (!S.exDraft || S.exDraft.exerciseId !== exerciseId) {
-    S.exDraft = { exerciseId: exerciseId, amount: '', load: '', note: '' };
-  }
-  showLoading(app, hasExerciseCache(user.id));
+  if (!S.cogDraft) S.cogDraft = { activity: '', free: '', note: '' };
+  showLoading(app, hasTodayStatusCache());
 
-  getTodayExerciseRecords(user.id).then(function (records) {
+  getTodayStatus().then(function (today) {
     if (!isCurrentRender(renderId)) return;
-    var d = S.exDraft;
-    function segs(options, key, small) {
-      return options.map(function (opt) {
-        var sel = d[key] === opt ? ' selected' : '';
-        return (
-          '<button class="segment' + (small ? ' small' : '') + sel + '" data-seg="' + key + '" data-val="' + esc(opt) + '"' +
-          ' aria-pressed="' + (d[key] === opt ? 'true' : 'false') + '"' +
-          ' onclick="Actions.exSeg(\'' + key + '\', \'' + esc(opt) + '\')">' + esc(opt) + '</button>'
-        );
-      }).join('');
-    }
+    var d = S.cogDraft;
+    var menu = (S.cognitiveMenu || []).filter(function (m) { return m.active; });
+    var chips = menu.map(function (m) {
+      var on = d.activity === m.name;
+      return '<button class="chip cond-chip' + (on ? ' selected' : '') + '" data-cog="' + esc(m.name) + '"' +
+        ' aria-pressed="' + (on ? 'true' : 'false') + '" onclick="Actions.cogChip(this)">' + esc(m.name) + '</button>';
+    }).join('');
+    var todayRecords = (today.cognitiveRecords || []).filter(function (c) { return c.userId === user.id; });
+    var recordsHtml = todayRecords.length
+      ? todayRecords.map(function (r) {
+          return '<div class="record-line"><b>' + esc(r.time) + '</b><span>' + esc(r.activity) + '</span>' +
+            (r.note ? '<small>' + esc(r.note) + '</small>' : '') + '</div>';
+        }).join('')
+      : '<div class="empty-note">本日の脳トレ記録はまだありません</div>';
 
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
-      '<header class="phone-header training">' +
-      '<button class="back-btn" onclick="Actions.backToScan()" aria-label="戻る">‹</button>' +
-      '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
-      '<div class="h-title">' + esc(ex.name) + '</div></div>' +
-      '<div class="h-right"><span class="qr-read-badge">種目<br>選択中</span></div>' +
+      '<header class="phone-header compact">' +
+      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
+      '<div><div class="h-sub">脳トレ記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
+      '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
-      precautionHtml(user, false) +
-      '<div class="card"><div class="card-label" style="margin-bottom:8px;">' + esc(ex.amountLabel) + '</div>' +
-      '<div class="segment-row">' + segs(ex.amountOptions, 'amount', false) + '</div></div>' +
-      '<div class="card"><div class="card-label" style="margin-bottom:8px;">負荷レベル</div>' +
-      '<div class="segment-row">' + segs(LOAD_OPTIONS, 'load', true) + '</div></div>' +
-      '<div class="card"><div class="card-label" style="margin-bottom:8px;">スタッフ所見(任意)</div>' +
-      '<textarea class="note-area" maxlength="200" placeholder="例: ペース安定。息切れなし。" oninput="Actions.exNote(this.value)">' + esc(d.note) + '</textarea></div>' +
-      '<div id="save-error"></div>' +
-      '<button class="btn-training" id="ex-save" disabled onclick="Actions.exSave()">この内容で記録する</button>' +
-      progressHtml(records, false) +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">脳トレ</span><h1>実施内容を記録</h1>' +
+      '<p>実施した内容を選ぶか、自由に入力してください。</p></div>' +
+      snackbarHtml() +
+      '<div class="card"><span class="card-label">実施内容(タップで選択)</span>' +
+      '<div class="cond-chips">' + chips + '</div>' +
+      '<input class="note-area" id="cog-free" maxlength="120" placeholder="その他(自由入力)" value="' + esc(d.free) + '"' +
+      ' oninput="Actions.cogFree(this.value)" style="min-height:44px;"></div>' +
+      '<div class="card"><span class="card-label">結果・所見(任意)</span>' +
+      '<textarea class="note-area" maxlength="300" placeholder="例: 20問中18問正解。集中して取り組まれた。" oninput="Actions.cogNote(this.value)">' + esc(d.note) + '</textarea></div>' +
+      '<div id="cog-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
+      '<button class="btn-primary" id="cog-save" style="flex:none;width:100%;" onclick="Actions.cogSave()">この内容で記録する</button>' +
+      '<div><div class="section-head" style="margin-bottom:8px;"><span class="section-title">本日の脳トレ記録</span></div>' +
+      '<div class="record-list">' + recordsHtml + '</div></div>' +
       '</div>' + tabBarHtml('') + '</div></div>';
-
-    Actions.exRefresh();
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
-    app.innerHTML = renderErrorHtml('訓練入力画面を読み込めませんでした', 'exercise/' + exerciseId);
+    app.innerHTML = renderErrorHtml('脳トレ記録を読み込めませんでした', 'cognitive');
+  });
+}
+
+// ---------------------------------------------------------------- 1e 体力測定・評価記録
+
+function renderAssessment(app, renderId) {
+  var user = currentUser();
+  if (!user) return go('');
+  if (!S.assessDraft) S.assessDraft = { type: '体力測定', item: '', freeItem: '', result: '', detail: '' };
+  showLoading(app, isRpcFresh('apiGetUserDetail', [user.id]));
+
+  rpc('apiGetUserDetail', user.id).then(function (res) {
+    if (!isCurrentRender(renderId)) return;
+    var d = S.assessDraft;
+    var typeSegs = ['体力測定', 'HDS-R', 'MMSE'].map(function (t) {
+      var on = d.type === t;
+      return '<button class="segment' + (on ? ' selected' : '') + '" aria-pressed="' + (on ? 'true' : 'false') + '"' +
+        ' onclick="Actions.assessType(\'' + t + '\')">' + t + '</button>';
+    }).join('');
+    var itemHtml = '';
+    if (d.type === '体力測定') {
+      var itemChips = FITNESS_ITEMS.map(function (it) {
+        var on = d.item === it;
+        return '<button class="chip cond-chip' + (on ? ' selected' : '') + '" data-item="' + esc(it) + '"' +
+          ' aria-pressed="' + (on ? 'true' : 'false') + '" onclick="Actions.assessItem(this)">' + esc(it) + '</button>';
+      }).join('');
+      itemHtml =
+        '<div class="card"><span class="card-label">測定種目(タップで選択)</span>' +
+        '<div class="cond-chips">' + itemChips + '</div>' +
+        '<input class="note-area" maxlength="40" placeholder="その他の種目(自由入力)" value="' + esc(d.freeItem) + '"' +
+        ' oninput="Actions.assessFreeItem(this.value)" style="min-height:44px;"></div>';
+    }
+    var recent = (res.assessments || []).filter(function (a) { return a.type === d.type; }).slice(0, 6);
+    var recentHtml = recent.length
+      ? recent.map(function (r) {
+          return '<div class="record-line assessment"><b>' + esc(r.item || r.type) + '</b><span>' + esc(r.result) + '</span>' +
+            '<small>' + dayLabel(r.date) + (r.detail ? ' · ' + esc(r.detail) : '') + '</small></div>';
+        }).join('')
+      : '<div class="empty-note">この評価の記録はまだありません</div>';
+
+    app.innerHTML =
+      '<div class="phone-wrap"><div class="phone">' +
+      '<header class="phone-header compact">' +
+      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
+      '<div><div class="h-sub">体力測定・評価記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
+      '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
+      '</header>' +
+      '<div class="phone-body" style="gap:14px;">' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">評価</span><h1>体力測定・評価を記録</h1>' +
+      '<p>体力測定は種目ごとに、HDS-R・MMSEは点数を記録します。</p></div>' +
+      snackbarHtml() +
+      '<div class="card"><span class="card-label">評価の種類</span>' +
+      '<div class="segment-row">' + typeSegs + '</div></div>' +
+      itemHtml +
+      '<div class="card"><span class="card-label">' + (d.type === '体力測定' ? '結果(数値と単位)' : '点数') + '</span>' +
+      '<input class="note-area" id="assess-result" maxlength="120"' +
+      ' placeholder="' + (d.type === '体力測定' ? '例: 13.2秒、24.5kg、8回' : '例: 24/30点') + '" value="' + esc(d.result) + '"' +
+      ' oninput="Actions.assessResult(this.value)" style="min-height:48px;"></div>' +
+      '<div class="card"><span class="card-label">詳細・所見(任意)</span>' +
+      '<textarea class="note-area" maxlength="500" placeholder="例: 前回より0.8秒短縮。" oninput="Actions.assessDetail(this.value)">' + esc(d.detail) + '</textarea></div>' +
+      '<div id="assess-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
+      '<button class="btn-primary" id="assess-save" style="flex:none;width:100%;" onclick="Actions.assessSave()">この内容で記録する</button>' +
+      '<div><div class="section-head" style="margin-bottom:8px;"><span class="section-title">' + esc(d.type) + ' の記録(直近)</span></div>' +
+      '<div class="record-list">' + recentHtml + '</div></div>' +
+      '</div>' + tabBarHtml('') + '</div></div>';
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = renderErrorHtml('評価記録を読み込めませんでした', 'assessment');
   });
 }
 
@@ -4015,12 +4161,22 @@ function renderUserDetail(app, userId, renderId) {
       : '<div class="empty-note">脳トレ記録はまだありません</div>';
 
     var assessments = res.assessments || [];
-    var assessmentHtml = assessments.length
-      ? assessments.slice(0, 6).map(function (r) {
+    // 体力測定は種目名つきで、HDS-R・MMSEは点数の推移グラフつきで表示する
+    var fitness = assessments.filter(function (a) { return a.type === '体力測定'; });
+    var scores = assessments.filter(function (a) { return a.type === 'HDS-R' || a.type === 'MMSE'; });
+    var assessmentHtml = fitness.length
+      ? fitness.slice(0, 6).map(function (r) {
+          return '<div class="record-line assessment"><b>' + esc(r.item || r.type) + '</b><span>' + esc(r.result) + '</span>' +
+            '<small>' + dayLabel(r.date) + (r.detail ? ' · ' + esc(r.detail) : '') + '</small></div>';
+        }).join('')
+      : '<div class="empty-note">体力測定の記録はまだありません</div>';
+    var scoreListHtml = scores.length
+      ? scores.slice(0, 6).map(function (r) {
           return '<div class="record-line assessment"><b>' + esc(r.type) + '</b><span>' + esc(r.result) + '</span>' +
             '<small>' + dayLabel(r.date) + (r.detail ? ' · ' + esc(r.detail) : '') + '</small></div>';
         }).join('')
-      : '<div class="empty-note">体力測定・認知機能評価の記録はまだありません</div>';
+      : '<div class="empty-note">HDS-R・MMSEの記録はまだありません</div>';
+    var scoreChart = scoreChartSvg(scores);
 
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
@@ -4051,17 +4207,15 @@ function renderUserDetail(app, userId, renderId) {
       '<div><div class="section-head"><span class="section-title">機能訓練の実施記録</span>' +
       '<span class="section-note">直近5回の来所日</span></div>' +
       '<div class="row-list">' + historyHtml + '</div></div>' +
-      '<div><div class="section-head"><span class="section-title">脳トレ記録</span><span class="section-note">スプレッドシートに保存</span></div>' +
-      '<div class="card record-form"><input class="note-area" id="cog-activity" maxlength="120" placeholder="実施内容(例: 計算プリント)">' +
-      '<textarea class="note-area" id="cog-note" maxlength="300" placeholder="結果・所見(任意)"></textarea>' +
-      '<div id="cog-error" class="section-note"></div><button class="btn-outline" onclick="Actions.saveCognitive(\'' + user.id + '\')">脳トレを記録</button></div>' +
-      '<div class="record-list">' + cognitiveHtml + '</div></div>' +
-      '<div><div class="section-head"><span class="section-title">体力測定・認知機能評価</span></div>' +
-      '<div class="card record-form"><select class="select-plain" id="assessment-type"><option>体力測定</option><option>HDS-R</option><option>MMSE</option></select>' +
-      '<input class="note-area" id="assessment-result" maxlength="120" placeholder="結果(例: 24/30点、TUG 13.2秒)">' +
-      '<textarea class="note-area" id="assessment-detail" maxlength="500" placeholder="詳細・所見(任意)"></textarea>' +
-      '<div id="assessment-error" class="section-note"></div><button class="btn-outline" onclick="Actions.saveAssessment(\'' + user.id + '\')">評価結果を記録</button></div>' +
+      '<div><div class="section-head"><span class="section-title">脳トレ記録</span><span class="section-note">直近5件</span></div>' +
+      '<div class="record-list">' + cognitiveHtml + '</div>' +
+      '<button class="btn-outline" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.openRecord(\'' + user.id + '\', \'cognitive\')">🧠 脳トレを記録する</button></div>' +
+      '<div><div class="section-head"><span class="section-title">体力測定(種目別)</span></div>' +
       '<div class="record-list">' + assessmentHtml + '</div></div>' +
+      '<div><div class="section-head"><span class="section-title">HDS-R・MMSE 点数の推移</span></div>' +
+      (scoreChart ? '<div class="card">' + scoreChart + '</div>' : '') +
+      '<div class="record-list"' + (scoreChart ? ' style="margin-top:10px;"' : '') + '>' + scoreListHtml + '</div>' +
+      '<button class="btn-outline" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.openRecord(\'' + user.id + '\', \'assessment\')">📏 体力測定・評価を記録する</button></div>' +
       '<div><div class="section-head"><span class="section-title">アラート履歴</span></div>' +
       '<div class="row-list">' + alertsHtml + '</div></div>' +
       '</div>' + tabBarHtml('users') + '</div></div>';
@@ -4080,7 +4234,7 @@ var ADMIN_MENU_ITEMS = [
   ['admin/notebook', '🖨️', '連絡帳 作成・印刷', '当日の記録から自動で下書きを作成'],
   ['admin/users',    '👥', '利用者管理',       '利用者の登録・編集・削除'],
   ['admin/staff',    '🔑', '職員管理',         '職員の追加・権限・PIN再設定'],
-  ['admin/master',   '🪪', 'QRカード発行',     '利用者カードの印刷・訓練種目の一覧'],
+  ['admin/master',   '🪪', 'QRカード発行',     '利用者カードの印刷・種目/脳トレメニュー管理'],
   ['admin/monthly',  '📅', '月次レポート',     '月間の実施集計'],
 ];
 
@@ -4232,6 +4386,52 @@ function vitalsChartSvg(recordsAll) {
   );
 }
 
+/**
+ * HDS-R・MMSE の点数推移グラフ(0〜30点)。
+ * 結果文字列("24/30点" など)の先頭の数値を点数として使う。
+ */
+function scoreChartSvg(scores) {
+  var series = { 'HDS-R': [], 'MMSE': [] };
+  scores.slice().reverse().forEach(function (r) { // 古い順に並べ直す
+    var v = parseFloat(String(r.result));
+    if (!isFinite(v)) return;
+    if (series[r.type]) series[r.type].push({ date: r.date, value: Math.max(0, Math.min(30, v)) });
+  });
+  var hdsr = series['HDS-R'].slice(-8);
+  var mmse = series['MMSE'].slice(-8);
+  if (!hdsr.length && !mmse.length) return '';
+  var n = Math.max(hdsr.length, mmse.length);
+  function x(list, i) { return list.length <= 1 ? 270 : 60 + (i * 420) / (list.length - 1); }
+  function y(v) { return 150 - (v * 120) / 30; }
+  function line(list, color, dash) {
+    if (!list.length) return '';
+    var pts = list.map(function (p, i) { return x(list, i) + ',' + y(p.value); }).join(' ');
+    var dots = list.map(function (p, i) {
+      return '<circle cx="' + x(list, i) + '" cy="' + y(p.value) + '" r="3.5" fill="' + color + '"></circle>';
+    }).join('');
+    return '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="3"' +
+      (dash ? ' stroke-dasharray="6 5"' : '') + ' stroke-linecap="round" stroke-linejoin="round"></polyline>' + dots;
+  }
+  var axis = hdsr.length >= mmse.length ? hdsr : mmse;
+  var labels =
+    '<text x="' + x(axis, 0) + '" y="170" font-size="11" fill="#7A8A7D">' + shortDate(axis[0].date) + '</text>' +
+    (axis.length > 1 ? '<text x="' + x(axis, axis.length - 1) + '" y="170" font-size="11" fill="#7A8A7D" text-anchor="end">' + shortDate(axis[axis.length - 1].date) + '</text>' : '');
+  return (
+    '<svg viewBox="0 0 520 180" style="width:100%;height:auto;">' +
+    '<line x1="40" y1="20" x2="40" y2="150" stroke="#DCE5DB" stroke-width="1"></line>' +
+    '<line x1="40" y1="150" x2="510" y2="150" stroke="#DCE5DB" stroke-width="1"></line>' +
+    '<line x1="40" y1="30" x2="510" y2="30" stroke="#EDF1EC" stroke-width="1"></line>' +
+    '<line x1="40" y1="90" x2="510" y2="90" stroke="#EDF1EC" stroke-width="1"></line>' +
+    '<text x="34" y="34" font-size="11" fill="#7A8A7D" text-anchor="end">30</text>' +
+    '<text x="34" y="94" font-size="11" fill="#7A8A7D" text-anchor="end">15</text>' +
+    '<text x="34" y="154" font-size="11" fill="#7A8A7D" text-anchor="end">0</text>' +
+    line(hdsr, '#2E7D32', false) + line(mmse, '#5B5EA6', true) + labels + '</svg>' +
+    '<div class="legend">' +
+    (hdsr.length ? '<span><span class="chip" style="background:#2E7D32;"></span>HDS-R</span>' : '') +
+    (mmse.length ? '<span><span class="chip" style="background:#5B5EA6;"></span>MMSE</span>' : '') + '</div>'
+  );
+}
+
 function barColor(ratio) {
   if (ratio >= 0.85) return '#2E7D32';
   if (ratio >= 0.6) return '#5B9E58';
@@ -4299,6 +4499,14 @@ function renderAdminResults(app, renderId) {
       return '<option value="' + m + '"' + (m === S.admin.month ? ' selected' : '') + '>' + monthLabel(m) + '</option>';
     }).join('');
 
+    // 評価記録(体力測定は種目つき)。新しい日付順に表示する
+    var assessmentsAll = (res.assessments || []).slice().reverse();
+    var assessmentRows = assessmentsAll.map(function (a) {
+      return '<tr><td>' + dayLabel(a.date) + '</td><td>' + esc(a.type) + '</td>' +
+        '<td>' + esc(a.item || '—') + '</td><td style="font-weight:700;">' + esc(a.result) + '</td>' +
+        '<td>' + esc(a.detail || '') + '</td></tr>';
+    }).join('');
+
     var content =
       '<div class="admin-page-head"><div><div class="breadcrumb">利用者別 実績</div>' +
       '<div class="admin-h1">' +
@@ -4321,6 +4529,13 @@ function renderAdminResults(app, renderId) {
       '<div class="th">日付</div><div class="th">来所</div><div class="th">バイタル</div><div class="th">実施種目</div><div class="th">所見</div>' +
       tableRows + '</div>' +
       (days.length === 0 ? '<div class="empty-note">この月の来所記録はありません</div>' : '') +
+      '</div>' +
+      '<div class="panel"><div class="panel-title">評価記録(体力測定・HDS-R・MMSE) <span class="sub">全期間</span>' +
+      '<button class="btn-csv" style="float:right;" onclick="Actions.exportAssessmentCsv()">評価CSV出力</button></div>' +
+      '<div style="overflow-x:auto;"><table class="gen-table"><thead><tr>' +
+      '<th>日付</th><th>種別</th><th>種目</th><th>結果</th><th>詳細</th>' +
+      '</tr></thead><tbody>' + assessmentRows + '</tbody></table></div>' +
+      (assessmentsAll.length === 0 ? '<div class="empty-note">評価記録はまだありません</div>' : '') +
       '</div>';
 
     app.innerHTML = adminShell('admin', content);
@@ -4585,6 +4800,18 @@ function renderAdminMaster(app, renderId) {
     );
   }).join('');
 
+  // 脳トレメニュー(記録画面のプルダウン選択肢)の管理
+  var cogMenuRows = (S.cognitiveMenu || []).map(function (m) {
+    return (
+      '<div class="exercise-row' + (m.active ? '' : ' undone') + '">' +
+      '<span class="ex-name">' + esc(m.name) + (m.active ? '' : ' <span class="section-note">(停止中)</span>') + '</span>' +
+      '<span class="ex-summary" style="white-space:nowrap;">' +
+      '<button class="link-plain" onclick="Actions.cogMenuToggle(\'' + m.id + '\')">' + (m.active ? '停止' : '再開') + '</button>' +
+      ' <button class="link-plain" style="color:var(--alert-text);" data-del="' + m.id + '" onclick="Actions.cogMenuDelete(\'' + m.id + '\', this)">削除</button>' +
+      '</span></div>'
+    );
+  }).join('') || '<div class="empty-note">メニューがありません。下の欄から追加してください</div>';
+
   var content =
     '<div class="qr-print-page"><div class="admin-page-head"><div><div class="breadcrumb">種目マスタ / QR発行</div>' +
     '<div class="admin-h1">利用者QRカード発行 <span class="attrs">印刷して来所受付カードに使用</span></div></div>' +
@@ -4594,7 +4821,15 @@ function renderAdminMaster(app, renderId) {
     '<div class="qr-grid">' + userCards + '</div></div>' +
     '<div class="panel qr-exercise-list"><div class="panel-title">訓練種目一覧 ' +
     '<span class="sub">記録画面で選択します(機器QRは不要)</span></div>' +
-    '<div class="row-list">' + exRows + '</div></div></div>';
+    '<div class="row-list">' + exRows + '</div></div>' +
+    '<div class="panel no-print"><div class="panel-title">脳トレメニュー ' +
+    '<span class="sub">記録画面の選択肢。ここで追加・変更できます</span></div>' +
+    '<div class="row-list">' + cogMenuRows + '</div>' +
+    '<div class="btn-row" style="margin-top:10px;">' +
+    '<input class="note-area" id="cogmenu-new" maxlength="60" placeholder="新しいメニュー(例: オセロ)" style="flex:1;min-height:44px;">' +
+    '<button class="btn-csv" onclick="Actions.cogMenuAdd()">追加</button></div>' +
+    '<div id="cogmenu-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
+    '</div></div>';
 
   app.innerHTML = adminShell('admin/master', content);
 
@@ -4730,21 +4965,33 @@ function renderCommunicationBook(app, renderId) {
     }).join('');
     var programs = data.exercises.map(function (r, i) {
       var ex = exerciseById(r.exerciseId);
-      return '<li><span>' + (i + 1) + '</span><b>' + esc(ex ? ex.name : r.exerciseId) + '</b><small>' + esc(r.amount) + '</small></li>';
+      // ワンタップ記録(実績のみ)は実施量を持たないため「実施」とだけ添える
+      var amount = r.amount && r.amount !== '実施' ? r.amount : '実施';
+      return '<li><span>' + (i + 1) + '</span><b>' + esc(ex ? ex.name : r.exerciseId) + '</b><small>' + esc(amount) + '</small></li>';
     }).join('');
     if (!programs) programs = '<li class="planned"><b>本日の訓練記録はまだありません</b></li>';
     var attendance = data.checkin
       ? '来苑 ' + esc(data.checkin.time) + (data.checkin.checkoutTime ? ' ／ 帰苑 ' + esc(data.checkin.checkoutTime) : '') +
         (data.checkin.transport ? ' ／ ' + esc(data.checkin.transport) : '')
       : '来苑記録なし';
-    var vital = data.vital
-      ? '血圧 ' + data.vital.systolic + '/' + data.vital.diastolic + '　脈拍 ' + data.vital.pulse +
-        '　体温 ' + data.vital.temp.toFixed(1) + '℃' + (data.vital.spo2 != null ? '　SpO2 ' + data.vital.spo2 + '%' : '')
-      : 'バイタル記録なし';
+    // バイタルは専用欄に表示する(記録がない項目は空欄のまま印刷され、手書きでも記入できる)
+    var v = data.vital;
+    function vitalCell(label, value, unit) {
+      return '<div class="nv-cell"><span class="nv-label">' + label + '</span>' +
+        '<span class="nv-value" contenteditable="true">' + esc(value) + '</span>' +
+        '<span class="nv-unit">' + unit + '</span></div>';
+    }
+    var vitalGrid =
+      '<div class="notebook-vital-grid">' +
+      vitalCell('血圧', v ? v.systolic + '/' + v.diastolic : '', 'mmHg') +
+      vitalCell('脈拍', v ? String(v.pulse) : '', '回/分') +
+      vitalCell('体温', v ? v.temp.toFixed(1) : '', '℃') +
+      vitalCell('SpO2', v && v.spo2 != null ? String(v.spo2) : '', '%') +
+      '</div>';
     var photoHtml = S.notebook.photo
       ? '<img src="' + S.notebook.photo + '" alt="本日のご様子">'
       : '<div class="notebook-photo-empty"><span>写真</span><small>下の「写真を選ぶ」から追加できます</small></div>';
-    var densePrint = S.notebook.comment.length > 300 || data.exercises.length > 6;
+    var densePrint = S.notebook.comment.length > 220 || data.exercises.length > 5; // A5横は紙面が小さい
     var content =
       '<div class="admin-page-head no-print"><div><div class="breadcrumb">連絡帳 作成・印刷</div>' +
       '<div class="admin-h1">利用者へお渡しする連絡帳</div></div>' +
@@ -4760,7 +5007,7 @@ function renderCommunicationBook(app, renderId) {
       '<p class="notebook-thanks">本日もご利用いただきありがとうございます。</p>' +
       '<div class="notebook-layout"><div class="notebook-left">' +
       '<section class="notebook-box program"><h2>本日のプログラム</h2><ol>' + programs + '</ol>' +
-      '<div class="notebook-vitals"><b>' + attendance + '</b><span>' + vital + '</span></div></section>' +
+      '<div class="notebook-vitals"><b>' + attendance + '</b></div>' + vitalGrid + '</section>' +
       '<section class="notebook-box facility"><h2>デイサービスセンター弐番館より</h2>' +
       '<div id="notebook-comment" class="notebook-comment" contenteditable="true" role="textbox" aria-label="施設からの連絡" oninput="Actions.notebookComment(this.innerText)">' + esc(S.notebook.comment) + '</div></section>' +
       '<section class="notebook-box family"><h2>ご家族より</h2><div class="family-lines"><span></span><span></span><span></span></div></section>' +
@@ -4852,6 +5099,19 @@ var Actions = {
     S.exDraft = null;
     go('exercise');
   },
+  /** メニューから脳トレ・評価記録へ */
+  goRecord: function (route) {
+    if (!S.currentUserId) return go('');
+    S.cogDraft = null;
+    S.assessDraft = null;
+    go(route);
+  },
+  /** 利用者詳細から対象者を切り替えて記録画面を開く */
+  openRecord: function (userId, route) {
+    S.currentUserId = userId;
+    sessionStorage.setItem('currentUserId', userId);
+    Actions.goRecord(route);
+  },
   backToMenu: function () {
     if (!S.currentUserId) return go('');
     S.toast = null;
@@ -4880,6 +5140,16 @@ var Actions = {
   },
   vCondition: function (value) {
     S.vDraft.conditionNote = value.slice(0, 300);
+  },
+  /** 体調・特記事項の定型文チップ(複数選択可) */
+  vTag: function (el) {
+    var tag = el.getAttribute('data-cond');
+    var tags = S.vDraft.conditionTags || (S.vDraft.conditionTags = []);
+    var i = tags.indexOf(tag);
+    if (i >= 0) tags.splice(i, 1); else tags.push(tag);
+    var on = i < 0;
+    el.classList.toggle('selected', on);
+    el.setAttribute('aria-pressed', on ? 'true' : 'false');
   },
   precautionConfirm: function (checked) {
     S.precautionConfirmed = checked;
@@ -4926,7 +5196,7 @@ var Actions = {
     Actions.vRefresh();
   },
   vReset: function () {
-    S.vDraft = { systolic: '', diastolic: '', pulse: '', temp: '', spo2: '', weight: '', conditionNote: '' };
+    S.vDraft = { systolic: '', diastolic: '', pulse: '', temp: '', spo2: '', weight: '', conditionNote: '', conditionTags: [] };
     S.vitalConfirmed = false;
     S.precautionConfirmed = false;
     render();
@@ -4940,7 +5210,11 @@ var Actions = {
     ['systolic', 'diastolic', 'pulse', 'temp', 'spo2', 'weight'].forEach(function (k) {
       payload[k] = S.vDraft[k];
     });
-    payload.conditionNote = (S.vDraft.conditionNote || '').trim();
+    // 選んだ定型文と自由記載をひとつの文にまとめて保存する(記録の形式は従来どおり)
+    var parts = (S.vDraft.conditionTags || []).slice();
+    var free = (S.vDraft.conditionNote || '').trim();
+    if (free) parts.push(free);
+    payload.conditionNote = parts.join('。').slice(0, 300);
     rpc('apiSaveVitals', payload).then(function (rec) {
       S.vDraft = null;
       S.vitalConfirmed = false;
@@ -4953,57 +5227,32 @@ var Actions = {
     });
   },
 
-  // --- 訓練 ---
-  pickExercise: function (exerciseId) {
-    S.toast = null;
-    go('exercise/' + exerciseId);
-  },
-  backToScan: function () {
-    S.exDraft = null;
-    go('exercise');
-  },
-  exSeg: function (key, value) {
-    S.exDraft[key] = value;
-    document.querySelectorAll('[data-seg="' + key + '"]').forEach(function (el) {
-      var selected = el.getAttribute('data-val') === value;
-      el.classList.toggle('selected', selected);
-      el.setAttribute('aria-pressed', selected ? 'true' : 'false');
-    });
-    Actions.exRefresh();
-  },
-  exNote: function (value) {
-    S.exDraft.note = value;
-  },
-  exRefresh: function () {
-    var btn = document.getElementById('ex-save');
-    if (btn) btn.disabled = !(S.exDraft.amount && S.exDraft.load);
-  },
-  exSave: function () {
-    var btn = document.getElementById('ex-save');
-    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+  // --- 訓練(ワンタップで実績のみ記録。実施量・負荷の入力は廃止) ---
+  exQuickSave: function (el, exerciseId) {
+    if (el) {
+      el.disabled = true;
+      var summary = el.querySelector('.ex-summary');
+      if (summary) summary.textContent = '記録中…';
+    }
     rpc('apiSaveExercise', {
-      userId: S.currentUserId,
-      exerciseId: S.exDraft.exerciseId,
-      amount: S.exDraft.amount,
-      load: S.exDraft.load,
-      note: (S.exDraft.note || '').trim(),
+      userId: S.currentUserId, exerciseId: exerciseId,
+      amount: '実施', load: '', note: '',
     }).then(function (res) {
-      var ex = exerciseById(S.exDraft.exerciseId);
+      var ex = exerciseById(exerciseId);
       S.lastSaved = { kind: 'records', id: res.record.id, label: (ex ? ex.name : '種目') + 'を記録しました' };
-      if (res.todayExercises) {
-        S.exerciseCache[S.currentUserId] = { data: res.todayExercises, expires: Date.now() + 45000 };
-      } else {
-        var cachedExercises = S.exerciseCache[S.currentUserId];
-        var nextExercises = cachedExercises && cachedExercises.data ? cachedExercises.data.slice() : [];
-        nextExercises.push(res.record);
-        S.exerciseCache[S.currentUserId] = { data: nextExercises, expires: Date.now() + 45000 };
-      }
-      S.exDraft = null;
+      var cachedExercises = S.exerciseCache[S.currentUserId];
+      var nextExercises = cachedExercises && cachedExercises.data ? cachedExercises.data.slice() : [];
+      nextExercises.push(res.record);
+      S.exerciseCache[S.currentUserId] = { data: nextExercises, expires: Date.now() + 45000 };
       S.todayStatusCache = null; // メニューの状況表示を最新化
-      go('exercise');
-    }).catch(function (e) {
+      render();
+    }).catch(function () {
+      if (el) {
+        el.disabled = false;
+        var summary2 = el.querySelector('.ex-summary');
+        if (summary2) summary2.textContent = 'タップで記録';
+      }
       showSaveError('保存できませんでした。電波状況をご確認のうえ、もう一度お試しください');
-      if (btn) { btn.disabled = false; btn.textContent = 'この内容で記録する'; }
     });
   },
   /** 直前に保存した記録の取り消し(論理削除) */
@@ -5061,26 +5310,75 @@ var Actions = {
     if (empty) empty.hidden = visible > 0;
   },
 
-  saveCognitive: function (userId) {
-    var activity = (document.getElementById('cog-activity') || {}).value || '';
-    var note = (document.getElementById('cog-note') || {}).value || '';
-    var err = document.getElementById('cog-error');
-    if (!activity.trim()) { if (err) err.textContent = '実施内容を入力してください'; return; }
-    if (err) err.textContent = '保存中…';
-    rpc('apiSaveCognitive', { userId: userId, date: S.today, activity: activity.trim(), note: note.trim() })
-      .then(function () { render(); })
-      .catch(function (e) { if (err) err.textContent = (e && e.message) || '保存できませんでした'; });
+  // --- 脳トレ記録 ---
+  cogChip: function (el) {
+    var name = el.getAttribute('data-cog');
+    S.cogDraft.activity = S.cogDraft.activity === name ? '' : name;
+    document.querySelectorAll('[data-cog]').forEach(function (c) {
+      var on = c.getAttribute('data-cog') === S.cogDraft.activity;
+      c.classList.toggle('selected', on);
+      c.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
   },
-  saveAssessment: function (userId) {
-    var type = document.getElementById('assessment-type').value;
-    var result = document.getElementById('assessment-result').value.trim();
-    var detail = document.getElementById('assessment-detail').value.trim();
-    var err = document.getElementById('assessment-error');
-    if (!result) { if (err) err.textContent = '評価結果を入力してください'; return; }
-    if (err) err.textContent = '保存中…';
-    rpc('apiSaveAssessment', { userId: userId, date: S.today, type: type, result: result, detail: detail })
-      .then(function () { render(); })
-      .catch(function (e) { if (err) err.textContent = (e && e.message) || '保存できませんでした'; });
+  cogFree: function (value) { S.cogDraft.free = value.slice(0, 120); },
+  cogNote: function (value) { S.cogDraft.note = value.slice(0, 300); },
+  cogSave: function () {
+    var d = S.cogDraft;
+    var activity = (d.activity || d.free || '').trim();
+    var err = document.getElementById('cog-error');
+    if (!activity) { if (err) err.textContent = '実施内容を選ぶか入力してください'; return; }
+    var btn = document.getElementById('cog-save');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+    rpc('apiSaveCognitive', { userId: S.currentUserId, date: S.today, activity: activity, note: (d.note || '').trim() })
+      .then(function (rec) {
+        S.lastSaved = { kind: 'cognitive', id: rec.id, label: '脳トレ(' + activity + ')を記録しました' };
+        S.cogDraft = null;
+        S.todayStatusCache = null;
+        clearRpcCache();
+        render();
+      })
+      .catch(function (e) {
+        if (err) err.textContent = (e && e.message) || '保存できませんでした';
+        if (btn) { btn.disabled = false; btn.textContent = 'この内容で記録する'; }
+      });
+  },
+
+  // --- 体力測定・評価記録 ---
+  assessType: function (type) {
+    S.assessDraft.type = type;
+    render();
+  },
+  assessItem: function (el) {
+    var item = el.getAttribute('data-item');
+    S.assessDraft.item = S.assessDraft.item === item ? '' : item;
+    document.querySelectorAll('[data-item]').forEach(function (c) {
+      var on = c.getAttribute('data-item') === S.assessDraft.item;
+      c.classList.toggle('selected', on);
+      c.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  },
+  assessFreeItem: function (value) { S.assessDraft.freeItem = value.slice(0, 40); },
+  assessResult: function (value) { S.assessDraft.result = value.slice(0, 120); },
+  assessDetail: function (value) { S.assessDraft.detail = value.slice(0, 500); },
+  assessSave: function () {
+    var d = S.assessDraft;
+    var err = document.getElementById('assess-error');
+    var item = d.type === '体力測定' ? (d.item || d.freeItem || '').trim() : '';
+    if (d.type === '体力測定' && !item) { if (err) err.textContent = '測定種目を選ぶか入力してください'; return; }
+    if (!(d.result || '').trim()) { if (err) err.textContent = (d.type === '体力測定' ? '結果' : '点数') + 'を入力してください'; return; }
+    var btn = document.getElementById('assess-save');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+    rpc('apiSaveAssessment', { userId: S.currentUserId, date: S.today, type: d.type, item: item, result: d.result.trim(), detail: (d.detail || '').trim() })
+      .then(function (rec) {
+        S.lastSaved = { kind: 'assessments', id: rec.id, label: (item || d.type) + ' の記録を保存しました' };
+        S.assessDraft = { type: d.type, item: '', freeItem: '', result: '', detail: '' };
+        clearRpcCache();
+        render();
+      })
+      .catch(function (e) {
+        if (err) err.textContent = (e && e.message) || '保存できませんでした';
+        if (btn) { btn.disabled = false; btn.textContent = 'この内容で記録する'; }
+      });
   },
   openNotebook: function (userId) {
     S.admin.notebookUserId = userId;
@@ -5408,9 +5706,9 @@ var Actions = {
       S.notebook.comment = String(commentBox.innerText || '').slice(0, 600);
       if (commentBox.innerText.length > 600) commentBox.textContent = S.notebook.comment;
     }
-    if (S.notebook.comment.length > 520 && !window.confirm('連絡文が長いため文字が小さくなります。このまま印刷しますか？')) return;
+    if (S.notebook.comment.length > 400 && !window.confirm('連絡文が長いため文字が小さくなります。このまま印刷しますか？')) return;
     var sheet = document.querySelector('.communication-sheet');
-    if (sheet) sheet.classList.toggle('compact-print', S.notebook.comment.length > 300 || (S.notebook.data && S.notebook.data.exercises.length > 6));
+    if (sheet) sheet.classList.toggle('compact-print', S.notebook.comment.length > 220 || (S.notebook.data && S.notebook.data.exercises.length > 5));
     var oldTitle = document.title;
     var user = S.notebook.data && S.notebook.data.user;
     document.title = '連絡帳_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.notebookDate;
@@ -5513,7 +5811,7 @@ var Actions = {
         d.vital && d.vital.weight != null ? d.vital.weight : '',
         d.vital ? d.vital.conditionNote || '' : '',
         d.vital ? d.vital.alerts.join(' / ') : '',
-        d.exercises.map(function (e) { return exerciseLabel(e) + '(' + e.load + ')'; }).join(' → '),
+        d.exercises.map(function (e) { return exerciseLabel(e) + (e.load ? '(' + e.load + ')' : ''); }).join(' → '),
         d.note,
       ];
     });
@@ -5528,6 +5826,73 @@ var Actions = {
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = '実績_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.month + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  },
+  // --- 脳トレメニュー管理(管理者のみ) ---
+  cogMenuAdd: function () {
+    var input = document.getElementById('cogmenu-new');
+    var err = document.getElementById('cogmenu-error');
+    var name = ((input && input.value) || '').trim();
+    if (!name) { if (err) err.textContent = 'メニュー名を入力してください'; return; }
+    if (err) err.textContent = '保存中…';
+    rpc('apiAdminSaveCognitiveMenu', { id: '', name: name, active: true }).then(function (res) {
+      S.cognitiveMenu = res.cognitiveMenu;
+      render();
+    }).catch(function (e) {
+      if (err) err.textContent = (e && e.message) || '保存できませんでした';
+    });
+  },
+  cogMenuToggle: function (id) {
+    var target = null;
+    (S.cognitiveMenu || []).forEach(function (m) { if (m.id === id) target = m; });
+    if (!target) return;
+    rpc('apiAdminSaveCognitiveMenu', { id: id, name: target.name, active: !target.active }).then(function (res) {
+      S.cognitiveMenu = res.cognitiveMenu;
+      render();
+    }).catch(function (e) {
+      alert((e && e.message) || '変更できませんでした');
+    });
+  },
+  cogMenuDelete: function (id, btn) {
+    // 誤タップ防止の2段階確認
+    if (btn.getAttribute('data-confirm') !== '1') {
+      btn.setAttribute('data-confirm', '1');
+      btn.textContent = '本当に削除?';
+      setTimeout(function () {
+        btn.removeAttribute('data-confirm');
+        btn.textContent = '削除';
+      }, 3000);
+      return;
+    }
+    rpc('apiAdminDeleteCognitiveMenu', id).then(function (res) {
+      S.cognitiveMenu = res.cognitiveMenu;
+      render();
+    }).catch(function (e) {
+      alert((e && e.message) || '削除できませんでした');
+    });
+  },
+  /** 評価記録(体力測定・HDS-R・MMSE)を種目別にCSV出力する */
+  exportAssessmentCsv: function () {
+    if (!lastResults) return;
+    var user = null;
+    S.users.forEach(function (u) { if (u.id === S.admin.userId) user = u; });
+    var header = ['日付', '利用者', '評価種別', '種目', '結果', '詳細'];
+    var rows = (lastResults.assessments || []).map(function (a) {
+      return [a.date, user ? user.name : '', a.type, a.item || '', a.result, a.detail || ''];
+    });
+    var csv = [header].concat(rows).map(function (r) {
+      return r.map(function (c) {
+        var value = String(c);
+        if (/^[=+\-@]/.test(value)) value = "'" + value;
+        return '"' + value.replace(/"/g, '""') + '"';
+      }).join(',');
+    }).join('\r\n');
+    var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '評価記録_' + (user ? user.name.replace(/\s/g, '') : '') + '.csv';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -5615,8 +5980,11 @@ var Mock = (function () {
     db.vitals.push({ id: nid(), date: today, time: '9:12', userId: 'u02', systolic: 118, diastolic: 70, pulse: 66, temp: 36.1, spo2: 98, weight: 61.2, flagged: false, alerts: [], conditionNote: '体調良好。食欲・睡眠ともに問題なし。' });
     db.records.push({ id: nid(), date: today, time: '9:35', userId: 'u02', exerciseId: 'walk', amount: '5往復', load: 'ふつう', note: '' });
     db.cognitive.push({ id: nid(), date: today, time: '10:20', userId: 'u02', activity: '計算プリント', note: '20問中18問正解。集中して取り組まれた。' });
-    db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: 'HDS-R', result: '24/30点', detail: '見当識は良好。遅延再生で減点あり。' });
-    db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: '体力測定', result: 'TUG 13.2秒', detail: '前回より0.8秒短縮。' });
+    db.assessments.push({ id: nid(), date: dates[5], userId: 'u01', type: 'HDS-R', result: '22/30点', detail: '', item: '' });
+    db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: 'HDS-R', result: '24/30点', detail: '見当識は良好。遅延再生で減点あり。', item: '' });
+    db.assessments.push({ id: nid(), date: dates[3], userId: 'u01', type: 'MMSE', result: '25/30点', detail: '', item: '' });
+    db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: '体力測定', result: '13.2秒', detail: '前回より0.8秒短縮。', item: 'TUG(立ち上がり歩行)' });
+    db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: '体力測定', result: '18.5kg', detail: '', item: '握力' });
     dates.forEach(function (date, i) {
       var h = hist[i];
       db.checkins.push({ id: nid(), date: date, time: h[6], userId: 'u01', checkoutTime: '15:35', transport: '施設送迎' });
@@ -5656,13 +6024,40 @@ var Mock = (function () {
     return me;
   }
 
+  function mockCogMenu(db) {
+    if (!db.cognitiveMenu) {
+      db.cognitiveMenu = ['計算プリント', '漢字プリント', '間違い探し', '塗り絵', 'パズル', '音読', '回想法・昔話']
+        .map(function (n, i) { return { id: 'cm' + (i + 1), name: n, active: true }; });
+      save(db);
+    }
+    return db.cognitiveMenu;
+  }
+
   var fns = {
     apiGetBootstrap: function () {
       var db = load();
       var me = mockMe();
       var photos = db.photos || {};
       db.users.forEach(function (x) { x.hasPhoto = !!photos[x.id]; });
-      return { apiVersion: 5, capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin', 'userPhotos'], users: db.users, exercises: db.exercises, today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+      return { apiVersion: 5, capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu'], users: db.users, exercises: db.exercises, cognitiveMenu: mockCogMenu(db), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+    },
+    apiAdminSaveCognitiveMenu: function (p) {
+      var db = load();
+      mockCogMenu(db);
+      if (p.id) {
+        db.cognitiveMenu.forEach(function (m) { if (m.id === p.id) { m.name = p.name; m.active = p.active !== false; } });
+      } else {
+        db.cognitiveMenu.push({ id: 'cm' + Date.now().toString(36), name: p.name, active: true });
+      }
+      save(db);
+      return { cognitiveMenu: db.cognitiveMenu };
+    },
+    apiAdminDeleteCognitiveMenu: function (id) {
+      var db = load();
+      mockCogMenu(db);
+      db.cognitiveMenu = db.cognitiveMenu.filter(function (m) { return m.id !== id; });
+      save(db);
+      return { cognitiveMenu: db.cognitiveMenu };
     },
     // --- 職員ログイン(プレビュー用の簡易実装) ---
     apiGetStaffList: function () {
@@ -5883,7 +6278,7 @@ var Mock = (function () {
     },
     apiSaveAssessment: function (p) {
       var db = load(); db.seq += 1;
-      var rec = { id: 'm' + db.seq, date: p.date || todayStr(), userId: p.userId, type: p.type, result: p.result, detail: p.detail || '' };
+      var rec = { id: 'm' + db.seq, date: p.date || todayStr(), userId: p.userId, type: p.type, result: p.result, detail: p.detail || '', item: p.item || '' };
       db.assessments.push(rec); save(db); return rec;
     },
     apiGetCommunicationBook: function (userId, date) {
@@ -5911,6 +6306,8 @@ var Mock = (function () {
         monthCheckins: db.checkins.filter(function (c) { return c.userId === userId && inM(c.date); }),
         monthVitals: vitalsAll.filter(function (v) { return inM(v.date); }),
         monthExercises: db.records.filter(function (e) { return e.userId === userId && inM(e.date); }),
+        assessments: db.assessments.filter(function (a) { return a.userId === userId; })
+          .sort(function (a, b) { return a.date < b.date ? -1 : 1; }),
       };
     },
     apiGetTodayRecords: function () {
@@ -6015,6 +6412,7 @@ function bootAfterLogin() {
     }
     S.users = boot.users;
     S.exercises = boot.exercises;
+    S.cognitiveMenu = boot.cognitiveMenu || [];
     S.today = boot.today;
     S.staff = boot.staff;
     if (S.me && boot.role) S.me.role = boot.role; // 権限はサーバーの現在値を優先
