@@ -2382,11 +2382,102 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .nv-value:focus { background: #fff9e8; border-radius: 4px; }
 .nv-unit { font-size: 9px; color: #8a978f; }
 
+/* ---------- 運動記録: 15分×4コマ ---------- */
+.exercise-slots { display: grid; gap: 10px; }
+.exercise-slot {
+  display: grid;
+  grid-template-columns: 34px 1fr 28px;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fbfdfb;
+}
+.exercise-slot.fixed { background: var(--green-l4); border-color: var(--green-l2); }
+.slot-number { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--green); color: #fff; font-weight: 900; }
+.slot-main { min-width: 0; display: grid; gap: 2px; }
+.slot-main small { color: var(--text-aux); font-size: 11px; }
+.slot-main select, .form-select {
+  width: 100%; min-height: 46px; padding: 9px 38px 9px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text);
+  font: inherit; font-size: 15px; font-weight: 700;
+}
+.form-select.compact { min-height: 42px; padding-top: 7px; padding-bottom: 7px; }
+.menu-done { color: var(--green); font-weight: 900; text-align: center; }
+
+/* ---------- 脳トレ: 数値入力・推移 ---------- */
+.cognitive-metric-grid { display: grid; grid-template-columns: 1fr 1fr .75fr; gap: 10px; margin-top: 10px; }
+.cognitive-metric-grid label { display: grid; gap: 5px; color: var(--text-sub); font-size: 12px; font-weight: 700; }
+.cognitive-metric-grid input {
+  width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--input-bg); color: var(--text); font: inherit; font-size: 16px; font-weight: 800;
+}
+.input-with-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px; }
+.input-with-unit b { color: var(--text-aux); }
+.trend-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.trend-card { min-width: 0; padding: 10px 12px 6px; background: #fff; border: 1px solid var(--border); border-radius: 14px; }
+.trend-title { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 900; }
+.trend-title span { color: var(--text-aux); font-size: 11px; font-weight: 600; }
+.numeric-trend-svg { width: 100%; height: auto; }
+.numeric-trend-svg text { fill: #7a8a7d; font-size: 11px; }
+.numeric-trend-svg .trend-latest { fill: var(--green-dark); font-weight: 900; }
+.admin-trends { grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
+
+/* ---------- 体力測定: 種目別一括グリッド ---------- */
+.assessment-wide-wrap { align-items: flex-start; }
+.phone.assessment-wide { max-width: 1040px; }
+.assessment-item-select { display: grid; grid-template-columns: minmax(180px, 1fr) auto; align-items: end; gap: 8px 16px; }
+.assessment-item-select .card-label { grid-column: 1 / -1; }
+.auto-date { color: var(--text-aux); font-size: 12px; white-space: nowrap; }
+.assessment-grid { display: grid; gap: 8px; }
+.assessment-grid-head, .assessment-grid-row {
+  display: grid; grid-template-columns: minmax(180px, 1fr) minmax(140px, .7fr) minmax(220px, 1.2fr); gap: 10px; align-items: center;
+}
+.assessment-grid-head { padding: 0 14px; color: var(--text-aux); font-size: 12px; }
+.assessment-grid-row { position: relative; padding: 11px 14px; background: #fff; border: 1px solid var(--border); border-radius: 13px; }
+.assessment-person { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.assessment-person > span { min-width: 0; display: grid; }
+.assessment-person b { font-size: 14px; }
+.assessment-person small { color: var(--text-aux); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.assessment-grid-row label { display: grid; gap: 3px; color: var(--text-aux); font-size: 10px; }
+.assessment-grid-row input { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--input-bg); font: inherit; }
+.assessment-saved { grid-column: 2 / -1; margin-top: -5px; color: var(--green-dark); font-size: 11px; font-weight: 700; }
+.avatar-xs { width: 30px; height: 30px; font-size: 12px; }
+
+.notebook-tools .is-processing { opacity: .55; pointer-events: none; }
+
+@media (max-width: 700px) {
+  .cognitive-metric-grid { grid-template-columns: 1fr 1fr; }
+  .cognitive-metric-grid label:last-child { grid-column: 1 / -1; }
+  .assessment-grid-head { display: none; }
+  .assessment-grid-row { grid-template-columns: 1fr 1fr; }
+  .assessment-person { grid-column: 1 / -1; }
+  .assessment-saved { grid-column: 1 / -1; margin-top: 0; }
+  .assessment-item-select { grid-template-columns: 1fr; }
+  .assessment-item-select .card-label { grid-column: auto; }
+}
+
+@media print {
+  body.results-print-mode .admin-wrap,
+  body.results-print-mode .admin-frame,
+  body.results-print-mode .admin-content { display: block !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: 0 !important; }
+  body.results-print-mode .admin-mobile-head,
+  body.results-print-mode .admin-sidebar,
+  body.results-print-mode .admin-actions,
+  body.results-print-mode .tab-bar { display: none !important; }
+  body.results-print-mode .panel { break-inside: avoid; box-shadow: none; margin-bottom: 5mm; }
+  body.results-print-mode .admin-grid { grid-template-columns: 1fr 1fr; gap: 5mm; }
+  body.results-print-mode .admin-trends { grid-template-columns: 1fr 1fr; }
+  body.results-print-mode .day-table { font-size: 9px; }
+}
+
 </style>
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260824-0909';</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260824-1036';</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -2398,10 +2489,12 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 
 var LOGO = 'data:image/png;base64,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';
 var LOAD_OPTIONS = ['軽い', 'ふつう', '強い'];
-// 体調・特記事項の定型文(複数選択可+自由記載)。監査記録に残るため文言は変えない
-var CONDITION_CHOICES = ['体調良好', '体調変わらず', '体調不良あり', '準備運動・上下肢・体幹運動(15分×4)実施'];
+// 体調・特記事項の定型文(複数選択可+自由記載)
+var CONDITION_CHOICES = ['体調良好', '体調変わらず', '体調不良あり'];
 // 体力測定の種目(評価記録の「種目」列に保存)
 var FITNESS_ITEMS = ['TUG(立ち上がり歩行)', '握力', '開眼片脚立位', '5m歩行', 'CS-30(立ち上がり)', '長座体前屈'];
+var COG_METRIC_UNITS = ['点', '問', '秒', '回', '%', '個'];
+var PREPARATION_EXERCISE_ID = 'prep';
 var WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 // ホスティング版の接続設定: ファイル編集不要。画面の「接続設定」から入力し端末に保存される
@@ -2617,10 +2710,11 @@ var S = {
   prevVital: null,
   vitalConfirmed: false,
   precautionConfirmed: false,
-  exDraft: null,        // (旧)訓練記録下書き。ワンタップ記録化で未使用
+  exDraft: null,        // 訓練一括入力 {slots:['','',''], note:''}
   cognitiveMenu: [],    // 脳トレメニュー(記録画面の選択肢。管理画面で編集)
-  cogDraft: null,       // 脳トレ記録下書き {activity, free, note}
+  cogDraft: null,       // 脳トレ記録下書き {activity, free, durationMinutes, metricValue, metricUnit, note}
   assessDraft: null,    // 評価記録下書き {type, item, freeItem, result, detail}
+  assessBatch: null,    // 体力測定一括入力 {item, entries, message}
   exerciseCache: {},    // userId -> {data, expires}（画面往復時の再通信を削減）
   todayStatusCache: null, // 本日の全記録 {data, expires}（記録メニューの状況表示用）
   admin: { userId: '', month: '', notebookUserId: '', notebookDate: '' },
@@ -3780,10 +3874,37 @@ function getTodayExerciseRecords(userId) {
 function renderExerciseScan(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
+  if (!S.exDraft) S.exDraft = { slots: ['', '', ''], note: '' };
   showLoading(app, hasExerciseCache(user.id));
 
   getTodayExerciseRecords(user.id).then(function (records) {
     if (!isCurrentRender(renderId)) return;
+    var d = S.exDraft;
+    var doneIds = {};
+    records.forEach(function (r) { doneIds[r.exerciseId] = true; });
+    var selectable = S.exercises.filter(function (ex) {
+      return ex.id !== PREPARATION_EXERCISE_ID && !doneIds[ex.id];
+    });
+    var slotHtml = [0, 1, 2].map(function (i) {
+      var selectedElsewhere = {};
+      d.slots.forEach(function (id, j) { if (j !== i && id) selectedElsewhere[id] = true; });
+      var options = selectable.map(function (ex) {
+        return '<option value="' + esc(ex.id) + '"' + (d.slots[i] === ex.id ? ' selected' : '') +
+          (selectedElsewhere[ex.id] ? ' disabled' : '') + '>' + esc(ex.name) + '</option>';
+      }).join('');
+      return '<label class="exercise-slot"><span class="slot-number">' + (i + 2) + '</span>' +
+        '<span class="slot-main"><b>15分コマ ' + (i + 2) + '</b>' +
+        '<select class="select-plain" aria-label="運動種目' + (i + 1) + '" onchange="Actions.exSlot(' + i + ', this.value)">' +
+        '<option value="">未実施（連絡帳に表示しない）</option>' + options + '</select></span></label>';
+    }).join('');
+    var savedHtml = records.length
+      ? records.map(function (r) {
+          var ex = exerciseById(r.exerciseId);
+          return '<div class="record-line training-record"><b>' + esc(r.time) + '</b><span>' +
+            esc(ex ? ex.name : r.exerciseId) + '</span><small>' + esc(r.amount || '15分') +
+            (r.note ? ' · ' + esc(r.note) : '') + '</small></div>';
+        }).join('')
+      : '<div class="empty-note">本日の運動記録はまだありません</div>';
     var errHtml = '';
     if (S.toast && S.toast.type === 'error') {
       errHtml =
@@ -3796,15 +3917,24 @@ function renderExerciseScan(app, renderId) {
       '<header class="phone-header training">' +
       '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
       '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
-      '<div class="h-title">実施した種目をタップ</div></div>' +
+      '<div class="h-title">15分×4コマを入力</div></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
-      '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">機能訓練</span><h1>訓練種目を記録</h1><p>実施した種目をタップするとすぐ記録されます(間違えたら「取り消す」)。</p></div>' +
+      '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">機能訓練</span><h1>実施した運動を選択</h1>' +
+      '<p>1コマ15分。準備運動は自動で入り、未実施の枠は連絡帳に表示されません。</p></div>' +
       precautionHtml(user, false) +
       snackbarHtml() +
+      (d.message ? '<div class="toast-success" role="status"><span class="check-circle">✓</span><span>' + esc(d.message) + '</span></div>' : '') +
       errHtml +
-      '<div id="save-error"></div>' +
-      progressHtml(records, true) +
+      '<div class="card exercise-slots"><div class="exercise-slot fixed"><span class="slot-number">1</span>' +
+      '<span class="slot-main"><b>準備運動</b><small>15分 · ' + (doneIds[PREPARATION_EXERCISE_ID] ? '記録済み' : 'デフォルト') + '</small></span>' +
+      '<span class="menu-done">✓</span></div>' + slotHtml + '</div>' +
+      '<div class="card"><span class="card-label">個別特記事項（任意）</span>' +
+      '<textarea class="note-area" maxlength="300" placeholder="例: 体調不良のため15分横になって休んだ" oninput="Actions.exNote(this.value)">' + esc(d.note) + '</textarea></div>' +
+      '<div id="ex-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
+      '<button class="btn-primary" id="ex-save" style="flex:none;width:100%;" onclick="Actions.exBatchSave()">選択した運動を記録する</button>' +
+      '<div><div class="section-head" style="margin-bottom:8px;"><span class="section-title">本日の実施済み項目</span></div>' +
+      '<div class="record-list">' + savedHtml + '</div></div>' +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="Actions.backToMenu()">‹ 記録メニューへ戻る</button>' +
       '</div>' + tabBarHtml('') + '</div></div>';
   }).catch(function () {
@@ -3818,22 +3948,27 @@ function renderExerciseScan(app, renderId) {
 function renderCognitive(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
-  if (!S.cogDraft) S.cogDraft = { activity: '', free: '', note: '' };
+  if (!S.cogDraft) S.cogDraft = {
+    activity: '', free: '', durationMinutes: '', metricValue: '', metricUnit: '点', note: '',
+  };
   showLoading(app, hasTodayStatusCache());
 
   getTodayStatus().then(function (today) {
     if (!isCurrentRender(renderId)) return;
     var d = S.cogDraft;
     var menu = (S.cognitiveMenu || []).filter(function (m) { return m.active; });
-    var chips = menu.map(function (m) {
-      var on = d.activity === m.name;
-      return '<button class="chip cond-chip' + (on ? ' selected' : '') + '" data-cog="' + esc(m.name) + '"' +
-        ' aria-pressed="' + (on ? 'true' : 'false') + '" onclick="Actions.cogChip(this)">' + esc(m.name) + '</button>';
+    var options = '<option value="">実施したプログラムを選択</option>' + menu.map(function (m) {
+      return '<option value="' + esc(m.name) + '"' + (d.activity === m.name ? ' selected' : '') + '>' + esc(m.name) + '</option>';
     }).join('');
+    options += '<option value="__free__"' + (d.activity === '__free__' ? ' selected' : '') + '>その他（自由入力）</option>';
     var todayRecords = (today.cognitiveRecords || []).filter(function (c) { return c.userId === user.id; });
     var recordsHtml = todayRecords.length
       ? todayRecords.map(function (r) {
+          var metric = [];
+          if (r.durationMinutes !== '' && r.durationMinutes != null) metric.push('所要 ' + esc(r.durationMinutes) + '分');
+          if (r.metricValue !== '' && r.metricValue != null) metric.push('成果 ' + esc(r.metricValue) + esc(r.metricUnit || ''));
           return '<div class="record-line"><b>' + esc(r.time) + '</b><span>' + esc(r.activity) + '</span>' +
+            (metric.length ? '<small>' + metric.join(' · ') + '</small>' : '') +
             (r.note ? '<small>' + esc(r.note) + '</small>' : '') + '</div>';
         }).join('')
       : '<div class="empty-note">本日の脳トレ記録はまだありません</div>';
@@ -3849,10 +3984,17 @@ function renderCognitive(app, renderId) {
       '<div class="screen-intro compact-intro"><span class="eyebrow">脳トレ</span><h1>実施内容を記録</h1>' +
       '<p>実施した内容を選ぶか、自由に入力してください。</p></div>' +
       snackbarHtml() +
-      '<div class="card"><span class="card-label">実施内容(タップで選択)</span>' +
-      '<div class="cond-chips">' + chips + '</div>' +
-      '<input class="note-area" id="cog-free" maxlength="120" placeholder="その他(自由入力)" value="' + esc(d.free) + '"' +
-      ' oninput="Actions.cogFree(this.value)" style="min-height:44px;"></div>' +
+      '<div class="card"><label class="card-label" for="cog-program">実施プログラム</label>' +
+      '<select class="form-select" id="cog-program" onchange="Actions.cogSelect(this.value)">' + options + '</select>' +
+      (d.activity === '__free__' ? '<input class="note-area" id="cog-free" maxlength="120" placeholder="プログラム名を入力" value="' + esc(d.free) + '"' +
+        ' oninput="Actions.cogFree(this.value)" style="min-height:44px;margin-top:10px;">' : '') + '</div>' +
+      '<div class="card"><span class="card-label">数値記録（任意）</span>' +
+      '<div class="cognitive-metric-grid"><label><span>所要時間</span><span class="input-with-unit"><input type="number" min="0" max="600" step="0.1" inputmode="decimal" value="' + esc(d.durationMinutes) + '" oninput="Actions.cogDuration(this.value)" placeholder="例 12"><b>分</b></span></label>' +
+      '<label><span>成果・達成度</span><input type="number" step="0.1" inputmode="decimal" value="' + esc(d.metricValue) + '" oninput="Actions.cogMetricValue(this.value)" placeholder="例 18"></label>' +
+      '<label><span>単位</span><select class="form-select compact" onchange="Actions.cogMetricUnit(this.value)">' + COG_METRIC_UNITS.map(function (unit) {
+        return '<option value="' + esc(unit) + '"' + (d.metricUnit === unit ? ' selected' : '') + '>' + esc(unit) + '</option>';
+      }).join('') + '</select></label></div>' +
+      '<p class="section-note">所要時間や成果数値は蓄積され、利用者詳細で推移グラフになります。</p></div>' +
       '<div class="card"><span class="card-label">結果・所見(任意)</span>' +
       '<textarea class="note-area" maxlength="300" placeholder="例: 20問中18問正解。集中して取り組まれた。" oninput="Actions.cogNote(this.value)">' + esc(d.note) + '</textarea></div>' +
       '<div id="cog-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
@@ -3872,6 +4014,7 @@ function renderAssessment(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
   if (!S.assessDraft) S.assessDraft = { type: '体力測定', item: '', freeItem: '', result: '', detail: '' };
+  if (S.assessDraft.type === '体力測定') return renderFitnessBatch(app, renderId);
   showLoading(app, isRpcFresh('apiGetUserDetail', [user.id]));
 
   rpc('apiGetUserDetail', user.id).then(function (res) {
@@ -3882,19 +4025,6 @@ function renderAssessment(app, renderId) {
       return '<button class="segment' + (on ? ' selected' : '') + '" aria-pressed="' + (on ? 'true' : 'false') + '"' +
         ' onclick="Actions.assessType(\'' + t + '\')">' + t + '</button>';
     }).join('');
-    var itemHtml = '';
-    if (d.type === '体力測定') {
-      var itemChips = FITNESS_ITEMS.map(function (it) {
-        var on = d.item === it;
-        return '<button class="chip cond-chip' + (on ? ' selected' : '') + '" data-item="' + esc(it) + '"' +
-          ' aria-pressed="' + (on ? 'true' : 'false') + '" onclick="Actions.assessItem(this)">' + esc(it) + '</button>';
-      }).join('');
-      itemHtml =
-        '<div class="card"><span class="card-label">測定種目(タップで選択)</span>' +
-        '<div class="cond-chips">' + itemChips + '</div>' +
-        '<input class="note-area" maxlength="40" placeholder="その他の種目(自由入力)" value="' + esc(d.freeItem) + '"' +
-        ' oninput="Actions.assessFreeItem(this.value)" style="min-height:44px;"></div>';
-    }
     var recent = (res.assessments || []).filter(function (a) { return a.type === d.type; }).slice(0, 6);
     var recentHtml = recent.length
       ? recent.map(function (r) {
@@ -3916,10 +4046,9 @@ function renderAssessment(app, renderId) {
       snackbarHtml() +
       '<div class="card"><span class="card-label">評価の種類</span>' +
       '<div class="segment-row">' + typeSegs + '</div></div>' +
-      itemHtml +
-      '<div class="card"><span class="card-label">' + (d.type === '体力測定' ? '結果(数値と単位)' : '点数') + '</span>' +
+      '<div class="card"><span class="card-label">点数</span>' +
       '<input class="note-area" id="assess-result" maxlength="120"' +
-      ' placeholder="' + (d.type === '体力測定' ? '例: 13.2秒、24.5kg、8回' : '例: 24/30点') + '" value="' + esc(d.result) + '"' +
+      ' placeholder="例: 24/30点" value="' + esc(d.result) + '"' +
       ' oninput="Actions.assessResult(this.value)" style="min-height:48px;"></div>' +
       '<div class="card"><span class="card-label">詳細・所見(任意)</span>' +
       '<textarea class="note-area" maxlength="500" placeholder="例: 前回より0.8秒短縮。" oninput="Actions.assessDetail(this.value)">' + esc(d.detail) + '</textarea></div>' +
@@ -3934,9 +4063,70 @@ function renderAssessment(app, renderId) {
   });
 }
 
+/** 体力測定: 1種目について利用者全員分を同じ画面で入力する。 */
+function renderFitnessBatch(app, renderId) {
+  if (!S.assessBatch) S.assessBatch = { item: FITNESS_ITEMS[0], entries: {}, message: '' };
+  showLoading(app, hasTodayStatusCache());
+  getTodayStatus().then(function (today) {
+    if (!isCurrentRender(renderId)) return;
+    var d = S.assessBatch;
+    var typeSegs = ['体力測定', 'HDS-R', 'MMSE'].map(function (t) {
+      return '<button class="segment' + (t === '体力測定' ? ' selected' : '') + '" aria-pressed="' + (t === '体力測定' ? 'true' : 'false') + '"' +
+        ' onclick="Actions.assessType(\'' + t + '\')">' + t + '</button>';
+    }).join('');
+    var itemOptions = FITNESS_ITEMS.map(function (it) {
+      return '<option value="' + esc(it) + '"' + (d.item === it ? ' selected' : '') + '>' + esc(it) + '</option>';
+    }).join('');
+    var saved = {};
+    (today.assessments || []).forEach(function (a) {
+      if (a.type === '体力測定' && a.item === d.item) saved[a.userId] = a;
+    });
+    var rows = S.users.map(function (u) {
+      var entry = d.entries[u.id] || { result: '', detail: '' };
+      var prior = saved[u.id];
+      return '<div class="assessment-grid-row">' +
+        '<div class="assessment-person">' + avatarHtml(u, 'avatar-xs') + '<span><b>' + esc(u.name) + '</b><small>' + esc(u.kana || u.careLevel) + '</small></span></div>' +
+        '<label><span>測定値</span><input inputmode="decimal" maxlength="120" value="' + esc(entry.result) + '" placeholder="例 13.2秒" oninput="Actions.assessBatchInput(\'' + esc(u.id) + '\',\'result\',this.value)"></label>' +
+        '<label><span>所見（任意）</span><input maxlength="500" value="' + esc(entry.detail) + '" placeholder="前回より短縮" oninput="Actions.assessBatchInput(\'' + esc(u.id) + '\',\'detail\',this.value)"></label>' +
+        (prior ? '<div class="assessment-saved">本日記録済み: ' + esc(prior.result) + '</div>' : '') +
+        '</div>';
+    }).join('');
+    app.innerHTML =
+      '<div class="phone-wrap assessment-wide-wrap"><div class="phone assessment-wide">' +
+      '<header class="phone-header compact"><button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
+      '<div><div class="h-sub">体力測定</div><div class="h-title">種目別 一括入力</div></div>' +
+      '<div class="h-right"><span class="pill-badge">' + esc(dayLabel(S.today)) + '</span></div></header>' +
+      '<div class="phone-body" style="gap:14px;">' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">一括入力</span><h1>利用者全員をまとめて記録</h1>' +
+      '<p>種目を選び、実施した方の測定値だけ入力します。測定日は保存時に自動記録されます。</p></div>' +
+      snackbarHtml() +
+      (d.message ? '<div class="toast-success" role="status"><span class="check-circle">✓</span><span>' + esc(d.message) + '</span></div>' : '') +
+      '<div class="card"><span class="card-label">評価の種類</span><div class="segment-row">' + typeSegs + '</div></div>' +
+      '<div class="card assessment-item-select"><label class="card-label" for="fitness-item">測定種目</label>' +
+      '<select class="form-select" id="fitness-item" onchange="Actions.assessBatchItem(this.value)">' + itemOptions + '</select>' +
+      '<span class="auto-date">記録日: ' + esc(S.today) + '（自動）</span></div>' +
+      '<div class="assessment-grid"><div class="assessment-grid-head"><b>利用者</b><b>測定値</b><b>所見</b></div>' + rows + '</div>' +
+      '<div id="assess-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
+      '<button class="btn-primary" id="assess-save" style="flex:none;width:100%;" onclick="Actions.assessBatchSave()">入力した測定結果を一括保存</button>' +
+      '</div>' + tabBarHtml('') + '</div></div>';
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = renderErrorHtml('体力測定を読み込めませんでした', 'assessment');
+  });
+}
+
 // ---------------------------------------------------------------- 利用者一覧・詳細
 
 /** ふりがなから五十音の行(あ/か/さ…)を判定 */
+function sortUsersKana(users) {
+  return (users || []).slice().sort(function (a, b) {
+    var ka = String(a.kana || a.name || '').replace(/[\s　]/g, '');
+    var kb = String(b.kana || b.name || '').replace(/[\s　]/g, '');
+    if (ka === kb) return String(a.id) < String(b.id) ? -1 : 1;
+    return ka < kb ? -1 : 1;
+  });
+}
+
 function kanaGyo(kana) {
   var c = (kana || '').replace(/\s/g, '').charAt(0);
   if (!c) return 'その他'; // indexOf('')は0を返すため空文字を先に弾く
@@ -4156,10 +4346,15 @@ function renderUserDetail(app, userId, renderId) {
     var cognitiveRecords = res.cognitiveRecords || [];
     var cognitiveHtml = cognitiveRecords.length
       ? cognitiveRecords.slice(0, 5).map(function (r) {
+          var metric = [];
+          if (r.durationMinutes !== '' && r.durationMinutes != null) metric.push('所要 ' + esc(r.durationMinutes) + '分');
+          if (r.metricValue !== '' && r.metricValue != null) metric.push('成果 ' + esc(r.metricValue) + esc(r.metricUnit || ''));
           return '<div class="record-line"><b>' + dayLabel(r.date) + '</b><span>' + esc(r.activity) + '</span>' +
+            (metric.length ? '<small>' + metric.join(' · ') + '</small>' : '') +
             (r.note ? '<small>' + esc(r.note) + '</small>' : '') + '</div>';
         }).join('')
       : '<div class="empty-note">脳トレ記録はまだありません</div>';
+    var cognitiveTrends = cognitiveTrendCards(cognitiveRecords);
 
     var assessments = res.assessments || [];
     // 体力測定は種目名つきで、HDS-R・MMSEは点数の推移グラフつきで表示する
@@ -4178,6 +4373,7 @@ function renderUserDetail(app, userId, renderId) {
         }).join('')
       : '<div class="empty-note">HDS-R・MMSEの記録はまだありません</div>';
     var scoreChart = scoreChartSvg(scores);
+    var fitnessTrends = fitnessTrendCards(fitness);
 
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
@@ -4209,9 +4405,11 @@ function renderUserDetail(app, userId, renderId) {
       '<span class="section-note">直近5回の来所日</span></div>' +
       '<div class="row-list">' + historyHtml + '</div></div>' +
       '<div><div class="section-head"><span class="section-title">脳トレ記録</span><span class="section-note">直近5件</span></div>' +
+      (cognitiveTrends ? '<div class="trend-card-grid">' + cognitiveTrends + '</div>' : '') +
       '<div class="record-list">' + cognitiveHtml + '</div>' +
       '<button class="btn-outline" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.openRecord(\'' + user.id + '\', \'cognitive\')">🧠 脳トレを記録する</button></div>' +
       '<div><div class="section-head"><span class="section-title">体力測定(種目別)</span></div>' +
+      (fitnessTrends ? '<div class="trend-card-grid">' + fitnessTrends + '</div>' : '') +
       '<div class="record-list">' + assessmentHtml + '</div></div>' +
       '<div><div class="section-head"><span class="section-title">HDS-R・MMSE 点数の推移</span></div>' +
       (scoreChart ? '<div class="card">' + scoreChart + '</div>' : '') +
@@ -4433,6 +4631,72 @@ function scoreChartSvg(scores) {
   );
 }
 
+/** 任意の数値記録を自動スケールで描く推移グラフ。 */
+function numericTrendSvg(points, unit, color) {
+  var list = points.slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; }).slice(-10);
+  if (!list.length) return '';
+  var values = list.map(function (p) { return Number(p.value); });
+  var min = Math.min.apply(null, values);
+  var max = Math.max.apply(null, values);
+  var pad = max === min ? Math.max(Math.abs(max) * 0.15, 1) : (max - min) * 0.18;
+  min -= pad; max += pad;
+  function x(i) { return list.length <= 1 ? 270 : 60 + (i * 420) / (list.length - 1); }
+  function y(v) { return 145 - ((v - min) * 110) / (max - min); }
+  var pts = list.map(function (p, i) { return x(i) + ',' + y(p.value); }).join(' ');
+  var dots = list.map(function (p, i) {
+    return '<circle cx="' + x(i) + '" cy="' + y(p.value) + '" r="4" fill="' + color + '"><title>' +
+      esc(dayLabel(p.date) + ' ' + p.value + unit) + '</title></circle>';
+  }).join('');
+  var latest = list[list.length - 1];
+  return '<svg class="numeric-trend-svg" viewBox="0 0 520 178" role="img" aria-label="数値の推移">' +
+    '<line x1="42" y1="25" x2="42" y2="145" stroke="#DCE5DB"></line>' +
+    '<line x1="42" y1="145" x2="505" y2="145" stroke="#DCE5DB"></line>' +
+    '<line x1="42" y1="85" x2="505" y2="85" stroke="#EDF1EC"></line>' +
+    '<text x="36" y="30" text-anchor="end">' + esc(Number(max.toFixed(1))) + '</text>' +
+    '<text x="36" y="149" text-anchor="end">' + esc(Number(min.toFixed(1))) + '</text>' +
+    '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></polyline>' + dots +
+    '<text x="60" y="166">' + esc(shortDate(list[0].date)) + '</text>' +
+    '<text x="505" y="166" text-anchor="end">' + esc(shortDate(latest.date)) + '</text>' +
+    '<text x="500" y="22" text-anchor="end" class="trend-latest">最新 ' + esc(latest.value) + esc(unit) + '</text></svg>';
+}
+
+function fitnessTrendCards(records) {
+  var groups = {};
+  records.forEach(function (r) {
+    var value = parseFloat(String(r.result || ''));
+    if (!isFinite(value)) return;
+    var key = r.item || '体力測定';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push({ date: r.date, value: value, unit: String(r.result).replace(/^\s*[-+]?\d+(?:\.\d+)?\s*/, '') });
+  });
+  return Object.keys(groups).filter(function (key) { return groups[key].length >= 2; }).slice(0, 6).map(function (key, i) {
+    var unit = groups[key][groups[key].length - 1].unit || '';
+    return '<div class="trend-card"><div class="trend-title">' + esc(key) + '<span>直近' + groups[key].length + '回</span></div>' +
+      numericTrendSvg(groups[key], unit, i % 2 ? '#5B5EA6' : '#2E7D32') + '</div>';
+  }).join('');
+}
+
+function cognitiveTrendCards(records) {
+  var groups = {};
+  records.forEach(function (r) {
+    if (r.durationMinutes !== '' && r.durationMinutes != null && isFinite(Number(r.durationMinutes))) {
+      var durationKey = r.activity + '｜所要時間';
+      if (!groups[durationKey]) groups[durationKey] = { unit: '分', points: [] };
+      groups[durationKey].points.push({ date: r.date, value: Number(r.durationMinutes) });
+    }
+    if (r.metricValue !== '' && r.metricValue != null && isFinite(Number(r.metricValue))) {
+      var metricKey = r.activity + '｜成果';
+      if (!groups[metricKey]) groups[metricKey] = { unit: r.metricUnit || '', points: [] };
+      groups[metricKey].points.push({ date: r.date, value: Number(r.metricValue) });
+    }
+  });
+  return Object.keys(groups).filter(function (key) { return groups[key].points.length >= 2; }).slice(0, 6).map(function (key, i) {
+    var g = groups[key];
+    return '<div class="trend-card"><div class="trend-title">' + esc(key.replace('｜', ' · ')) + '<span>直近' + g.points.length + '回</span></div>' +
+      numericTrendSvg(g.points, g.unit, i % 2 ? '#D5688E' : '#5B5EA6') + '</div>';
+  }).join('');
+}
+
 function barColor(ratio) {
   if (ratio >= 0.85) return '#2E7D32';
   if (ratio >= 0.6) return '#5B9E58';
@@ -4507,6 +4771,8 @@ function renderAdminResults(app, renderId) {
         '<td>' + esc(a.item || '—') + '</td><td style="font-weight:700;">' + esc(a.result) + '</td>' +
         '<td>' + esc(a.detail || '') + '</td></tr>';
     }).join('');
+    var fitnessTrends = fitnessTrendCards((res.assessments || []).filter(function (a) { return a.type === '体力測定'; }));
+    var cognitiveTrends = cognitiveTrendCards(res.cognitiveRecords || []);
 
     var content =
       '<div class="admin-page-head"><div><div class="breadcrumb">利用者別 実績</div>' +
@@ -4519,6 +4785,7 @@ function renderAdminResults(app, renderId) {
       '<select class="select-plain" onchange="Actions.adminUser(this.value)" aria-label="利用者選択">' + userSel + '</select>' +
       '<select class="select-plain" onchange="Actions.adminMonth(this.value)" aria-label="対象月選択">' + monthSel + '</select>' +
       '<button class="btn-csv" onclick="Actions.exportCsv()">CSV出力</button>' +
+      '<button class="btn-csv" onclick="Actions.printResults()">印刷・PDF</button>' +
       '</div></div>' +
       '<div class="admin-grid">' +
       '<div class="panel"><div class="panel-title">血圧・脈拍の推移 <span class="sub">直近8回</span></div>' +
@@ -4531,6 +4798,8 @@ function renderAdminResults(app, renderId) {
       tableRows + '</div>' +
       (days.length === 0 ? '<div class="empty-note">この月の来所記録はありません</div>' : '') +
       '</div>' +
+      (cognitiveTrends ? '<div class="panel"><div class="panel-title">脳トレ 数値の経時変化 <span class="sub">全期間</span></div><div class="trend-card-grid admin-trends">' + cognitiveTrends + '</div></div>' : '') +
+      (fitnessTrends ? '<div class="panel"><div class="panel-title">体力測定の推移 <span class="sub">種目別・全期間</span></div><div class="trend-card-grid admin-trends">' + fitnessTrends + '</div></div>' : '') +
       '<div class="panel"><div class="panel-title">評価記録(体力測定・HDS-R・MMSE) <span class="sub">全期間</span>' +
       '<button class="btn-csv" style="float:right;" onclick="Actions.exportAssessmentCsv()">評価CSV出力</button></div>' +
       '<div style="overflow-x:auto;"><table class="gen-table"><thead><tr>' +
@@ -4999,9 +5268,9 @@ function renderCommunicationBook(app, renderId) {
       '<div class="admin-actions"><select class="select-plain" onchange="Actions.notebookUser(this.value)">' + userSel + '</select>' +
       '<input class="select-plain" type="date" value="' + esc(S.admin.notebookDate) + '" onchange="Actions.notebookDate(this.value)">' +
       '<button class="btn-csv" onclick="Actions.printNotebook()">🖨 印刷</button></div></div>' +
-      '<div class="notebook-tools no-print"><label class="btn-outline">📷 写真を選ぶ<input type="file" accept="image/*" capture="environment" onchange="Actions.notebookPhoto(this.files[0])" hidden></label>' +
+      '<div class="notebook-tools no-print"><label class="btn-outline" id="notebook-photo-label">📷 端末ライブラリから写真を選ぶ<input type="file" accept="image/*" onchange="Actions.notebookPhoto(this.files[0],this)" hidden></label>' +
       '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
-      '<span>黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 420 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / 600文字</span></div>' +
+      '<span id="notebook-photo-status" role="status">黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 420 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / 600文字</span></div>' +
       '<section class="communication-sheet' + (densePrint ? ' compact-print' : '') + '" aria-label="弐番館デイサービス連絡帳">' +
       '<header class="notebook-head"><div class="notebook-brand"><img src="' + LOGO + '" alt=""><div><small>機能訓練デイサービス</small><h1>弐番館 連絡帳</h1></div></div>' +
       '<div class="notebook-meta"><div><small>お名前</small><strong>' + esc(data.user.name) + ' 様</strong></div><div><small>ご利用日</small><strong>' + esc(notebookDateLabel(data.date)) + '</strong></div></div></header>' +
@@ -5019,6 +5288,78 @@ function renderCommunicationBook(app, renderId) {
     if (!isCurrentRender(renderId)) return;
     app.innerHTML = adminShell('admin/notebook', '<div class="toast-error"><span class="x-circle">✕</span><span>' + esc((e && e.message) || '連絡帳を作成できませんでした') + '</span></div>');
   });
+}
+
+/**
+ * 大きな端末写真を非同期デコードして縮小する。createImageBitmap 対応端末では
+ * メインUIを塞がずに読み込み、未対応端末は object URL で安全にフォールバックする。
+ */
+function resizeSelectedImage(file, options) {
+  options = options || {};
+  if (!file || !/^image\//.test(file.type || '')) return Promise.reject(new Error('画像ファイルを選択してください'));
+  if (file.size > 25 * 1024 * 1024) return Promise.reject(new Error('25MB以下の写真を選択してください'));
+
+  function draw(source, sourceWidth, sourceHeight, close) {
+    return new Promise(function (resolve, reject) {
+      setTimeout(function () {
+        try {
+          var sx = 0, sy = 0, sw = sourceWidth, sh = sourceHeight;
+          var outW, outH;
+          if (options.square) {
+            sw = sh = Math.min(sourceWidth, sourceHeight);
+            sx = (sourceWidth - sw) / 2;
+            sy = (sourceHeight - sh) / 2;
+            outW = outH = Math.min(options.maxDimension || 320, sw);
+          } else {
+            var ratio = Math.min(1, (options.maxDimension || 1280) / Math.max(sourceWidth, sourceHeight));
+            outW = Math.max(1, Math.round(sourceWidth * ratio));
+            outH = Math.max(1, Math.round(sourceHeight * ratio));
+          }
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(outW));
+          canvas.height = Math.max(1, Math.round(outH));
+          var ctx = canvas.getContext('2d', { alpha: false });
+          if (!ctx) throw new Error('写真を処理できませんでした');
+          ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+          var quality = options.quality || 0.8;
+          var data = canvas.toDataURL('image/jpeg', quality);
+          while (options.maxChars && data.length > options.maxChars && quality > 0.3) {
+            quality -= 0.1;
+            data = canvas.toDataURL('image/jpeg', quality);
+          }
+          canvas.width = canvas.height = 1;
+          if (close) close();
+          if (options.maxChars && data.length > options.maxChars) throw new Error('写真を十分に圧縮できませんでした。別の写真でお試しください');
+          resolve(data);
+        } catch (e) {
+          if (close) close();
+          reject(e);
+        }
+      }, 0);
+    });
+  }
+
+  function imageFallback() {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(file);
+      var img = new Image();
+      img.decoding = 'async';
+      img.onload = function () {
+        draw(img, img.naturalWidth, img.naturalHeight, function () { URL.revokeObjectURL(url); }).then(resolve, reject);
+      };
+      img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('写真を読み込めませんでした。JPEGまたはPNGをご利用ください')); };
+      img.src = url;
+    });
+  }
+
+  if (window.createImageBitmap) {
+    return Promise.resolve().then(function () {
+      return createImageBitmap(file, { imageOrientation: 'from-image' });
+    }).then(function (bitmap) {
+      return draw(bitmap, bitmap.width, bitmap.height, function () { bitmap.close(); });
+    }).catch(function () { return imageFallback(); });
+  }
+  return imageFallback();
 }
 
 // ---------------------------------------------------------------- アクション
@@ -5228,7 +5569,47 @@ var Actions = {
     });
   },
 
-  // --- 訓練(ワンタップで実績のみ記録。実施量・負荷の入力は廃止) ---
+  // --- 訓練(15分×4コマ。準備運動+選択3種目) ---
+  exSlot: function (index, exerciseId) {
+    if (!S.exDraft) S.exDraft = { slots: ['', '', ''], note: '' };
+    S.exDraft.slots[index] = exerciseId;
+    S.exDraft.message = '';
+    render();
+  },
+  exNote: function (value) {
+    if (!S.exDraft) S.exDraft = { slots: ['', '', ''], note: '' };
+    S.exDraft.note = value.slice(0, 300);
+    S.exDraft.message = '';
+  },
+  exBatchSave: function () {
+    var d = S.exDraft || { slots: [], note: '' };
+    var ids = [];
+    (d.slots || []).forEach(function (id) { if (id && ids.indexOf(id) < 0) ids.push(id); });
+    var err = document.getElementById('ex-error');
+    var hasPrep = false;
+    var cached = S.exerciseCache[S.currentUserId];
+    ((cached && cached.data) || []).forEach(function (r) { if (r.exerciseId === PREPARATION_EXERCISE_ID) hasPrep = true; });
+    if (!ids.length && hasPrep) {
+      if (err) err.textContent = '未記録の運動を1つ以上選択してください';
+      return;
+    }
+    var btn = document.getElementById('ex-save');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+    rpc('apiSaveExerciseBatch', { userId: S.currentUserId, exerciseIds: ids, note: (d.note || '').trim() })
+      .then(function (res) {
+        var next = cached && cached.data ? cached.data.slice() : [];
+        (res.records || []).forEach(function (r) { next.push(r); });
+        S.exerciseCache[S.currentUserId] = { data: next, expires: Date.now() + 45000 };
+        S.todayStatusCache = null;
+        S.exDraft = { slots: ['', '', ''], note: '', message: (res.records || []).length + '項目を記録しました' };
+        render();
+      })
+      .catch(function (e) {
+        if (err) err.textContent = (e && e.message) || '保存できませんでした';
+        if (btn) { btn.disabled = false; btn.textContent = '選択した運動を記録する'; }
+      });
+  },
+  // 旧キャッシュ端末との互換用。新UIでは使わない。
   exQuickSave: function (el, exerciseId) {
     if (el) {
       el.disabled = true;
@@ -5312,25 +5693,23 @@ var Actions = {
   },
 
   // --- 脳トレ記録 ---
-  cogChip: function (el) {
-    var name = el.getAttribute('data-cog');
-    S.cogDraft.activity = S.cogDraft.activity === name ? '' : name;
-    document.querySelectorAll('[data-cog]').forEach(function (c) {
-      var on = c.getAttribute('data-cog') === S.cogDraft.activity;
-      c.classList.toggle('selected', on);
-      c.setAttribute('aria-pressed', on ? 'true' : 'false');
-    });
-  },
+  cogSelect: function (value) { S.cogDraft.activity = value; render(); },
   cogFree: function (value) { S.cogDraft.free = value.slice(0, 120); },
+  cogDuration: function (value) { S.cogDraft.durationMinutes = value; },
+  cogMetricValue: function (value) { S.cogDraft.metricValue = value; },
+  cogMetricUnit: function (value) { S.cogDraft.metricUnit = value.slice(0, 12); },
   cogNote: function (value) { S.cogDraft.note = value.slice(0, 300); },
   cogSave: function () {
     var d = S.cogDraft;
-    var activity = (d.activity || d.free || '').trim();
+    var activity = (d.activity === '__free__' ? d.free : d.activity || '').trim();
     var err = document.getElementById('cog-error');
     if (!activity) { if (err) err.textContent = '実施内容を選ぶか入力してください'; return; }
     var btn = document.getElementById('cog-save');
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
-    rpc('apiSaveCognitive', { userId: S.currentUserId, date: S.today, activity: activity, note: (d.note || '').trim() })
+    rpc('apiSaveCognitive', {
+      userId: S.currentUserId, date: S.today, activity: activity, note: (d.note || '').trim(),
+      durationMinutes: d.durationMinutes, metricValue: d.metricValue, metricUnit: d.metricUnit,
+    })
       .then(function (rec) {
         S.lastSaved = { kind: 'cognitive', id: rec.id, label: '脳トレ(' + activity + ')を記録しました' };
         S.cogDraft = null;
@@ -5346,8 +5725,40 @@ var Actions = {
 
   // --- 体力測定・評価記録 ---
   assessType: function (type) {
+    if (!S.assessDraft) S.assessDraft = { type: type, item: '', freeItem: '', result: '', detail: '' };
     S.assessDraft.type = type;
     render();
+  },
+  assessBatchItem: function (item) {
+    if (!S.assessBatch) S.assessBatch = { item: item, entries: {}, message: '' };
+    S.assessBatch.item = item;
+    S.assessBatch.message = '';
+    render();
+  },
+  assessBatchInput: function (userId, field, value) {
+    if (!S.assessBatch.entries[userId]) S.assessBatch.entries[userId] = { result: '', detail: '' };
+    S.assessBatch.entries[userId][field] = String(value || '').slice(0, field === 'detail' ? 500 : 120);
+  },
+  assessBatchSave: function () {
+    var d = S.assessBatch;
+    var entries = [];
+    Object.keys(d.entries || {}).forEach(function (userId) {
+      var entry = d.entries[userId];
+      if ((entry.result || '').trim()) entries.push({ userId: userId, result: entry.result.trim(), detail: (entry.detail || '').trim() });
+    });
+    var err = document.getElementById('assess-error');
+    if (!entries.length) { if (err) err.textContent = '実施した利用者の測定値を1件以上入力してください'; return; }
+    var btn = document.getElementById('assess-save');
+    if (btn) { btn.disabled = true; btn.textContent = '一括保存中…'; }
+    rpc('apiSaveAssessmentBatch', { item: d.item, entries: entries }).then(function (res) {
+      S.assessBatch = { item: d.item, entries: {}, message: (res.records || []).length + '名分を保存しました（' + res.date + '）' };
+      S.todayStatusCache = null;
+      clearRpcCache();
+      render();
+    }).catch(function (e) {
+      if (err) err.textContent = (e && e.message) || '一括保存できませんでした';
+      if (btn) { btn.disabled = false; btn.textContent = '入力した測定結果を一括保存'; }
+    });
   },
   assessItem: function (el) {
     var item = el.getAttribute('data-item');
@@ -5578,30 +5989,10 @@ var Actions = {
   /** 顔写真を選択→中央を正方形に切り抜き→320pxに縮小→セル上限内のJPEGに圧縮 */
   adminPickPhoto: function (file) {
     if (!file || !S.editingUser) return;
-    if (!/^image\//.test(file.type)) { alert('画像ファイルを選択してください'); return; }
-    var url = URL.createObjectURL(file);
-    var img = new Image();
-    img.onload = function () {
-      var min = Math.min(img.naturalWidth, img.naturalHeight);
-      var side = Math.min(320, min);
-      var canvas = document.createElement('canvas');
-      canvas.width = canvas.height = Math.max(1, side);
-      var ctx = canvas.getContext('2d');
-      if (!ctx) { URL.revokeObjectURL(url); alert('写真を処理できませんでした'); return; }
-      ctx.drawImage(img, (img.naturalWidth - min) / 2, (img.naturalHeight - min) / 2, min, min, 0, 0, canvas.width, canvas.height);
-      var q = 0.82;
-      var data = canvas.toDataURL('image/jpeg', q);
-      while (data.length > 45000 && q > 0.3) {
-        q -= 0.1;
-        data = canvas.toDataURL('image/jpeg', q);
-      }
-      URL.revokeObjectURL(url);
-      if (data.length > 45000) { alert('写真を十分に圧縮できませんでした。別の写真でお試しください'); return; }
+    resizeSelectedImage(file, { square: true, maxDimension: 320, quality: 0.82, maxChars: 45000 }).then(function (data) {
       S.editingUser.photo = data;
       Actions.refreshPhotoField();
-    };
-    img.onerror = function () { URL.revokeObjectURL(url); alert('写真を読み込めませんでした。JPEGまたはPNGをご利用ください'); };
-    img.src = url;
+    }).catch(function (e) { alert((e && e.message) || '写真を読み込めませんでした'); });
   },
   adminRemovePhoto: function () {
     if (!S.editingUser) return;
@@ -5679,27 +6070,25 @@ var Actions = {
     }
     Actions.notebookComment(S.notebook.comment); // 文字数カウンターも更新
   },
-  notebookPhoto: function (file) {
+  notebookPhoto: function (file, input) {
     if (!file) return;
-    if (!/^image\//.test(file.type)) { alert('画像ファイルを選択してください'); return; }
-    var url = URL.createObjectURL(file);
-    var img = new Image();
-    img.onload = function () {
-      var max = 1600;
-      var ratio = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
-      var canvas = document.createElement('canvas');
-      canvas.width = Math.max(1, Math.round(img.naturalWidth * ratio));
-      canvas.height = Math.max(1, Math.round(img.naturalHeight * ratio));
-      var ctx = canvas.getContext('2d');
-      if (!ctx) { URL.revokeObjectURL(url); alert('写真を処理できませんでした'); return; }
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      S.notebook.photo = canvas.toDataURL('image/jpeg', 0.82);
-      URL.revokeObjectURL(url);
+    var status = document.getElementById('notebook-photo-status');
+    var label = document.getElementById('notebook-photo-label');
+    if (status) status.textContent = '写真を読み込み・縮小しています…';
+    if (label) label.classList.add('is-processing');
+    if (input) input.disabled = true;
+    resizeSelectedImage(file, { maxDimension: 1280, quality: 0.78 }).then(function (data) {
+      S.notebook.photo = data;
       var box = document.getElementById('notebook-photo');
       if (box) box.innerHTML = '<img src="' + S.notebook.photo + '" alt="本日のご様子">';
-    };
-    img.onerror = function () { URL.revokeObjectURL(url); alert('写真を読み込めませんでした。JPEGまたはPNGをご利用ください'); };
-    img.src = url;
+      if (status) status.textContent = '写真を追加しました。印刷プレビューで確認できます。';
+    }).catch(function (e) {
+      if (status) status.textContent = '写真を追加できませんでした';
+      alert((e && e.message) || '写真を読み込めませんでした');
+    }).then(function () {
+      if (label) label.classList.remove('is-processing');
+      if (input) { input.disabled = false; input.value = ''; }
+    });
   },
   printNotebook: function () {
     var commentBox = document.getElementById('notebook-comment');
@@ -5794,6 +6183,25 @@ var Actions = {
   adminUser: function (id) { S.admin.userId = id; render(); },
   adminMonth: function (m) { S.admin.month = m; render(); },
   monthlyMonth: function (m) { S.admin.month = m; render(); },
+  printResults: function () {
+    var style = document.createElement('style');
+    style.id = 'results-print-page';
+    style.textContent = '@page{size:A4 portrait;margin:10mm;}';
+    document.head.appendChild(style);
+    document.body.classList.add('results-print-mode');
+    var oldTitle = document.title;
+    var user = userById(S.admin.userId);
+    document.title = '個人別実績_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.month;
+    var cleanup = function () {
+      document.body.classList.remove('results-print-mode');
+      document.title = oldTitle;
+      if (style.parentNode) style.parentNode.removeChild(style);
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+    setTimeout(function () { if (document.body.classList.contains('results-print-mode')) cleanup(); }, 2000);
+  },
   exportCsv: function () {
     if (!lastResults) return;
     var user = null;
@@ -5913,7 +6321,7 @@ setInterval(function () {
 // ---------------------------------------------------------------- ローカルプレビュー用モック(GAS 環境では未使用)
 
 var Mock = (function () {
-  var KEY = 'kinoukunren-gas-mock-v4';
+  var KEY = 'kinoukunren-gas-mock-v5';
   function todayStr() {
     var d = new Date();
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
@@ -5924,6 +6332,7 @@ var Mock = (function () {
   }
   function seed() {
     var exercises = [
+      { id: 'prep', name: '準備運動', shortName: '準備運動', amountLabel: '実施時間', amountOptions: ['15分'], qrCode: '' },
       { id: 'ergo', name: 'エルゴメーター', shortName: 'エルゴ', amountLabel: '実施時間', amountOptions: ['10分', '15分', '20分'], qrCode: 'GSE:ergo' },
       { id: 'walk', name: '平行棒内歩行', shortName: '歩行', amountLabel: '実施量', amountOptions: ['3往復', '5往復', '7往復'], qrCode: 'GSE:walk' },
       { id: 'legpress', name: 'レッグプレス', shortName: 'レッグプレス', amountLabel: '実施回数', amountOptions: ['10回×2', '15回×2', '20回×2'], qrCode: 'GSE:legpress' },
@@ -5980,12 +6389,19 @@ var Mock = (function () {
     });
     db.vitals.push({ id: nid(), date: today, time: '9:12', userId: 'u02', systolic: 118, diastolic: 70, pulse: 66, temp: 36.1, spo2: 98, weight: 61.2, flagged: false, alerts: [], conditionNote: '体調良好。食欲・睡眠ともに問題なし。' });
     db.records.push({ id: nid(), date: today, time: '9:35', userId: 'u02', exerciseId: 'walk', amount: '5往復', load: 'ふつう', note: '' });
-    db.cognitive.push({ id: nid(), date: today, time: '10:20', userId: 'u02', activity: '計算プリント', note: '20問中18問正解。集中して取り組まれた。' });
+    db.cognitive.push({ id: nid(), date: today, time: '10:20', userId: 'u02', activity: '計算プリント', note: '20問中18問正解。集中して取り組まれた。', durationMinutes: 12, metricValue: 18, metricUnit: '問' });
     db.assessments.push({ id: nid(), date: dates[5], userId: 'u01', type: 'HDS-R', result: '22/30点', detail: '', item: '' });
     db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: 'HDS-R', result: '24/30点', detail: '見当識は良好。遅延再生で減点あり。', item: '' });
     db.assessments.push({ id: nid(), date: dates[3], userId: 'u01', type: 'MMSE', result: '25/30点', detail: '', item: '' });
-    db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: '体力測定', result: '13.2秒', detail: '前回より0.8秒短縮。', item: 'TUG(立ち上がり歩行)' });
+    db.assessments.push({ id: nid(), date: dates[4], userId: 'u01', type: '体力測定', result: '14.0秒', detail: '', item: 'TUG(立ち上がり歩行)' });
+    db.assessments.push({ id: nid(), date: dates[2], userId: 'u01', type: '体力測定', result: '13.7秒', detail: '', item: 'TUG(立ち上がり歩行)' });
+    db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: '体力測定', result: '13.2秒', detail: '前回より0.5秒短縮。', item: 'TUG(立ち上がり歩行)' });
+    db.assessments.push({ id: nid(), date: dates[4], userId: 'u01', type: '体力測定', result: '17.8kg', detail: '', item: '握力' });
+    db.assessments.push({ id: nid(), date: dates[2], userId: 'u01', type: '体力測定', result: '18.1kg', detail: '', item: '握力' });
     db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: '体力測定', result: '18.5kg', detail: '', item: '握力' });
+    [4, 2, 0].forEach(function (i, order) {
+      db.cognitive.push({ id: nid(), date: dates[i], time: '10:20', userId: 'u01', activity: '計算プリント', note: '', durationMinutes: [18, 15, 12][order], metricValue: [14, 16, 19][order], metricUnit: '問' });
+    });
     dates.forEach(function (date, i) {
       var h = hist[i];
       db.checkins.push({ id: nid(), date: date, time: h[6], userId: 'u01', checkoutTime: '15:35', transport: '施設送迎' });
@@ -6040,7 +6456,7 @@ var Mock = (function () {
       var me = mockMe();
       var photos = db.photos || {};
       db.users.forEach(function (x) { x.hasPhoto = !!photos[x.id]; });
-      return { apiVersion: 5, capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu'], users: db.users, exercises: db.exercises, cognitiveMenu: mockCogMenu(db), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+      return { apiVersion: 6, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
     },
     apiAdminSaveCognitiveMenu: function (p) {
       var db = load();
@@ -6207,7 +6623,7 @@ var Mock = (function () {
       }
       db.users.forEach(function (x) { x.hasPhoto = !!db.photos[x.id]; });
       save(db);
-      return { users: db.users, savedId: id };
+      return { users: sortUsersKana(db.users), savedId: id };
     },
     apiGetUserPhotos: function () {
       var db = load();
@@ -6217,7 +6633,7 @@ var Mock = (function () {
       var db = load();
       db.users = db.users.filter(function (x) { return x.id !== id; });
       save(db);
-      return { users: db.users };
+      return { users: sortUsersKana(db.users) };
     },
     apiGetTodayAlerts: function () {
       var db = load();
@@ -6254,8 +6670,8 @@ var Mock = (function () {
         vitalsAll: vitals,
         recentDays: recentDays,
         alertHistory: vitals.filter(function (v) { return v.flagged; }).reverse().slice(0, 10),
-        cognitiveRecords: db.cognitive.filter(function (e) { return e.userId === userId; }).sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? 1 : -1; }).slice(0, 10),
-        assessments: db.assessments.filter(function (e) { return e.userId === userId; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 12),
+        cognitiveRecords: db.cognitive.filter(function (e) { return e.userId === userId; }).sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? 1 : -1; }).slice(0, 60),
+        assessments: db.assessments.filter(function (e) { return e.userId === userId; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 60),
       };
     },
     apiSaveExercise: function (p) {
@@ -6266,6 +6682,20 @@ var Mock = (function () {
       save(db);
       return { record: rec, todayExercises: fns.apiGetTodayExercises(p.userId) };
     },
+    apiSaveExerciseBatch: function (p) {
+      var db = load();
+      var t = todayStr();
+      var prepRecorded = db.records.some(function (r) { return r.userId === p.userId && r.date === t && r.exerciseId === 'prep'; });
+      var ids = prepRecorded ? [] : ['prep'];
+      (p.exerciseIds || []).forEach(function (id) { if (id && id !== 'prep' && ids.indexOf(id) < 0 && ids.length < 4) ids.push(id); });
+      var records = ids.map(function (id, i) {
+        db.seq += 1;
+        return { id: 'm' + db.seq, date: t, time: nowTime(), userId: p.userId, exerciseId: id, amount: '15分', load: '', note: i === 0 ? p.note || '' : '' };
+      });
+      records.forEach(function (r) { db.records.push(r); });
+      save(db);
+      return { records: records };
+    },
     apiGetTodayExercises: function (userId) {
       var db = load();
       var t = todayStr();
@@ -6274,13 +6704,28 @@ var Mock = (function () {
     },
     apiSaveCognitive: function (p) {
       var db = load(); db.seq += 1;
-      var rec = { id: 'm' + db.seq, date: p.date || todayStr(), time: nowTime(), userId: p.userId, activity: p.activity, note: p.note || '' };
+      var rec = { id: 'm' + db.seq, date: p.date || todayStr(), time: nowTime(), userId: p.userId, activity: p.activity, note: p.note || '', durationMinutes: p.durationMinutes === '' ? null : Number(p.durationMinutes), metricValue: p.metricValue === '' ? null : Number(p.metricValue), metricUnit: p.metricUnit || '' };
       db.cognitive.push(rec); save(db); return rec;
     },
     apiSaveAssessment: function (p) {
       var db = load(); db.seq += 1;
       var rec = { id: 'm' + db.seq, date: p.date || todayStr(), userId: p.userId, type: p.type, result: p.result, detail: p.detail || '', item: p.item || '' };
       db.assessments.push(rec); save(db); return rec;
+    },
+    apiSaveAssessmentBatch: function (p) {
+      var db = load();
+      var date = todayStr();
+      var seen = {};
+      var records = [];
+      (p.entries || []).forEach(function (entry) {
+        if (!entry.userId || seen[entry.userId] || !String(entry.result || '').trim()) return;
+        seen[entry.userId] = true;
+        db.seq += 1;
+        var rec = { id: 'm' + db.seq, date: date, userId: entry.userId, type: '体力測定', item: p.item, result: String(entry.result).trim(), detail: String(entry.detail || '').trim() };
+        db.assessments.push(rec); records.push(rec);
+      });
+      save(db);
+      return { records: records, date: date };
     },
     apiGetCommunicationBook: function (userId, date) {
       var db = load();
@@ -6307,6 +6752,8 @@ var Mock = (function () {
         monthCheckins: db.checkins.filter(function (c) { return c.userId === userId && inM(c.date); }),
         monthVitals: vitalsAll.filter(function (v) { return inM(v.date); }),
         monthExercises: db.records.filter(function (e) { return e.userId === userId && inM(e.date); }),
+        cognitiveRecords: db.cognitive.filter(function (c) { return c.userId === userId; })
+          .sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? -1 : 1; }),
         assessments: db.assessments.filter(function (a) { return a.userId === userId; })
           .sort(function (a, b) { return a.date < b.date ? -1 : 1; }),
       };
@@ -6319,6 +6766,7 @@ var Mock = (function () {
         vitals: db.vitals.filter(function (v) { return v.date === t; }),
         records: db.records.filter(function (e) { return e.date === t; }),
         cognitiveRecords: db.cognitive.filter(function (e) { return e.date === t; }),
+        assessments: db.assessments.filter(function (e) { return e.date === t; }),
       };
     },
     apiGetMonthly: function (month) {
@@ -6408,10 +6856,10 @@ function showFacilityCodeScreen() {
 /** ログイン後のマスタ読み込み */
 function bootAfterLogin() {
   return rpc('apiGetBootstrap').then(function (boot) {
-    if (!boot.apiVersion || boot.apiVersion < 5) {
+    if (!boot.apiVersion || boot.apiVersion < 6) {
       throw new Error('GASが旧バージョンです。Apps Scriptを最新版として再デプロイしてください');
     }
-    S.users = boot.users;
+    S.users = sortUsersKana(boot.users);
     S.exercises = boot.exercises;
     S.cognitiveMenu = boot.cognitiveMenu || [];
     S.today = boot.today;

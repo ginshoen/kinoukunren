@@ -27,7 +27,7 @@ var HEADERS = {
   checkins: ['ID', '日付', '来苑時刻', '利用者ID', '帰苑時刻', '送迎区分', '記録者'],
   vitals: ['ID', '日付', '時刻', '利用者ID', '収縮期', '拡張期', '脈拍', '体温', 'SpO2', '体重', 'アラートフラグ', 'アラート内容', '体調・特記事項', '記録者'],
   records: ['ID', '日付', '時刻', '利用者ID', '種目ID', '実施量', '負荷', '所見', '記録者'],
-  cognitive: ['ID', '日付', '時刻', '利用者ID', '実施内容', '結果・所見', '記録者'],
+  cognitive: ['ID', '日付', '時刻', '利用者ID', '実施内容', '結果・所見', '記録者', '所要時間(分)', '成果数値', '成果単位'],
   cognitiveMenu: ['ID', '内容', '有効'],
   assessments: ['ID', '日付', '利用者ID', '評価種別', '結果', '詳細', '記録者', '種目'],
   voids: ['対象ID', '種別', '取消日時', '取消者'],
@@ -92,8 +92,10 @@ var API_REGISTRY = {
   apiGetVitalContext: { fn: apiGetVitalContext_, auth: 'staff' },
   apiSaveVitals: { fn: apiSaveVitals_, auth: 'staff' },
   apiSaveExercise: { fn: apiSaveExercise_, auth: 'staff' },
+  apiSaveExerciseBatch: { fn: apiSaveExerciseBatch_, auth: 'staff' },
   apiSaveCognitive: { fn: apiSaveCognitive_, auth: 'staff' },
   apiSaveAssessment: { fn: apiSaveAssessment_, auth: 'staff' },
+  apiSaveAssessmentBatch: { fn: apiSaveAssessmentBatch_, auth: 'staff' },
   apiGetTodayExercises: { fn: apiGetTodayExercises_, auth: 'staff' },
   apiGetTodayAlerts: { fn: apiGetTodayAlerts_, auth: 'staff' },
   apiGetUserDetail: { fn: apiGetUserDetail_, auth: 'staff' },
@@ -206,10 +208,10 @@ function sheet_(key) {
  */
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
-  if (props.getProperty('SCHEMA_VERSION') === '7') return;
+  if (props.getProperty('SCHEMA_VERSION') === '8') return;
   var cache = CacheService.getScriptCache();
-  if (cache.get('schema-v7')) {
-    props.setProperty('SCHEMA_VERSION', '7');
+  if (cache.get('schema-v8')) {
+    props.setProperty('SCHEMA_VERSION', '8');
     return;
   }
   var lock = LockService.getScriptLock();
@@ -242,9 +244,24 @@ function ensureSchema_() {
         sh.getRange(2, 1, seed.length, 3).setNumberFormat('@')
           .setValues(seed.map(function (r) { return [r[0], r[1], 'true']; }));
       }
+      // 15分×4コマの1コマ目に使う「準備運動」は必ず種目マスタに用意する。
+      if (key === 'exercises') {
+        var hasPreparation = false;
+        if (sh.getLastRow() >= 2) {
+          sh.getRange(2, 1, sh.getLastRow() - 1, 1).getDisplayValues().forEach(function (r) {
+            if (String(r[0]) === 'prep') hasPreparation = true;
+          });
+        }
+        if (!hasPreparation) {
+          sh.getRange(sh.getLastRow() + 1, 1, 1, 6).setNumberFormat('@')
+            .setValues([['prep', '準備運動', '準備運動', '実施時間', '15分', '']]);
+          invalidateRequestRows_('exercises');
+          CacheService.getScriptCache().remove('master-v4-exercises');
+        }
+      }
     });
-    props.setProperty('SCHEMA_VERSION', '7');
-    cache.put('schema-v7', '1', 21600);
+    props.setProperty('SCHEMA_VERSION', '8');
+    cache.put('schema-v8', '1', 21600);
   } finally {
     lock.releaseLock();
   }
@@ -390,6 +407,8 @@ function toCognitive_(r) {
   return {
     id: String(r[0]), date: dateStr_(r[1]), time: timeStr_(r[2]), userId: String(r[3]),
     activity: String(r[4] || ''), note: String(r[5] || ''),
+    durationMinutes: numOrNull_(r[7] == null ? '' : r[7]),
+    metricValue: numOrNull_(r[8] == null ? '' : r[8]), metricUnit: String(r[9] || ''),
   };
 }
 
@@ -414,7 +433,19 @@ function cachedMaster_(key, converter) {
   return data;
 }
 
-function allUsers_() { return cachedMaster_('users', toUser_); }
+function userSortKey_(u) {
+  return String(u.kana || u.name || '').replace(/[\s　]/g, '');
+}
+
+/** 利用者をふりがな(未登録は氏名)の五十音順で返す。シートの行順に依存しない。 */
+function allUsers_() {
+  return cachedMaster_('users', toUser_).slice().sort(function (a, b) {
+    var ka = userSortKey_(a);
+    var kb = userSortKey_(b);
+    if (ka === kb) return String(a.id) < String(b.id) ? -1 : 1;
+    return ka < kb ? -1 : 1;
+  });
+}
 function allExercises_() { return cachedMaster_('exercises', toExercise_); }
 
 function toCognitiveMenu_(r) {
@@ -453,8 +484,8 @@ function timeKey_(t) {
 function apiGetBootstrap_() {
   ensureSchema_();
   return {
-    apiVersion: 5,
-    capabilities: ['checkout', 'cognitive', 'assessments', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu'],
+    apiVersion: 6,
+    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu'],
     users: allUsers_(),
     exercises: allExercises_(),
     cognitiveMenu: allCognitiveMenu_(),
@@ -581,8 +612,9 @@ function apiGetUserDetail_(userId) {
     vitalsAll: vitals,
     recentDays: recentDays,
     alertHistory: vitals.filter(function (v) { return v.flagged; }).reverse().slice(0, 10),
-    cognitiveRecords: cognitive.reverse().slice(0, 10),
-    assessments: assessments.reverse().slice(0, 12),
+    // 数値の経時変化グラフ用に、直近60件まで返す。
+    cognitiveRecords: cognitive.reverse().slice(0, 60),
+    assessments: assessments.reverse().slice(0, 60),
   };
 }
 
@@ -1171,6 +1203,51 @@ function apiSaveExercise_(payload) {
   return { record: rec };
 }
 
+/**
+ * 15分×4コマ形式の訓練記録を一括保存する。
+ * 1コマ目の準備運動は自動追加し、プルダウンで選んだ3種目だけを保存する。
+ */
+function apiSaveExerciseBatch_(payload) {
+  var userExists = allUsers_().some(function (u) { return u.id === payload.userId; });
+  if (!userExists) throw new Error('利用者が見つかりません。');
+  var requested = Array.isArray(payload.exerciseIds) ? payload.exerciseIds : [];
+  var date = todayStr_();
+  var prepRecorded = allRecords_().some(function (r) {
+    return r.userId === String(payload.userId) && r.date === date && r.exerciseId === 'prep';
+  });
+  var ids = prepRecorded ? [] : ['prep'];
+  requested.forEach(function (id) {
+    id = String(id || '').trim();
+    if (id && id !== 'prep' && ids.indexOf(id) < 0 && ids.length < 4) ids.push(id);
+  });
+  var byId = {};
+  allExercises_().forEach(function (e) { byId[e.id] = e; });
+  ids.forEach(function (id) {
+    if (!byId[id]) throw new Error('訓練種目が見つかりません: ' + id);
+  });
+  var note = safeText_(payload.note, 300);
+  var time = nowTime_();
+  var records = ids.map(function (id, i) {
+    return {
+      id: newId_(), date: date, time: time, userId: String(payload.userId),
+      exerciseId: id, amount: '15分', load: '', note: i === 0 ? note : '',
+    };
+  });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    records.forEach(function (rec) {
+      appendRowNoLock_('records', [
+        rec.id, rec.date, rec.time, rec.userId, rec.exerciseId, rec.amount, rec.load, rec.note,
+        currentStaffName_(),
+      ]);
+    });
+  } finally {
+    lock.releaseLock();
+  }
+  return { records: records };
+}
+
 /** 当日の実施済み種目(時刻昇順) */
 function apiGetTodayExercises_(userId) {
   var today = todayStr_();
@@ -1188,9 +1265,23 @@ function apiSaveCognitive_(payload) {
   var rec = {
     id: newId_(), date: validDateStr_(payload.date || todayStr_()), time: nowTime_(), userId: payload.userId,
     activity: activity, note: safeText_(payload.note, 300),
+    durationMinutes: numericOrNull_(payload.durationMinutes, 0, 600, '所要時間'),
+    metricValue: numericOrNull_(payload.metricValue, -999999, 999999, '成果数値'),
+    metricUnit: safeText_(payload.metricUnit, 12),
   };
-  appendRow_('cognitive', [rec.id, rec.date, rec.time, rec.userId, rec.activity, rec.note, currentStaffName_()]);
+  appendRow_('cognitive', [rec.id, rec.date, rec.time, rec.userId, rec.activity, rec.note, currentStaffName_(),
+    rec.durationMinutes == null ? '' : rec.durationMinutes,
+    rec.metricValue == null ? '' : rec.metricValue, rec.metricUnit]);
   return rec;
+}
+
+function numericOrNull_(value, min, max, label) {
+  if (value == null || String(value).trim() === '') return null;
+  var n = Number(value);
+  if (!isFinite(n) || n < min || n > max) {
+    throw new Error(label + 'は' + min + '〜' + max + 'の数字で入力してください。');
+  }
+  return n;
 }
 
 /** 体力測定・HDS-R・MMSEの結果を共通形式で記録する。 */
@@ -1208,6 +1299,43 @@ function apiSaveAssessment_(payload) {
   };
   appendRow_('assessments', [rec.id, rec.date, rec.userId, rec.type, rec.result, rec.detail, currentStaffName_(), rec.item]);
   return rec;
+}
+
+/** 体力測定を1種目ずつ、利用者複数名分まとめて保存する。測定日はサーバーの当日日付を自動使用する。 */
+function apiSaveAssessmentBatch_(payload) {
+  var item = safeText_(payload.item, 40);
+  if (!item) throw new Error('測定種目を選択してください。');
+  var entries = Array.isArray(payload.entries) ? payload.entries : [];
+  if (!entries.length) throw new Error('結果が入力された利用者がいません。');
+  if (entries.length > 200) throw new Error('一度に保存できるのは200件までです。');
+  var users = {};
+  allUsers_().forEach(function (u) { users[u.id] = true; });
+  var seen = {};
+  var date = todayStr_();
+  var records = [];
+  entries.forEach(function (entry) {
+    var userId = String(entry.userId || '');
+    if (!users[userId] || seen[userId]) return;
+    var result = safeText_(entry.result, 120);
+    if (!result) return;
+    seen[userId] = true;
+    records.push({
+      id: newId_(), date: date, userId: userId, type: '体力測定', item: item,
+      result: result, detail: safeText_(entry.detail, 500),
+    });
+  });
+  if (!records.length) throw new Error('保存できる測定結果がありません。');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    records.forEach(function (rec) {
+      appendRowNoLock_('assessments', [rec.id, rec.date, rec.userId, rec.type, rec.result,
+        rec.detail, currentStaffName_(), rec.item]);
+    });
+  } finally {
+    lock.releaseLock();
+  }
+  return { records: records, date: date };
 }
 
 /** 脳トレメニューの追加・変更(管理者のみ)。id が空なら新規 */
@@ -1297,6 +1425,9 @@ function apiGetUserResults_(userId, month) {
     monthCheckins: checkins.filter(function (c) { return c.userId === userId && inMonth(c.date); }),
     monthVitals: vitalsAll.filter(function (v) { return inMonth(v.date); }),
     monthExercises: allRecords_().filter(function (e) { return e.userId === userId && inMonth(e.date); }),
+    cognitiveRecords: allCognitive_()
+      .filter(function (c) { return c.userId === userId; })
+      .sort(function (a, b) { return (a.date + timeKey_(a.time)) < (b.date + timeKey_(b.time)) ? -1 : 1; }),
     // 評価記録(体力測定・HDS-R・MMSE)は全期間分。管理画面の一覧・CSV出力に使う
     assessments: allAssessments_()
       .filter(function (a) { return a.userId === userId; })
@@ -1312,6 +1443,7 @@ function apiGetTodayRecords_() {
     vitals: allVitals_().filter(function (v) { return v.date === today; }),
     records: allRecords_().filter(function (e) { return e.date === today; }),
     cognitiveRecords: allCognitive_().filter(function (e) { return e.date === today; }),
+    assessments: allAssessments_().filter(function (e) { return e.date === today; }),
   };
 }
 

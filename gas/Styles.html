@@ -2372,4 +2372,95 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .nv-value:focus { background: #fff9e8; border-radius: 4px; }
 .nv-unit { font-size: 9px; color: #8a978f; }
 
+/* ---------- 運動記録: 15分×4コマ ---------- */
+.exercise-slots { display: grid; gap: 10px; }
+.exercise-slot {
+  display: grid;
+  grid-template-columns: 34px 1fr 28px;
+  align-items: center;
+  gap: 10px;
+  min-height: 62px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fbfdfb;
+}
+.exercise-slot.fixed { background: var(--green-l4); border-color: var(--green-l2); }
+.slot-number { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; background: var(--green); color: #fff; font-weight: 900; }
+.slot-main { min-width: 0; display: grid; gap: 2px; }
+.slot-main small { color: var(--text-aux); font-size: 11px; }
+.slot-main select, .form-select {
+  width: 100%; min-height: 46px; padding: 9px 38px 9px 12px;
+  border: 1px solid var(--border); border-radius: 10px; background: #fff; color: var(--text);
+  font: inherit; font-size: 15px; font-weight: 700;
+}
+.form-select.compact { min-height: 42px; padding-top: 7px; padding-bottom: 7px; }
+.menu-done { color: var(--green); font-weight: 900; text-align: center; }
+
+/* ---------- 脳トレ: 数値入力・推移 ---------- */
+.cognitive-metric-grid { display: grid; grid-template-columns: 1fr 1fr .75fr; gap: 10px; margin-top: 10px; }
+.cognitive-metric-grid label { display: grid; gap: 5px; color: var(--text-sub); font-size: 12px; font-weight: 700; }
+.cognitive-metric-grid input {
+  width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--input-bg); color: var(--text); font: inherit; font-size: 16px; font-weight: 800;
+}
+.input-with-unit { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 5px; }
+.input-with-unit b { color: var(--text-aux); }
+.trend-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-bottom: 10px; }
+.trend-card { min-width: 0; padding: 10px 12px 6px; background: #fff; border: 1px solid var(--border); border-radius: 14px; }
+.trend-title { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; font-weight: 900; }
+.trend-title span { color: var(--text-aux); font-size: 11px; font-weight: 600; }
+.numeric-trend-svg { width: 100%; height: auto; }
+.numeric-trend-svg text { fill: #7a8a7d; font-size: 11px; }
+.numeric-trend-svg .trend-latest { fill: var(--green-dark); font-weight: 900; }
+.admin-trends { grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
+
+/* ---------- 体力測定: 種目別一括グリッド ---------- */
+.assessment-wide-wrap { align-items: flex-start; }
+.phone.assessment-wide { max-width: 1040px; }
+.assessment-item-select { display: grid; grid-template-columns: minmax(180px, 1fr) auto; align-items: end; gap: 8px 16px; }
+.assessment-item-select .card-label { grid-column: 1 / -1; }
+.auto-date { color: var(--text-aux); font-size: 12px; white-space: nowrap; }
+.assessment-grid { display: grid; gap: 8px; }
+.assessment-grid-head, .assessment-grid-row {
+  display: grid; grid-template-columns: minmax(180px, 1fr) minmax(140px, .7fr) minmax(220px, 1.2fr); gap: 10px; align-items: center;
+}
+.assessment-grid-head { padding: 0 14px; color: var(--text-aux); font-size: 12px; }
+.assessment-grid-row { position: relative; padding: 11px 14px; background: #fff; border: 1px solid var(--border); border-radius: 13px; }
+.assessment-person { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.assessment-person > span { min-width: 0; display: grid; }
+.assessment-person b { font-size: 14px; }
+.assessment-person small { color: var(--text-aux); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.assessment-grid-row label { display: grid; gap: 3px; color: var(--text-aux); font-size: 10px; }
+.assessment-grid-row input { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--input-bg); font: inherit; }
+.assessment-saved { grid-column: 2 / -1; margin-top: -5px; color: var(--green-dark); font-size: 11px; font-weight: 700; }
+.avatar-xs { width: 30px; height: 30px; font-size: 12px; }
+
+.notebook-tools .is-processing { opacity: .55; pointer-events: none; }
+
+@media (max-width: 700px) {
+  .cognitive-metric-grid { grid-template-columns: 1fr 1fr; }
+  .cognitive-metric-grid label:last-child { grid-column: 1 / -1; }
+  .assessment-grid-head { display: none; }
+  .assessment-grid-row { grid-template-columns: 1fr 1fr; }
+  .assessment-person { grid-column: 1 / -1; }
+  .assessment-saved { grid-column: 1 / -1; margin-top: 0; }
+  .assessment-item-select { grid-template-columns: 1fr; }
+  .assessment-item-select .card-label { grid-column: auto; }
+}
+
+@media print {
+  body.results-print-mode .admin-wrap,
+  body.results-print-mode .admin-frame,
+  body.results-print-mode .admin-content { display: block !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; border: 0 !important; }
+  body.results-print-mode .admin-mobile-head,
+  body.results-print-mode .admin-sidebar,
+  body.results-print-mode .admin-actions,
+  body.results-print-mode .tab-bar { display: none !important; }
+  body.results-print-mode .panel { break-inside: avoid; box-shadow: none; margin-bottom: 5mm; }
+  body.results-print-mode .admin-grid { grid-template-columns: 1fr 1fr; gap: 5mm; }
+  body.results-print-mode .admin-trends { grid-template-columns: 1fr 1fr; }
+  body.results-print-mode .day-table { font-size: 9px; }
+}
+
 </style>
