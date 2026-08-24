@@ -1957,6 +1957,7 @@ textarea {
 .notebook-box.program li b { font-size: 15px; }
 .notebook-box.program li small { color: #59675f; }
 .notebook-box.program li.planned { opacity: .68; }
+.notebook-box.program li.planned b { grid-column: 1 / -1; }
 .notebook-vitals { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #d5dcd7; display: grid; gap: 2px; font-size: 11px; color: #4f6258; }
 .notebook-comment { min-height: 76px; line-height: 1.75; font-size: 14px; outline: none; white-space: pre-wrap; }
 .notebook-comment:focus { background: #fff9e8; box-shadow: 0 0 0 3px rgba(231,187,72,.25); border-radius: 6px; }
@@ -1984,7 +1985,7 @@ textarea {
 @media print {
   html, body { width: auto; height: auto; background: #fff !important; }
   .admin-wrap, .admin-frame, .admin-content { display: block !important; width: 100% !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }
-  .admin-sidebar, .no-print { display: none !important; }
+  .admin-mobile-head, .admin-sidebar, .no-print { display: none !important; }
   .communication-sheet {
     display: block !important;
     width: 100% !important;
