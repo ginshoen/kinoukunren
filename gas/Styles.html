@@ -2420,6 +2420,104 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .phone.assessment-wide { max-width: 1040px; }
 .assessment-item-select { display: grid; grid-template-columns: minmax(180px, 1fr) auto; align-items: end; gap: 8px 16px; }
 .assessment-item-select .card-label { grid-column: 1 / -1; }
+
+/* 追加業務支援: 当日進捗・申し送り・目標・月次個人報告 */
+.copy-previous { width: 100%; flex: none; border-style: dashed; }
+.template-picks { margin-top: 9px; }
+.template-picks .card-label { display: block; margin-bottom: 5px; }
+.template-picks .cond-chips { margin: 0; }
+.template-admin-form { margin-top: 12px; align-items: stretch; }
+
+.progress-tiles { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.progress-tile { padding: 14px; border: 1px solid var(--border); background: #fff; border-radius: 16px; box-shadow: var(--shadow-sm); }
+.progress-tile small { display: block; color: var(--text-aux); font-weight: 800; }
+.progress-tile strong { display: block; margin-top: 3px; font-size: 28px; }
+.progress-tile strong span { margin-left: 3px; font-size: 13px; }
+.progress-person-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; }
+.progress-person-card { display: grid; gap: 10px; padding: 15px; background: #fff; border: 1px solid var(--border); border-left: 5px solid #d3944b; border-radius: 16px; box-shadow: var(--shadow-sm); }
+.progress-person-card[data-complete="1"] { border-left-color: var(--green); }
+.progress-person-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; }
+.progress-person-head strong, .progress-person-head small { display: block; }
+.progress-person-head small { color: var(--text-aux); margin-top: 2px; }
+.missing-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.missing-badge, .complete-badge { padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 900; }
+.missing-badge { background: #fff0e5; color: #974b1e; }
+.complete-badge { background: #e5f4eb; color: #1d6840; }
+.dashboard-alert { padding: 8px 10px; border-radius: 10px; background: var(--alert-bg); color: var(--alert-text); font-size: 12px; font-weight: 700; }
+.dashboard-handoff { padding: 8px 10px; border-radius: 10px; background: #f3edff; color: #624399; font-size: 12px; }
+.care-checks { display: flex; gap: 8px; flex-wrap: wrap; }
+.care-checks label { display: flex; align-items: center; gap: 5px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; font-weight: 800; }
+.care-checks input { width: 19px; height: 19px; accent-color: var(--green); }
+.progress-actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+.progress-actions .checkout-controls { flex: 1 1 210px; }
+
+.handoff-form { display: grid; gap: 12px; }
+.handoff-list { display: grid; gap: 10px; }
+.handoff-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 12px; padding: 13px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+.handoff-card > div strong, .handoff-card > div small { display: block; margin-top: 3px; }
+.handoff-card > div small { color: var(--text-aux); }
+.handoff-card p { grid-column: 1 / 2; margin: 0; white-space: pre-wrap; }
+.handoff-category { display: inline-block; margin-right: 7px; padding: 3px 7px; border-radius: 999px; background: #f3edff; color: #624399; font-size: 11px; font-weight: 900; }
+.handoff-summary { margin-top: 9px; display: grid; gap: 5px; padding: 10px; border-radius: 12px; background: #f3edff; color: #624399; }
+
+.goal-progress-card { display: grid; gap: 10px; }
+.goal-progress-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.goal-progress-head span { flex: none; font-size: 21px; font-weight: 900; color: var(--green); }
+.goal-progress-bar { height: 10px; overflow: hidden; border-radius: 999px; background: #e5ebe6; }
+.goal-progress-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6cb68b, #24714a); }
+.goal-progress-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+.goal-progress-form textarea { grid-column: 1 / -1; min-height: 58px; }
+.goal-progress-form input { min-height: 44px; }
+.goal-history { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+.goal-history > div { display: grid; grid-template-columns: 80px 80px minmax(0, 1fr); gap: 7px; font-size: 12px; }
+.goal-history span { color: var(--green); font-weight: 900; }
+.goal-history small { color: var(--text-aux); }
+
+.monthly-report-wrap { margin-top: 18px; }
+.monthly-individual-sheet { max-width: 900px; margin: 12px auto; padding: 22px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow-sm); color: #1f2a22; }
+.monthly-individual-sheet > header { display: flex; justify-content: space-between; gap: 18px; padding-bottom: 12px; border-bottom: 3px solid var(--green); }
+.monthly-individual-sheet h1 { margin: 2px 0 0; font-size: 25px; }
+.monthly-individual-sheet header > div:last-child { text-align: right; }
+.monthly-individual-sheet header strong, .monthly-individual-sheet header b { display: block; }
+.monthly-report-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; }
+.monthly-report-summary > div { padding: 10px; text-align: center; border-radius: 10px; background: #f1f7f3; }
+.monthly-report-summary small, .monthly-report-summary b { display: block; }
+.monthly-report-summary b { margin-top: 3px; font-size: 19px; }
+.monthly-report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.monthly-report-grid section { padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.monthly-report-grid h2 { margin: 0 0 7px; font-size: 15px; color: var(--green); }
+.monthly-report-grid p { margin: 4px 0; }
+.monthly-report-grid ul { margin: 0; padding-left: 20px; }
+.monthly-report-grid li { margin: 3px 0; }
+.monthly-report-grid li span { display: inline-block; min-width: 140px; }
+.monthly-individual-sheet footer { margin-top: 12px; text-align: right; font-size: 12px; }
+
+@media (max-width: 700px) {
+  .progress-tiles { grid-template-columns: repeat(2, 1fr); }
+  .progress-person-grid { grid-template-columns: 1fr; }
+  .handoff-card { grid-template-columns: 1fr; }
+  .handoff-card p { grid-column: auto; }
+  .goal-progress-form { grid-template-columns: 1fr 1fr; }
+  .goal-progress-form input, .goal-progress-form button { grid-column: 1 / -1; }
+  .goal-history > div { grid-template-columns: 76px 70px minmax(0, 1fr); }
+  .monthly-report-summary { grid-template-columns: repeat(2, 1fr); }
+  .monthly-report-grid { grid-template-columns: 1fr; }
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+  body.monthly-report-print-mode .admin-mobile-head,
+  body.monthly-report-print-mode .admin-sidebar,
+  body.monthly-report-print-mode .admin-page-head,
+  body.monthly-report-print-mode .admin-content > :not(.monthly-report-wrap),
+  body.monthly-report-print-mode .monthly-report-wrap > .admin-actions,
+  body.monthly-report-print-mode .tab-bar { display: none !important; }
+  body.monthly-report-print-mode .admin-wrap,
+  body.monthly-report-print-mode .admin-frame,
+  body.monthly-report-print-mode .admin-content,
+  body.monthly-report-print-mode .monthly-report-wrap { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+  body.monthly-report-print-mode .monthly-individual-sheet { width: 100%; max-width: none; margin: 0; border: 0; box-shadow: none; padding: 0; }
+}
 .auto-date { color: var(--text-aux); font-size: 12px; white-space: nowrap; }
 .assessment-grid { display: grid; gap: 8px; }
 .assessment-grid-head, .assessment-grid-row {

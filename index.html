@@ -2430,6 +2430,104 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .phone.assessment-wide { max-width: 1040px; }
 .assessment-item-select { display: grid; grid-template-columns: minmax(180px, 1fr) auto; align-items: end; gap: 8px 16px; }
 .assessment-item-select .card-label { grid-column: 1 / -1; }
+
+/* 追加業務支援: 当日進捗・申し送り・目標・月次個人報告 */
+.copy-previous { width: 100%; flex: none; border-style: dashed; }
+.template-picks { margin-top: 9px; }
+.template-picks .card-label { display: block; margin-bottom: 5px; }
+.template-picks .cond-chips { margin: 0; }
+.template-admin-form { margin-top: 12px; align-items: stretch; }
+
+.progress-tiles { display: grid; grid-template-columns: repeat(4, minmax(110px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.progress-tile { padding: 14px; border: 1px solid var(--border); background: #fff; border-radius: 16px; box-shadow: var(--shadow-sm); }
+.progress-tile small { display: block; color: var(--text-aux); font-weight: 800; }
+.progress-tile strong { display: block; margin-top: 3px; font-size: 28px; }
+.progress-tile strong span { margin-left: 3px; font-size: 13px; }
+.progress-person-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 12px; }
+.progress-person-card { display: grid; gap: 10px; padding: 15px; background: #fff; border: 1px solid var(--border); border-left: 5px solid #d3944b; border-radius: 16px; box-shadow: var(--shadow-sm); }
+.progress-person-card[data-complete="1"] { border-left-color: var(--green); }
+.progress-person-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 9px; }
+.progress-person-head strong, .progress-person-head small { display: block; }
+.progress-person-head small { color: var(--text-aux); margin-top: 2px; }
+.missing-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.missing-badge, .complete-badge { padding: 4px 8px; border-radius: 999px; font-size: 12px; font-weight: 900; }
+.missing-badge { background: #fff0e5; color: #974b1e; }
+.complete-badge { background: #e5f4eb; color: #1d6840; }
+.dashboard-alert { padding: 8px 10px; border-radius: 10px; background: var(--alert-bg); color: var(--alert-text); font-size: 12px; font-weight: 700; }
+.dashboard-handoff { padding: 8px 10px; border-radius: 10px; background: #f3edff; color: #624399; font-size: 12px; }
+.care-checks { display: flex; gap: 8px; flex-wrap: wrap; }
+.care-checks label { display: flex; align-items: center; gap: 5px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; font-weight: 800; }
+.care-checks input { width: 19px; height: 19px; accent-color: var(--green); }
+.progress-actions { display: flex; gap: 7px; flex-wrap: wrap; align-items: center; }
+.progress-actions .checkout-controls { flex: 1 1 210px; }
+
+.handoff-form { display: grid; gap: 12px; }
+.handoff-list { display: grid; gap: 10px; }
+.handoff-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 12px; padding: 13px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+.handoff-card > div strong, .handoff-card > div small { display: block; margin-top: 3px; }
+.handoff-card > div small { color: var(--text-aux); }
+.handoff-card p { grid-column: 1 / 2; margin: 0; white-space: pre-wrap; }
+.handoff-category { display: inline-block; margin-right: 7px; padding: 3px 7px; border-radius: 999px; background: #f3edff; color: #624399; font-size: 11px; font-weight: 900; }
+.handoff-summary { margin-top: 9px; display: grid; gap: 5px; padding: 10px; border-radius: 12px; background: #f3edff; color: #624399; }
+
+.goal-progress-card { display: grid; gap: 10px; }
+.goal-progress-head { display: flex; justify-content: space-between; align-items: start; gap: 12px; }
+.goal-progress-head span { flex: none; font-size: 21px; font-weight: 900; color: var(--green); }
+.goal-progress-bar { height: 10px; overflow: hidden; border-radius: 999px; background: #e5ebe6; }
+.goal-progress-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #6cb68b, #24714a); }
+.goal-progress-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+.goal-progress-form textarea { grid-column: 1 / -1; min-height: 58px; }
+.goal-progress-form input { min-height: 44px; }
+.goal-history { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+.goal-history > div { display: grid; grid-template-columns: 80px 80px minmax(0, 1fr); gap: 7px; font-size: 12px; }
+.goal-history span { color: var(--green); font-weight: 900; }
+.goal-history small { color: var(--text-aux); }
+
+.monthly-report-wrap { margin-top: 18px; }
+.monthly-individual-sheet { max-width: 900px; margin: 12px auto; padding: 22px; background: #fff; border: 1px solid var(--border); box-shadow: var(--shadow-sm); color: #1f2a22; }
+.monthly-individual-sheet > header { display: flex; justify-content: space-between; gap: 18px; padding-bottom: 12px; border-bottom: 3px solid var(--green); }
+.monthly-individual-sheet h1 { margin: 2px 0 0; font-size: 25px; }
+.monthly-individual-sheet header > div:last-child { text-align: right; }
+.monthly-individual-sheet header strong, .monthly-individual-sheet header b { display: block; }
+.monthly-report-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 14px 0; }
+.monthly-report-summary > div { padding: 10px; text-align: center; border-radius: 10px; background: #f1f7f3; }
+.monthly-report-summary small, .monthly-report-summary b { display: block; }
+.monthly-report-summary b { margin-top: 3px; font-size: 19px; }
+.monthly-report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.monthly-report-grid section { padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.monthly-report-grid h2 { margin: 0 0 7px; font-size: 15px; color: var(--green); }
+.monthly-report-grid p { margin: 4px 0; }
+.monthly-report-grid ul { margin: 0; padding-left: 20px; }
+.monthly-report-grid li { margin: 3px 0; }
+.monthly-report-grid li span { display: inline-block; min-width: 140px; }
+.monthly-individual-sheet footer { margin-top: 12px; text-align: right; font-size: 12px; }
+
+@media (max-width: 700px) {
+  .progress-tiles { grid-template-columns: repeat(2, 1fr); }
+  .progress-person-grid { grid-template-columns: 1fr; }
+  .handoff-card { grid-template-columns: 1fr; }
+  .handoff-card p { grid-column: auto; }
+  .goal-progress-form { grid-template-columns: 1fr 1fr; }
+  .goal-progress-form input, .goal-progress-form button { grid-column: 1 / -1; }
+  .goal-history > div { grid-template-columns: 76px 70px minmax(0, 1fr); }
+  .monthly-report-summary { grid-template-columns: repeat(2, 1fr); }
+  .monthly-report-grid { grid-template-columns: 1fr; }
+}
+
+@media print {
+  @page { size: A4 portrait; margin: 10mm; }
+  body.monthly-report-print-mode .admin-mobile-head,
+  body.monthly-report-print-mode .admin-sidebar,
+  body.monthly-report-print-mode .admin-page-head,
+  body.monthly-report-print-mode .admin-content > :not(.monthly-report-wrap),
+  body.monthly-report-print-mode .monthly-report-wrap > .admin-actions,
+  body.monthly-report-print-mode .tab-bar { display: none !important; }
+  body.monthly-report-print-mode .admin-wrap,
+  body.monthly-report-print-mode .admin-frame,
+  body.monthly-report-print-mode .admin-content,
+  body.monthly-report-print-mode .monthly-report-wrap { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+  body.monthly-report-print-mode .monthly-individual-sheet { width: 100%; max-width: none; margin: 0; border: 0; box-shadow: none; padding: 0; }
+}
 .auto-date { color: var(--text-aux); font-size: 12px; white-space: nowrap; }
 .assessment-grid { display: grid; gap: 8px; }
 .assessment-grid-head, .assessment-grid-row {
@@ -2477,7 +2575,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260824-1036';</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260824-1738';</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -2587,6 +2685,9 @@ var RPC_READ_TTL = {
   apiGetTodayRecords: 45000,
   apiGetMonthly: 60000,
   apiGetCommunicationBook: 15000,
+  apiGetCareDashboard: 15000,
+  apiGetPreviousRecordSet: 60000,
+  apiGetMonthlyIndividual: 30000,
   apiAdminGetStaff: 20000,
   apiGetStaffList: 60000,
 };
@@ -2712,12 +2813,15 @@ var S = {
   precautionConfirmed: false,
   exDraft: null,        // 訓練一括入力 {slots:['','',''], note:''}
   cognitiveMenu: [],    // 脳トレメニュー(記録画面の選択肢。管理画面で編集)
+  templates: [],        // 種別ごとの定型文
   cogDraft: null,       // 脳トレ記録下書き {activity, free, durationMinutes, metricValue, metricUnit, note}
   assessDraft: null,    // 評価記録下書き {type, item, freeItem, result, detail}
   assessBatch: null,    // 体力測定一括入力 {item, entries, message}
   exerciseCache: {},    // userId -> {data, expires}（画面往復時の再通信を削減）
   todayStatusCache: null, // 本日の全記録 {data, expires}（記録メニューの状況表示用）
   admin: { userId: '', month: '', notebookUserId: '', notebookDate: '' },
+  dashboard: null,
+  monthlyIndividual: null,
   adminVerifying: false,
   adminVerifyPromise: null,
   adminUnlockPromise: null,
@@ -2778,6 +2882,19 @@ function exerciseById(id) {
   for (var i = 0; i < S.exercises.length; i++) if (S.exercises[i].id === id) return S.exercises[i];
   return null;
 }
+
+function templatesFor(kind) {
+  return (S.templates || []).filter(function (t) { return t.kind === kind && t.active !== false; });
+}
+
+function templateChipsHtml(kind, actionName) {
+  var list = templatesFor(kind);
+  if (!list.length) return '';
+  return '<div class="template-picks"><span class="card-label">定型文</span><div class="cond-chips">' +
+    list.map(function (t) {
+      return '<button type="button" class="chip" data-template="' + esc(t.text) + '" onclick="Actions.' + actionName + '(this.getAttribute(\'data-template\'))">' + esc(t.text) + '</button>';
+    }).join('') + '</div></div>';
+}
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
@@ -2814,8 +2931,14 @@ function evaluateVitalAlerts(draft, prev) {
   }
   var spo2 = Number(draft.spo2);
   if (draft.spo2 !== '' && !isNaN(spo2) && spo2 <= 92) alerts.push('SpO2が低めです(92%以下)。安静にして再測定してください');
+  else if (prev && draft.spo2 !== '' && prev.spo2 != null && prev.spo2 - spo2 >= 3) alerts.push('SpO2が前回より' + (prev.spo2 - spo2) + '%低下しています。状態を確認してください');
   var temp = Number(draft.temp);
   if (draft.temp !== '' && !isNaN(temp) && temp >= 37.5) alerts.push('体温が高めです(37.5℃以上)。本日の運動可否を確認してください');
+  else if (prev && draft.temp !== '' && Math.abs(temp - prev.temp) >= 1) alerts.push('体温が前回から' + Math.abs(temp - prev.temp).toFixed(1) + '℃変化しています');
+  var dia = Number(draft.diastolic);
+  if (prev && draft.diastolic !== '' && Math.abs(dia - prev.diastolic) >= 20) alerts.push('拡張期血圧が前回から' + Math.abs(dia - prev.diastolic) + 'mmHg変化しています');
+  var pulse = Number(draft.pulse);
+  if (prev && draft.pulse !== '' && Math.abs(pulse - prev.pulse) >= 25) alerts.push('脈拍が前回から' + Math.abs(pulse - prev.pulse) + '回/分変化しています');
   return alerts;
 }
 
@@ -3434,6 +3557,7 @@ function render() {
   if (h === 'admin') return renderAdminResults(app, renderId);
   if (h === 'admin/users') return renderAdminUsers(app, renderId);
   if (h === 'admin/today') return renderAdminToday(app, renderId);
+  if (h === 'admin/handoffs') return renderAdminHandoffs(app, renderId);
   if (h === 'admin/master') return renderAdminMaster(app, renderId);
   if (h === 'admin/monthly') return renderAdminMonthly(app, renderId);
   if (h === 'admin/notebook') return renderCommunicationBook(app, renderId);
@@ -3743,6 +3867,8 @@ function renderUserMenu(app, renderId) {
       '<small>体力測定(種目別)・HDS-R・MMSE</small></span>' +
       '<span class="chev">›</span>' +
       '</button>' +
+      '<button class="menu-action" onclick="Actions.quickHandoff(\'' + user.id + '\')"><span class="menu-icon">📣</span>' +
+      '<span class="menu-text"><strong>申し送りを追加</strong><small>次回確認・看護師・ご家族への共有</small></span><span class="chev">›</span></button>' +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users/' + user.id + '\')">' +
       '📋 この方の記録・経過を見る</button>' +
       '</div>' + tabBarHtml('') + '</div></div>';
@@ -3790,6 +3916,7 @@ function renderVitals(app, renderId) {
       '</header>' +
       '<div class="phone-body" style="gap:12px;">' +
       '<div class="screen-intro compact-intro"><span class="eyebrow">バイタル</span><h1>バイタルを記録</h1><p>血圧・脈拍・体温は必須です(SpO2・体重は任意)。</p></div>' +
+      (prev ? '<button class="btn-outline copy-previous" onclick="Actions.vCopyPrevious()">↻ 前回 ' + esc(dayLabel(prev.date)) + ' の値と特記事項をコピー</button>' : '') +
       precautionHtml(user, true) +
       '<div class="card"><div class="bp-head"><span class="bp-title">血圧</span><span class="bp-unit">mmHg</span>' +
       '<span class="bp-prev">' + (prev ? '前回 ' + prev.systolic + ' / ' + prev.diastolic : '前回記録なし') + '</span></div>' +
@@ -3808,6 +3935,7 @@ function renderVitals(app, renderId) {
       '</div>' +
       '<div class="card"><span class="card-label">体調・特記事項 <span class="unit">監査記録に残ります</span></span>' +
       '<div class="cond-chips">' + conditionChips + '</div>' +
+      templateChipsHtml('vital', 'vUseTemplate') +
       '<textarea class="note-area" maxlength="300" placeholder="自由記載(例: 食欲・睡眠・痛み・ふらつきなど)" oninput="Actions.vCondition(this.value)">' + esc(d.conditionNote || '') + '</textarea></div>' +
       '<div id="v-alerts"></div>' +
       '<div id="save-error"></div>' +
@@ -3926,10 +4054,12 @@ function renderExerciseScan(app, renderId) {
       snackbarHtml() +
       (d.message ? '<div class="toast-success" role="status"><span class="check-circle">✓</span><span>' + esc(d.message) + '</span></div>' : '') +
       errHtml +
+      '<button class="btn-outline copy-previous" onclick="Actions.exCopyPrevious()">↻ 前回の運動3コマと特記事項をコピー</button>' +
       '<div class="card exercise-slots"><div class="exercise-slot fixed"><span class="slot-number">1</span>' +
       '<span class="slot-main"><b>準備運動</b><small>15分 · ' + (doneIds[PREPARATION_EXERCISE_ID] ? '記録済み' : 'デフォルト') + '</small></span>' +
       '<span class="menu-done">✓</span></div>' + slotHtml + '</div>' +
       '<div class="card"><span class="card-label">個別特記事項（任意）</span>' +
+      templateChipsHtml('exercise', 'exUseTemplate') +
       '<textarea class="note-area" maxlength="300" placeholder="例: 体調不良のため15分横になって休んだ" oninput="Actions.exNote(this.value)">' + esc(d.note) + '</textarea></div>' +
       '<div id="ex-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
       '<button class="btn-primary" id="ex-save" style="flex:none;width:100%;" onclick="Actions.exBatchSave()">選択した運動を記録する</button>' +
@@ -3984,6 +4114,7 @@ function renderCognitive(app, renderId) {
       '<div class="screen-intro compact-intro"><span class="eyebrow">脳トレ</span><h1>実施内容を記録</h1>' +
       '<p>実施した内容を選ぶか、自由に入力してください。</p></div>' +
       snackbarHtml() +
+      '<button class="btn-outline copy-previous" onclick="Actions.cogCopyPrevious()">↻ 前回の脳トレ内容をコピー</button>' +
       '<div class="card"><label class="card-label" for="cog-program">実施プログラム</label>' +
       '<select class="form-select" id="cog-program" onchange="Actions.cogSelect(this.value)">' + options + '</select>' +
       (d.activity === '__free__' ? '<input class="note-area" id="cog-free" maxlength="120" placeholder="プログラム名を入力" value="' + esc(d.free) + '"' +
@@ -3996,6 +4127,7 @@ function renderCognitive(app, renderId) {
       }).join('') + '</select></label></div>' +
       '<p class="section-note">所要時間や成果数値は蓄積され、利用者詳細で推移グラフになります。</p></div>' +
       '<div class="card"><span class="card-label">結果・所見(任意)</span>' +
+      templateChipsHtml('cognitive', 'cogUseTemplate') +
       '<textarea class="note-area" maxlength="300" placeholder="例: 20問中18問正解。集中して取り組まれた。" oninput="Actions.cogNote(this.value)">' + esc(d.note) + '</textarea></div>' +
       '<div id="cog-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
       '<button class="btn-primary" id="cog-save" style="flex:none;width:100%;" onclick="Actions.cogSave()">この内容で記録する</button>' +
@@ -4375,6 +4507,28 @@ function renderUserDetail(app, userId, renderId) {
     var scoreChart = scoreChartSvg(scores);
     var fitnessTrends = fitnessTrendCards(fitness);
 
+    var goals = res.goals || [];
+    var latestGoal = goals.length ? goals[0] : null;
+    var goalText = latestGoal ? latestGoal.goal : (user.goal || '');
+    var goalProgress = latestGoal ? latestGoal.progress : 0;
+    var goalStatus = latestGoal ? latestGoal.status : '継続';
+    var goalHistoryHtml = goals.length ? '<div class="goal-history">' + goals.slice(0, 5).map(function (g) {
+      return '<div><b>' + esc(dayLabel(g.updatedDate)) + '</b><span>' + g.progress + '% · ' + esc(g.status) + '</span><small>' + esc(g.note || '評価メモなし') + '</small></div>';
+    }).join('') + '</div>' : '';
+    var goalHtml =
+      '<div class="card goal-progress-card"><div class="goal-progress-head"><strong>' + esc(goalText || '個別目標が未登録です') + '</strong>' +
+      '<span>' + goalProgress + '%</span></div><div class="goal-progress-bar"><i style="width:' + goalProgress + '%"></i></div>' +
+      (latestGoal && latestGoal.note ? '<p class="history-note">最新評価: ' + esc(latestGoal.note) + '（' + esc(dayLabel(latestGoal.updatedDate)) + '）</p>' : '') +
+      '<div class="goal-progress-form"><textarea class="note-area" id="goal-text" maxlength="500" placeholder="個別目標">' + esc(goalText) + '</textarea>' +
+      '<select class="select-plain" id="goal-progress" aria-label="目標達成度">' + [0, 25, 50, 75, 100].map(function (n) { return '<option value="' + n + '"' + (n === goalProgress ? ' selected' : '') + '>達成度 ' + n + '%</option>'; }).join('') + '</select>' +
+      '<select class="select-plain" id="goal-status">' + ['継続', '達成', '見直し', '中止'].map(function (s) { return '<option' + (s === goalStatus ? ' selected' : '') + '>' + s + '</option>'; }).join('') + '</select>' +
+      '<input class="note-area" id="goal-note" maxlength="500" placeholder="今回の評価・変化（例: 立ち上がりが安定）">' +
+      '<button class="btn-csv" onclick="Actions.saveGoalProgress(\'' + user.id + '\',\'' + (latestGoal ? latestGoal.id : '') + '\')">進捗を保存</button></div><div id="goal-error" class="section-note"></div>' + goalHistoryHtml + '</div>';
+    var openHandoffs = res.handoffs || [];
+    var handoffSummary = openHandoffs.length ? '<div class="handoff-summary">' + openHandoffs.map(function (h) {
+      return '<div>📣 <b>' + esc(h.category) + '</b> ' + esc(h.text) + ' <small>' + esc(dayLabel(h.targetDate)) + '</small></div>';
+    }).join('') + '</div>' : '';
+
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
@@ -4389,7 +4543,8 @@ function renderUserDetail(app, userId, renderId) {
       '</header>' +
       '<div class="phone-body" style="gap:16px;">' +
       '<div><div class="section-head"><span class="section-title">重要情報</span><span class="section-note">記録前に確認</span></div>' +
-      profileHtml + '</div>' +
+      profileHtml + handoffSummary + '</div>' +
+      '<div><div class="section-head"><span class="section-title">個別目標と達成状況</span><span class="section-note">経時評価</span></div>' + goalHtml + '</div>' +
       '<div><div class="section-head"><span class="section-title">本日の状況</span>' +
       '<span class="section-note">' + dayLabel(S.today) + '</span></div>' +
       '<div class="card today-card">' + todayHtml + '</div>' +
@@ -4397,6 +4552,7 @@ function renderUserDetail(app, userId, renderId) {
         ? '<button class="btn-primary" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.startSession(\'' + user.id + '\')">▶ この方の記録をはじめる</button>'
         : '') +
       '<button class="btn-outline" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.openNotebook(\'' + user.id + '\')">🖨 本日の連絡帳を作成</button>' +
+      '<button class="btn-outline" style="flex:none;width:100%;margin-top:10px;" onclick="Actions.quickHandoff(\'' + user.id + '\')">📣 申し送りを追加</button>' +
       '</div>' +
       '<div><div class="section-head"><span class="section-title">バイタル推移</span>' +
       '<span class="section-note">直近8回</span></div>' +
@@ -4429,7 +4585,8 @@ function renderUserDetail(app, userId, renderId) {
 /** 管理機能の一覧。[ルート, アイコン, 名称, 説明] */
 var ADMIN_MENU_ITEMS = [
   ['admin',          '📊', '利用者別 実績',     'グラフ・月別実績・CSV出力'],
-  ['admin/today',    '📝', '本日の記録一覧',   '帰苑時刻・送迎の登録、記録の取り消し'],
+  ['admin/today',    '✅', '本日の進捗',       '記録漏れ・入浴・食事・連絡帳を一覧確認'],
+  ['admin/handoffs', '📣', '申し送り',         '次回確認・看護師・ご家族への共有事項'],
   ['admin/notebook', '🖨️', '連絡帳 作成・印刷', '当日の記録から自動で下書きを作成'],
   ['admin/users',    '👥', '利用者管理',       '利用者の登録・編集・削除'],
   ['admin/staff',    '🔑', '職員管理',         '職員の追加・権限・PIN再設定'],
@@ -4471,7 +4628,8 @@ function renderAdminMenu(app) {
 
 var NAV_ITEMS = [
   ['admin', '利用者別 実績'],
-  ['admin/today', '本日の記録一覧'],
+  ['admin/today', '本日の進捗'],
+  ['admin/handoffs', '申し送り'],
   ['admin/notebook', '連絡帳 作成・印刷'],
   ['admin/users', '利用者管理'],
   ['admin/staff', '職員管理'],
@@ -4995,53 +5153,92 @@ function renderAdminUsers(app, renderId) {
 // ---------------------------------------------------------------- 管理: 本日の記録一覧
 
 function renderAdminToday(app, renderId) {
-  showLoading(app, isRpcFresh('apiGetTodayRecords', []),
+  showLoading(app, isRpcFresh('apiGetCareDashboard', []),
     function (h) { return adminShell('admin/today', h); });
-  rpc('apiGetTodayRecords').then(function (res) {
+  rpc('apiGetCareDashboard').then(function (res) {
     if (!isCurrentRender(renderId)) return;
-    var checkins = res.checkins.slice().sort(function (a, b) {
-      return timeKey(a.time) < timeKey(b.time) ? -1 : 1;
-    });
-    var rows = checkins.map(function (c) {
-      var u = null;
-      S.users.forEach(function (x) { if (x.id === c.userId) u = x; });
-      if (!u) return '';
-      var vital = null;
-      res.vitals.forEach(function (v) {
-        if (v.userId === u.id && (!vital || timeKey(v.time) > timeKey(vital.time))) vital = v;
-      });
-      var exCount = res.records.filter(function (e) { return e.userId === u.id; }).length;
+    S.dashboard = res;
+    var tiles = [
+      ['来所', res.summary.checkedIn, '名'],
+      ['記録完了', res.summary.recordComplete, '名'],
+      ['連絡帳完了', res.summary.notebookDone, '名'],
+      ['要確認', res.summary.alerts, '名'],
+    ].map(function (t) {
+      return '<div class="progress-tile"><small>' + t[0] + '</small><strong>' + t[1] + '<span>' + t[2] + '</span></strong></div>';
+    }).join('');
+    var rows = res.rows.map(function (row) {
+      var u = row.user;
+      var c = row.checkin;
+      var vital = row.vital;
+      var st = row.status;
       var transportId = 'transport-' + u.id;
       var checkoutHtml = c.checkoutTime
         ? '<b>' + esc(c.checkoutTime) + '</b><br><span class="section-note">' + esc(c.transport || '') + '</span>'
         : '<div class="checkout-controls"><select class="select-plain" id="' + transportId + '">' +
           '<option value="施設送迎">施設送迎</option><option value="ご家族送迎">ご家族送迎</option><option value="その他">その他</option></select>' +
           '<button class="btn-csv" onclick="Actions.checkout(\'' + u.id + '\', \'' + transportId + '\')">帰苑登録</button></div>';
-      return (
-        '<tr><td style="font-weight:700;">' + esc(c.time) + '</td>' +
-        '<td style="font-weight:700;">' + esc(u.name) + '</td>' +
-        '<td>' + esc(u.careLevel) + '</td>' +
-        '<td>' + (vital ? vital.systolic + '/' + vital.diastolic + ' · P' + vital.pulse + ' · ' + vital.temp.toFixed(1) + '℃' : '未測定') + '</td>' +
-        '<td>' + (exCount > 0 ? exCount + '種目 実施' : '—') + '</td>' +
-        '<td>' + (vital && vital.flagged ? '<span class="flag-mark">⚑ ' + esc(vital.alerts[0]) + '</span>' : '—') + '</td>' +
-        '<td>' + checkoutHtml + '</td></tr>'
-      );
+      var missing = row.missing.length
+        ? row.missing.map(function (m) { return '<span class="missing-badge">' + esc(m) + '</span>'; }).join('')
+        : '<span class="complete-badge">✓ 記録完了</span>';
+      var alertHtml = vital && vital.flagged
+        ? '<div class="dashboard-alert">⚑ ' + vital.alerts.map(esc).join('<br>⚑ ') + '</div>' : '';
+      var handoffHtml = row.handoffs.length
+        ? '<div class="dashboard-handoff">📣 ' + row.handoffs.map(function (h) { return esc(h.text); }).join('<br>') + '</div>' : '';
+      return '<article class="progress-person-card" data-complete="' + (row.recordComplete && st.notebookDone ? '1' : '0') + '">' +
+        '<div class="progress-person-head">' + avatarHtml(u, 'avatar-sm') + '<div><strong>' + esc(u.name) + '</strong><small>' + esc(c.time) + ' 来所 · ' + esc(u.careLevel) + '</small></div>' +
+        '<button class="link-plain" onclick="go(\'users/' + u.id + '\')">詳細 ›</button></div>' +
+        '<div class="missing-list">' + missing + '</div>' + alertHtml + handoffHtml +
+        '<div class="care-checks">' +
+        '<label><input type="checkbox"' + (st.bathed ? ' checked' : '') + ' onchange="Actions.dailyStatus(\'' + u.id + '\',\'bathed\',this.checked)">入浴</label>' +
+        '<label><input type="checkbox"' + (st.mealDone ? ' checked' : '') + ' onchange="Actions.dailyStatus(\'' + u.id + '\',\'mealDone\',this.checked)">食事</label>' +
+        '<label><input type="checkbox"' + (st.notebookDone ? ' checked' : '') + ' onchange="Actions.dailyStatus(\'' + u.id + '\',\'notebookDone\',this.checked)">連絡帳</label>' +
+        '</div><div class="progress-actions"><button class="btn-csv" onclick="Actions.openNotebook(\'' + u.id + '\')">連絡帳</button>' +
+        '<button class="btn-csv" onclick="Actions.prepareHandoff(\'' + u.id + '\')">申し送り</button>' + checkoutHtml + '</div></article>';
     }).join('');
 
     var content =
-      '<div class="admin-page-head"><div><div class="breadcrumb">本日の記録一覧</div>' +
+      '<div class="admin-page-head"><div><div class="breadcrumb">本日の進捗</div>' +
       '<div class="admin-h1">' + dayLabel(S.today) +
-      ' <span class="attrs">来所 ' + checkins.length + '名 / 予定 ' + S.users.length + '名</span></div></div></div>' +
-      '<div class="panel"><div class="table-scroll"><table class="gen-table"><thead><tr>' +
-      '<th>来苑</th><th>利用者</th><th>介護度</th><th>バイタル</th><th>実施種目</th><th>アラート</th><th>帰苑・送迎</th>' +
-      '</tr></thead><tbody>' +
-      (rows || '<tr><td colspan="7" class="empty-note">本日のチェックインはまだありません</td></tr>') +
-      '</tbody></table></div></div>';
+      ' <span class="attrs">帰宅前の記録漏れを確認</span></div></div>' +
+      '<div class="admin-actions"><button class="btn-csv" onclick="Actions.refreshDashboard()">↻ 最新に更新</button></div></div>' +
+      '<div class="progress-tiles">' + tiles + '</div>' +
+      '<div class="progress-person-grid">' + (rows || '<div class="panel empty-note">本日のチェックインはまだありません</div>') + '</div>';
 
     app.innerHTML = adminShell('admin/today', content);
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
     app.innerHTML = adminShell('admin/today', renderErrorHtml('本日の記録を読み込めませんでした', 'admin/today'));
+  });
+}
+
+function renderAdminHandoffs(app, renderId) {
+  showLoading(app, isRpcFresh('apiGetCareDashboard', []), function (h) { return adminShell('admin/handoffs', h); });
+  rpc('apiGetCareDashboard').then(function (res) {
+    if (!isCurrentRender(renderId)) return;
+    S.dashboard = res;
+    var draftUser = S.handoffDraftUser || (S.users[0] && S.users[0].id) || '';
+    var userOptions = S.users.map(function (u) {
+      return '<option value="' + u.id + '"' + (u.id === draftUser ? ' selected' : '') + '>' + esc(u.name) + '</option>';
+    }).join('');
+    var list = (res.openHandoffs || []).map(function (h) {
+      var u = userById(h.userId);
+      return '<div class="handoff-card"><div><span class="handoff-category">' + esc(h.category) + '</span>' +
+        '<strong>' + esc(u ? u.name : h.userId) + '</strong><small>確認日 ' + esc(dayLabel(h.targetDate)) + ' · ' + esc(h.createdBy) + '</small></div>' +
+        '<p>' + esc(h.text) + '</p><button class="btn-csv" onclick="Actions.completeHandoff(\'' + h.id + '\')">✓ 対応完了</button></div>';
+    }).join('') || '<div class="empty-note">未完了の申し送りはありません</div>';
+    var content = '<div class="admin-page-head"><div><div class="breadcrumb">申し送り</div><div class="admin-h1">共有事項・次回確認</div></div></div>' +
+      '<div class="panel handoff-form"><div class="panel-title">新しい申し送り</div>' +
+      '<div class="form-grid"><label>利用者<select class="select-plain" id="handoff-user">' + userOptions + '</select></label>' +
+      '<label>区分<select class="select-plain" id="handoff-category"><option>次回確認</option><option>看護師へ共有</option><option>ご家族へ連絡</option><option>ケアマネへ共有</option></select></label>' +
+      '<label>確認日<input type="date" class="select-plain" id="handoff-date" value="' + esc(S.today) + '"></label></div>' +
+      templateChipsHtml('handoff', 'handoffUseTemplate') +
+      '<textarea class="note-area" id="handoff-text" maxlength="300" placeholder="例: 次回来所時に左膝の痛みを確認"></textarea>' +
+      '<div id="handoff-error" class="section-note"></div><button class="btn-primary" onclick="Actions.saveHandoff()">申し送りを登録</button></div>' +
+      '<div class="panel"><div class="panel-title">未完了 <span class="sub">' + (res.openHandoffs || []).length + '件</span></div><div class="handoff-list">' + list + '</div></div>';
+    app.innerHTML = adminShell('admin/handoffs', content);
+  }).catch(function () {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = adminShell('admin/handoffs', renderErrorHtml('申し送りを読み込めませんでした', 'admin/handoffs'));
   });
 }
 
@@ -5082,6 +5279,12 @@ function renderAdminMaster(app, renderId) {
     );
   }).join('') || '<div class="empty-note">メニューがありません。下の欄から追加してください</div>';
 
+  var templateKindLabels = { vital: 'バイタル', exercise: '運動', cognitive: '脳トレ', notebook: '連絡帳', handoff: '申し送り' };
+  var templateRows = (S.templates || []).map(function (t) {
+    return '<div class="exercise-row"><span class="ex-name"><b>' + esc(templateKindLabels[t.kind] || t.kind) + '</b> ' + esc(t.text) + '</span>' +
+      '<span class="ex-summary"><button class="link-plain" style="color:var(--alert-text);" data-del="' + t.id + '" onclick="Actions.templateDelete(\'' + t.id + '\',this)">削除</button></span></div>';
+  }).join('') || '<div class="empty-note">定型文はありません</div>';
+
   var content =
     '<div class="qr-print-page"><div class="admin-page-head"><div><div class="breadcrumb">種目マスタ / QR発行</div>' +
     '<div class="admin-h1">利用者QRカード発行 <span class="attrs">印刷して来所受付カードに使用</span></div></div>' +
@@ -5099,7 +5302,12 @@ function renderAdminMaster(app, renderId) {
     '<input class="note-area" id="cogmenu-new" maxlength="60" placeholder="新しいメニュー(例: オセロ)" style="flex:1;min-height:44px;">' +
     '<button class="btn-csv" onclick="Actions.cogMenuAdd()">追加</button></div>' +
     '<div id="cogmenu-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
-    '</div></div>';
+    '</div>' +
+    '<div class="panel no-print"><div class="panel-title">定型文テンプレート <span class="sub">各記録画面でワンタップ入力</span></div>' +
+    '<div class="row-list">' + templateRows + '</div><div class="btn-row template-admin-form">' +
+    '<select class="select-plain" id="template-kind"><option value="vital">バイタル</option><option value="exercise">運動</option><option value="cognitive">脳トレ</option><option value="notebook">連絡帳</option><option value="handoff">申し送り</option></select>' +
+    '<input class="note-area" id="template-new" maxlength="300" placeholder="新しい定型文" style="flex:1;min-height:44px;">' +
+    '<button class="btn-csv" onclick="Actions.templateAdd()">追加</button></div><div id="template-error" class="section-note"></div></div></div>';
 
   app.innerHTML = adminShell('admin/master', content);
 
@@ -5119,6 +5327,32 @@ function renderAdminMaster(app, renderId) {
 }
 
 // ---------------------------------------------------------------- 管理: 月次レポート
+
+function monthlyIndividualHtml(data) {
+  if (!data) return '';
+  function avg(list, key, digits) {
+    var values = list.map(function (x) { return Number(x[key]); }).filter(function (n) { return isFinite(n) && n > 0; });
+    if (!values.length) return '—';
+    var n = values.reduce(function (a, b) { return a + b; }, 0) / values.length;
+    return digits ? n.toFixed(digits) : Math.round(n);
+  }
+  var counts = {};
+  (data.exercises || []).forEach(function (r) { var name = exerciseLabel(r); counts[name] = (counts[name] || 0) + 1; });
+  var exercises = Object.keys(counts).map(function (name) { return '<li><span>' + esc(name) + '</span><b>' + counts[name] + '回</b></li>'; }).join('') || '<li>記録なし</li>';
+  var notes = [];
+  (data.vitals || []).forEach(function (v) { if (v.flagged) notes.push(dayLabel(v.date) + ': ' + v.alerts.join(' / ')); });
+  (data.exercises || []).forEach(function (r) { if (r.note) notes.push(dayLabel(r.date) + ': ' + r.note); });
+  (data.cognitiveRecords || []).forEach(function (r) { if (r.note) notes.push(dayLabel(r.date) + ': ' + r.note); });
+  var latestGoal = (data.goals || [])[0];
+  return '<section class="monthly-individual-sheet" aria-label="個人月次報告書">' +
+    '<header><div><small>機能訓練デイサービス 弐番館</small><h1>個人月次報告書</h1></div><div><b>' + esc(monthLabel(data.month)) + '</b><strong>' + esc(data.user.name) + ' 様</strong></div></header>' +
+    '<div class="monthly-report-summary"><div><small>利用回数</small><b>' + data.checkins.length + '回</b></div><div><small>運動記録</small><b>' + data.exercises.length + '件</b></div><div><small>脳トレ</small><b>' + data.cognitiveRecords.length + '件</b></div><div><small>体力測定等</small><b>' + data.assessments.length + '件</b></div></div>' +
+    '<div class="monthly-report-grid"><section><h2>バイタル平均</h2><p>血圧 <b>' + avg(data.vitals, 'systolic') + '/' + avg(data.vitals, 'diastolic') + ' mmHg</b></p><p>脈拍 <b>' + avg(data.vitals, 'pulse') + ' 回/分</b>　体温 <b>' + avg(data.vitals, 'temp', 1) + '℃</b></p></section>' +
+    '<section><h2>実施した運動</h2><ul>' + exercises + '</ul></section>' +
+    '<section><h2>個別目標と達成状況</h2><p><b>' + esc(latestGoal ? latestGoal.goal : (data.user.goal || '未登録')) + '</b></p><div class="goal-progress-bar"><i style="width:' + (latestGoal ? latestGoal.progress : 0) + '%"></i></div><p>達成度 ' + (latestGoal ? latestGoal.progress : 0) + '%　' + esc(latestGoal ? latestGoal.status : '継続') + '</p></section>' +
+    '<section><h2>今月のご様子・特記事項</h2>' + (notes.length ? '<ul>' + notes.slice(0, 8).map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul>' : '<p>大きな変化や特記事項はありません。</p>') + '</section></div>' +
+    '<footer>作成日 ' + esc(dayLabel(S.today)) + '　担当 ' + esc(S.staff) + '</footer></section>';
+}
 
 function renderAdminMonthly(app, renderId) {
   if (!S.admin.month) S.admin.month = S.today.slice(0, 7);
@@ -5157,6 +5391,11 @@ function renderAdminMonthly(app, renderId) {
     var monthSel = months.map(function (m) {
       return '<option value="' + m + '"' + (m === S.admin.month ? ' selected' : '') + '>' + monthLabel(m) + '</option>';
     }).join('');
+    var reportUserSel = S.users.map(function (u) {
+      return '<option value="' + u.id + '"' + (u.id === S.admin.userId ? ' selected' : '') + '>' + esc(u.name) + '</option>';
+    }).join('');
+    var reportHtml = S.monthlyIndividual && S.monthlyIndividual.month === S.admin.month
+      ? '<div class="monthly-report-wrap"><div class="admin-actions no-print"><button class="btn-csv" onclick="Actions.printMonthlyIndividual()">🖨 この報告書を印刷・PDF</button></div>' + monthlyIndividualHtml(S.monthlyIndividual) + '</div>' : '';
 
     var content =
       '<div class="admin-page-head"><div><div class="breadcrumb">月次レポート</div>' +
@@ -5168,6 +5407,8 @@ function renderAdminMonthly(app, renderId) {
       '<div class="panel"><div class="panel-title">利用者別 内訳</div>' +
       '<table class="gen-table"><thead><tr><th>利用者</th><th>介護度</th><th>来所回数</th><th>訓練記録</th><th>アラート</th></tr></thead>' +
       '<tbody>' + rows + '</tbody></table></div>';
+    content += '<div class="panel no-print"><div class="panel-title">家族・ケアマネ向け 個人月次報告書</div><div class="btn-row">' +
+      '<select class="select-plain" id="monthly-report-user">' + reportUserSel + '</select><button class="btn-primary" onclick="Actions.loadMonthlyIndividual()">報告書を作成</button></div></div>' + reportHtml;
 
     app.innerHTML = adminShell('admin/monthly', content);
   }).catch(function () {
@@ -5270,6 +5511,7 @@ function renderCommunicationBook(app, renderId) {
       '<button class="btn-csv" onclick="Actions.printNotebook()">🖨 印刷</button></div></div>' +
       '<div class="notebook-tools no-print"><label class="btn-outline" id="notebook-photo-label">📷 端末ライブラリから写真を選ぶ<input type="file" accept="image/*" onchange="Actions.notebookPhoto(this.files[0],this)" hidden></label>' +
       '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
+      templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<span id="notebook-photo-status" role="status">黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 420 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / 600文字</span></div>' +
       '<section class="communication-sheet' + (densePrint ? ' compact-print' : '') + '" aria-label="弐番館デイサービス連絡帳">' +
       '<header class="notebook-head"><div class="notebook-brand"><img src="' + LOGO + '" alt=""><div><small>機能訓練デイサービス</small><h1>弐番館 連絡帳</h1></div></div>' +
@@ -5483,6 +5725,23 @@ var Actions = {
   vCondition: function (value) {
     S.vDraft.conditionNote = value.slice(0, 300);
   },
+  vUseTemplate: function (text) {
+    var current = (S.vDraft.conditionNote || '').trim();
+    S.vDraft.conditionNote = (current ? current + '。' : '') + text;
+    S.vDraft.conditionNote = S.vDraft.conditionNote.slice(0, 300);
+    render();
+  },
+  vCopyPrevious: function () {
+    var p = S.prevVital;
+    if (!p) return;
+    S.vDraft = {
+      systolic: String(p.systolic), diastolic: String(p.diastolic), pulse: String(p.pulse),
+      temp: Number(p.temp).toFixed(1), spo2: p.spo2 == null ? '' : String(p.spo2),
+      weight: p.weight == null ? '' : String(p.weight), conditionNote: p.conditionNote || '', conditionTags: [],
+    };
+    S.vitalConfirmed = false;
+    render();
+  },
   /** 体調・特記事項の定型文チップ(複数選択可) */
   vTag: function (el) {
     var tag = el.getAttribute('data-cond');
@@ -5580,6 +5839,22 @@ var Actions = {
     if (!S.exDraft) S.exDraft = { slots: ['', '', ''], note: '' };
     S.exDraft.note = value.slice(0, 300);
     S.exDraft.message = '';
+  },
+  exUseTemplate: function (text) {
+    if (!S.exDraft) S.exDraft = { slots: ['', '', ''], note: '' };
+    S.exDraft.note = ((S.exDraft.note || '').trim() ? S.exDraft.note.trim() + '。' : '') + text;
+    S.exDraft.note = S.exDraft.note.slice(0, 300);
+    render();
+  },
+  exCopyPrevious: function () {
+    rpc('apiGetPreviousRecordSet', S.currentUserId).then(function (res) {
+      var ids = (res.exercises || []).map(function (r) { return r.exerciseId; })
+        .filter(function (id) { return id && id !== PREPARATION_EXERCISE_ID; }).slice(0, 3);
+      while (ids.length < 3) ids.push('');
+      var notes = (res.exercises || []).map(function (r) { return r.note; }).filter(String);
+      S.exDraft = { slots: ids, note: notes.join('。').slice(0, 300), message: res.exerciseDate ? dayLabel(res.exerciseDate) + 'の内容をコピーしました' : '前回記録はありません' };
+      render();
+    }).catch(function (e) { showSaveError((e && e.message) || '前回記録を取得できませんでした'); });
   },
   exBatchSave: function () {
     var d = S.exDraft || { slots: [], note: '' };
@@ -5699,6 +5974,24 @@ var Actions = {
   cogMetricValue: function (value) { S.cogDraft.metricValue = value; },
   cogMetricUnit: function (value) { S.cogDraft.metricUnit = value.slice(0, 12); },
   cogNote: function (value) { S.cogDraft.note = value.slice(0, 300); },
+  cogUseTemplate: function (text) {
+    S.cogDraft.note = ((S.cogDraft.note || '').trim() ? S.cogDraft.note.trim() + '。' : '') + text;
+    S.cogDraft.note = S.cogDraft.note.slice(0, 300);
+    render();
+  },
+  cogCopyPrevious: function () {
+    rpc('apiGetPreviousRecordSet', S.currentUserId).then(function (res) {
+      var p = res.cognitive;
+      if (!p) return showSaveError('前回の脳トレ記録はありません');
+      var menuMatch = (S.cognitiveMenu || []).some(function (m) { return m.name === p.activity; });
+      S.cogDraft = {
+        activity: menuMatch ? p.activity : '__free__', free: menuMatch ? '' : p.activity,
+        durationMinutes: p.durationMinutes == null ? '' : String(p.durationMinutes),
+        metricValue: p.metricValue == null ? '' : String(p.metricValue), metricUnit: p.metricUnit || '点', note: p.note || '',
+      };
+      render();
+    }).catch(function (e) { showSaveError((e && e.message) || '前回記録を取得できませんでした'); });
+  },
   cogSave: function () {
     var d = S.cogDraft;
     var activity = (d.activity === '__free__' ? d.free : d.activity || '').trim();
@@ -5797,6 +6090,17 @@ var Actions = {
     S.admin.notebookDate = S.today;
     S.notebook = { data: null, photo: '', comment: '', variant: 0 };
     go('admin/notebook');
+  },
+  saveGoalProgress: function (userId, goalId) {
+    var goal = document.getElementById('goal-text');
+    var progress = document.getElementById('goal-progress');
+    var status = document.getElementById('goal-status');
+    var note = document.getElementById('goal-note');
+    var err = document.getElementById('goal-error');
+    if (!goal || !goal.value.trim()) { if (err) err.textContent = '個別目標を入力してください'; return; }
+    rpc('apiSaveGoalProgress', { id: goalId, userId: userId, goal: goal.value.trim(), progress: progress.value, status: status.value, note: note.value.trim() }).then(function () {
+      clearRpcCache(); render();
+    }).catch(function (e) { if (err) err.textContent = (e && e.message) || '目標進捗を保存できませんでした'; });
   },
 
   /** 施設コードを手入力して開く(リンクを紛失したとき用) */
@@ -6037,6 +6341,79 @@ var Actions = {
       alert((e && e.message) || '帰苑を登録できませんでした');
     });
   },
+  refreshDashboard: function () {
+    clearRpcCache();
+    render();
+  },
+  dailyStatus: function (userId, field, checked) {
+    var row = null;
+    ((S.dashboard && S.dashboard.rows) || []).forEach(function (r) { if (r.user.id === userId) row = r; });
+    var status = row ? row.status : { bathed: false, mealDone: false, notebookDone: false };
+    var payload = { userId: userId, date: S.today, bathed: !!status.bathed, mealDone: !!status.mealDone, notebookDone: !!status.notebookDone };
+    payload[field] = !!checked;
+    rpc('apiSaveDailyStatus', payload).then(function (saved) {
+      if (row) row.status = saved;
+      clearRpcCache();
+      render();
+    }).catch(function (e) { alert((e && e.message) || '進捗を保存できませんでした'); render(); });
+  },
+  prepareHandoff: function (userId) {
+    S.handoffDraftUser = userId;
+    go('admin/handoffs');
+  },
+  quickHandoff: function (userId) {
+    var u = userById(userId);
+    if (!u) return;
+    var pickerHost = document.getElementById('picker');
+    if (!pickerHost) {
+      pickerHost = document.createElement('div');
+      pickerHost.id = 'picker';
+      document.body.appendChild(pickerHost);
+    }
+    var templateButtons = templatesFor('handoff').map(function (t) {
+      return '<button type="button" class="chip" data-template="' + esc(t.text) + '" onclick="Actions.handoffUseTemplate(this.getAttribute(\'data-template\'))">' + esc(t.text) + '</button>';
+    }).join('');
+    pickerHost.innerHTML = '<div class="modal-backdrop" onclick="Actions.closePicker()"><div class="modal-sheet" role="dialog" aria-modal="true" onclick="event.stopPropagation()">' +
+      '<div class="modal-head"><div><div class="eyebrow">申し送り</div><div class="modal-title">' + esc(u.name) + ' さま</div></div><button class="modal-close" onclick="Actions.closePicker()">×</button></div>' +
+      '<select class="select-plain" id="handoff-category"><option>次回確認</option><option>看護師へ共有</option><option>ご家族へ連絡</option><option>ケアマネへ共有</option></select>' +
+      '<input type="date" class="select-plain" id="handoff-date" value="' + esc(S.today) + '">' +
+      (templateButtons ? '<div class="cond-chips">' + templateButtons + '</div>' : '') +
+      '<textarea class="note-area" id="handoff-text" maxlength="300" placeholder="共有・確認する内容"></textarea><div id="handoff-error" class="section-note"></div>' +
+      '<button class="btn-primary" onclick="Actions.saveQuickHandoff(\'' + userId + '\')">申し送りを登録</button></div></div>';
+  },
+  handoffUseTemplate: function (text) {
+    var el = document.getElementById('handoff-text');
+    if (!el) return;
+    el.value = ((el.value || '').trim() ? el.value.trim() + '。' : '') + text;
+    el.value = el.value.slice(0, 300);
+  },
+  saveHandoff: function () {
+    var user = document.getElementById('handoff-user');
+    var category = document.getElementById('handoff-category');
+    var date = document.getElementById('handoff-date');
+    var note = document.getElementById('handoff-text');
+    var err = document.getElementById('handoff-error');
+    if (!note || !note.value.trim()) { if (err) err.textContent = '申し送り内容を入力してください'; return; }
+    rpc('apiSaveHandoff', { userId: user.value, category: category.value, targetDate: date.value, text: note.value.trim() }).then(function () {
+      clearRpcCache(); S.handoffDraftUser = user.value; render();
+    }).catch(function (e) { if (err) err.textContent = (e && e.message) || '登録できませんでした'; });
+  },
+  saveQuickHandoff: function (userId) {
+    var category = document.getElementById('handoff-category');
+    var date = document.getElementById('handoff-date');
+    var note = document.getElementById('handoff-text');
+    var err = document.getElementById('handoff-error');
+    if (!note || !note.value.trim()) { if (err) err.textContent = '申し送り内容を入力してください'; return; }
+    rpc('apiSaveHandoff', { userId: userId, category: category.value, targetDate: date.value, text: note.value.trim() }).then(function () {
+      clearRpcCache();
+      var picker = document.getElementById('picker');
+      if (picker) picker.innerHTML = '<div class="modal-backdrop" onclick="Actions.closePicker()"><div class="modal-sheet"><div class="toast-success"><span class="check-circle">✓</span><span>申し送りを登録しました</span></div><button class="btn-primary" onclick="Actions.closePicker();render()">閉じる</button></div></div>';
+    }).catch(function (e) { if (err) err.textContent = (e && e.message) || '登録できませんでした'; });
+  },
+  completeHandoff: function (id) {
+    rpc('apiCompleteHandoff', id).then(function () { clearRpcCache(); render(); })
+      .catch(function (e) { alert((e && e.message) || '完了にできませんでした'); });
+  },
 
   notebookUser: function (id) {
     S.admin.notebookUserId = id;
@@ -6055,6 +6432,13 @@ var Actions = {
       count.textContent = S.notebook.comment.length + ' / 600文字';
       count.classList.toggle('warn', S.notebook.comment.length > 420);
     }
+  },
+  notebookUseTemplate: function (text) {
+    S.notebook.comment = ((S.notebook.comment || '').trim() ? S.notebook.comment.trim() + '。' : '') + text;
+    S.notebook.comment = S.notebook.comment.slice(0, 600);
+    var box = document.getElementById('notebook-comment');
+    if (box) box.textContent = S.notebook.comment;
+    Actions.notebookComment(S.notebook.comment);
   },
   resetNotebookComment: function () {
     if (!S.notebook.data) return;
@@ -6102,8 +6486,15 @@ var Actions = {
     var oldTitle = document.title;
     var user = S.notebook.data && S.notebook.data.user;
     document.title = '連絡帳_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.notebookDate;
-    window.print();
-    setTimeout(function () { document.title = oldTitle; }, 500);
+    var printNow = function () {
+      window.print();
+      setTimeout(function () { document.title = oldTitle; }, 500);
+    };
+    if (user) {
+      rpc('apiSaveDailyStatus', { userId: user.id, date: S.admin.notebookDate, notebookDone: true })
+        .then(function () { clearRpcCache(); printNow(); })
+        .catch(function () { printNow(); });
+    } else printNow();
   },
   printQrCards: function (mode) {
     document.body.classList.toggle('qr-print-users', mode === 'users');
@@ -6182,7 +6573,28 @@ var Actions = {
   // --- 管理 ---
   adminUser: function (id) { S.admin.userId = id; render(); },
   adminMonth: function (m) { S.admin.month = m; render(); },
-  monthlyMonth: function (m) { S.admin.month = m; render(); },
+  monthlyMonth: function (m) { S.admin.month = m; S.monthlyIndividual = null; render(); },
+  loadMonthlyIndividual: function () {
+    var el = document.getElementById('monthly-report-user');
+    if (!el) return;
+    S.admin.userId = el.value;
+    rpc('apiGetMonthlyIndividual', el.value, S.admin.month).then(function (res) {
+      S.monthlyIndividual = res; render();
+    }).catch(function (e) { alert((e && e.message) || '個人月次報告書を作成できませんでした'); });
+  },
+  printMonthlyIndividual: function () {
+    if (!S.monthlyIndividual) return;
+    var oldTitle = document.title;
+    document.body.classList.add('monthly-report-print-mode');
+    document.title = '月次報告書_' + S.monthlyIndividual.user.name.replace(/\s/g, '') + '_' + S.monthlyIndividual.month;
+    var cleanup = function () {
+      document.body.classList.remove('monthly-report-print-mode'); document.title = oldTitle;
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    window.print();
+    setTimeout(function () { if (document.body.classList.contains('monthly-report-print-mode')) cleanup(); }, 2000);
+  },
   printResults: function () {
     var style = document.createElement('style');
     style.id = 'results-print-page';
@@ -6282,6 +6694,24 @@ var Actions = {
       alert((e && e.message) || '削除できませんでした');
     });
   },
+  templateAdd: function () {
+    var kind = document.getElementById('template-kind');
+    var input = document.getElementById('template-new');
+    var err = document.getElementById('template-error');
+    if (!input || !input.value.trim()) { if (err) err.textContent = '定型文を入力してください'; return; }
+    rpc('apiAdminSaveTemplate', { id: '', kind: kind.value, text: input.value.trim(), active: true }).then(function (res) {
+      S.templates = res.templates || []; render();
+    }).catch(function (e) { if (err) err.textContent = (e && e.message) || '保存できませんでした'; });
+  },
+  templateDelete: function (id, btn) {
+    if (btn.getAttribute('data-confirm') !== '1') {
+      btn.setAttribute('data-confirm', '1'); btn.textContent = '本当に削除?';
+      setTimeout(function () { if (document.body.contains(btn)) { btn.removeAttribute('data-confirm'); btn.textContent = '削除'; } }, 3000);
+      return;
+    }
+    rpc('apiAdminDeleteTemplate', id).then(function (res) { S.templates = res.templates || []; render(); })
+      .catch(function (e) { alert((e && e.message) || '削除できませんでした'); });
+  },
   /** 評価記録(体力測定・HDS-R・MMSE)を種目別にCSV出力する */
   exportAssessmentCsv: function () {
     if (!lastResults) return;
@@ -6321,7 +6751,7 @@ setInterval(function () {
 // ---------------------------------------------------------------- ローカルプレビュー用モック(GAS 環境では未使用)
 
 var Mock = (function () {
-  var KEY = 'kinoukunren-gas-mock-v5';
+  var KEY = 'kinoukunren-gas-mock-v6';
   function todayStr() {
     var d = new Date();
     return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
@@ -6362,7 +6792,13 @@ var Mock = (function () {
         precautions: r[0] === 'u01' ? '左膝の痛みに注意。疼痛時は歩行負荷を調整する' : '',
       };
     });
-    var db = { users: users, exercises: exercises, checkins: [], vitals: [], records: [], cognitive: [], assessments: [], seq: 0 };
+    var db = { users: users, exercises: exercises, checkins: [], vitals: [], records: [], cognitive: [], assessments: [], dailyStatus: [], handoffs: [], goals: [], templates: [
+      { id: 'tpl1', kind: 'vital', text: '体調良好', active: true },
+      { id: 'tpl2', kind: 'exercise', text: '体調に合わせて運動量を調整しました', active: true },
+      { id: 'tpl3', kind: 'cognitive', text: '集中して取り組まれました', active: true },
+      { id: 'tpl4', kind: 'notebook', text: '本日も穏やかに過ごされました', active: true },
+      { id: 'tpl5', kind: 'handoff', text: '次回来所時に状態を確認してください', active: true },
+    ], seq: 0 };
     function nid() { db.seq += 1; return 'm' + db.seq; }
     var d = new Date();
     d.setDate(d.getDate() - 3);
@@ -6390,6 +6826,9 @@ var Mock = (function () {
     db.vitals.push({ id: nid(), date: today, time: '9:12', userId: 'u02', systolic: 118, diastolic: 70, pulse: 66, temp: 36.1, spo2: 98, weight: 61.2, flagged: false, alerts: [], conditionNote: '体調良好。食欲・睡眠ともに問題なし。' });
     db.records.push({ id: nid(), date: today, time: '9:35', userId: 'u02', exerciseId: 'walk', amount: '5往復', load: 'ふつう', note: '' });
     db.cognitive.push({ id: nid(), date: today, time: '10:20', userId: 'u02', activity: '計算プリント', note: '20問中18問正解。集中して取り組まれた。', durationMinutes: 12, metricValue: 18, metricUnit: '問' });
+    db.dailyStatus.push({ id: 'ds-' + today.replace(/-/g, '') + '-u02', date: today, userId: 'u02', bathed: true, mealDone: true, notebookDone: false, updatedBy: '山本 管理', updatedAt: today + ' 12:10' });
+    db.handoffs.push({ id: nid(), createdDate: today, targetDate: today, userId: 'u04', category: '看護師へ共有', text: '午前中に軽いふらつきあり。午後の状態を確認してください。', status: 'open', createdBy: '中川 職員', completedAt: '', completedBy: '' });
+    db.goals.push({ id: nid(), userId: 'u01', goal: users[0].goal, startDate: dates[6], deadline: '', status: '継続', progress: 50, note: '歩行時のふらつきが減り、見守りで安定しています。', updatedDate: dates[0], updatedBy: '山本 管理' });
     db.assessments.push({ id: nid(), date: dates[5], userId: 'u01', type: 'HDS-R', result: '22/30点', detail: '', item: '' });
     db.assessments.push({ id: nid(), date: dates[0], userId: 'u01', type: 'HDS-R', result: '24/30点', detail: '見当識は良好。遅延再生で減点あり。', item: '' });
     db.assessments.push({ id: nid(), date: dates[3], userId: 'u01', type: 'MMSE', result: '25/30点', detail: '', item: '' });
@@ -6456,7 +6895,7 @@ var Mock = (function () {
       var me = mockMe();
       var photos = db.photos || {};
       db.users.forEach(function (x) { x.hasPhoto = !!photos[x.id]; });
-      return { apiVersion: 6, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+      return { apiVersion: 7, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), templates: (db.templates || []).filter(function (t) { return t.active !== false; }), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
     },
     apiAdminSaveCognitiveMenu: function (p) {
       var db = load();
@@ -6672,6 +7111,8 @@ var Mock = (function () {
         alertHistory: vitals.filter(function (v) { return v.flagged; }).reverse().slice(0, 10),
         cognitiveRecords: db.cognitive.filter(function (e) { return e.userId === userId; }).sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? 1 : -1; }).slice(0, 60),
         assessments: db.assessments.filter(function (e) { return e.userId === userId; }).sort(function (a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 60),
+        goals: (db.goals || []).filter(function (g) { return g.userId === userId; }).reverse(),
+        handoffs: (db.handoffs || []).filter(function (h) { return h.userId === userId && h.status === 'open'; }),
       };
     },
     apiSaveExercise: function (p) {
@@ -6769,6 +7210,76 @@ var Mock = (function () {
         assessments: db.assessments.filter(function (e) { return e.date === t; }),
       };
     },
+    apiGetCareDashboard: function () {
+      var db = load(); var t = todayStr();
+      var checkins = fns.apiGetTodayCheckins();
+      var open = (db.handoffs || []).filter(function (h) { return h.status === 'open'; });
+      var rows = checkins.map(function (c) {
+        var u = db.users.filter(function (x) { return x.id === c.userId; })[0];
+        var vs = db.vitals.filter(function (v) { return v.date === t && v.userId === c.userId; });
+        var vital = vs.length ? vs[vs.length - 1] : null;
+        var ex = db.records.filter(function (r) { return r.date === t && r.userId === c.userId; }).length;
+        var cog = db.cognitive.filter(function (r) { return r.date === t && r.userId === c.userId; }).length;
+        var ass = db.assessments.filter(function (r) { return r.date === t && r.userId === c.userId; }).length;
+        var st = (db.dailyStatus || []).filter(function (s) { return s.date === t && s.userId === c.userId; })[0] || { bathed: false, mealDone: false, notebookDone: false };
+        var missing = []; if (!vital) missing.push('バイタル'); if (!(ex + cog + ass)) missing.push('活動記録'); if (!st.notebookDone) missing.push('連絡帳');
+        return { user: u, checkin: c, vital: vital, exerciseCount: ex, cognitiveCount: cog, assessmentCount: ass,
+          recordComplete: !!vital && !!(ex + cog + ass), missing: missing, status: st,
+          handoffs: open.filter(function (h) { return h.userId === c.userId && h.targetDate <= t; }) };
+      }).sort(function (a, b) { return String(a.user.kana || a.user.name) < String(b.user.kana || b.user.name) ? -1 : 1; });
+      return { date: t, rows: rows, openHandoffs: open, summary: { checkedIn: rows.length,
+        recordComplete: rows.filter(function (r) { return r.recordComplete; }).length,
+        notebookDone: rows.filter(function (r) { return r.status.notebookDone; }).length,
+        alerts: rows.filter(function (r) { return r.vital && r.vital.flagged; }).length } };
+    },
+    apiSaveDailyStatus: function (p) {
+      var db = load(); var date = p.date || todayStr();
+      if (!db.dailyStatus) db.dailyStatus = [];
+      var rec = db.dailyStatus.filter(function (s) { return s.date === date && s.userId === p.userId; })[0];
+      if (!rec) { rec = { id: 'ds-' + date.replace(/-/g, '') + '-' + p.userId, date: date, userId: p.userId, bathed: false, mealDone: false, notebookDone: false }; db.dailyStatus.push(rec); }
+      ['bathed', 'mealDone', 'notebookDone'].forEach(function (k) { if (Object.prototype.hasOwnProperty.call(p, k)) rec[k] = !!p[k]; });
+      rec.updatedBy = (mockMe() || {}).name || 'プレビュー'; rec.updatedAt = date + ' ' + nowTime(); save(db); return rec;
+    },
+    apiGetPreviousRecordSet: function (userId) {
+      var db = load(); var t = todayStr();
+      var vs = db.vitals.filter(function (v) { return v.userId === userId && v.date < t; }).sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? -1 : 1; });
+      var ex = db.records.filter(function (r) { return r.userId === userId && r.date < t; });
+      var exDate = ''; ex.forEach(function (r) { if (r.date > exDate) exDate = r.date; });
+      var cog = db.cognitive.filter(function (r) { return r.userId === userId && r.date < t; }).sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? -1 : 1; });
+      return { vital: vs.length ? vs[vs.length - 1] : null, exercises: ex.filter(function (r) { return r.date === exDate; }), exerciseDate: exDate, cognitive: cog.length ? cog[cog.length - 1] : null };
+    },
+    apiSaveHandoff: function (p) {
+      var db = load(); if (!db.handoffs) db.handoffs = []; db.seq += 1;
+      var rec = { id: 'm' + db.seq, createdDate: todayStr(), targetDate: p.targetDate || todayStr(), userId: p.userId, category: p.category || '次回確認', text: p.text, status: 'open', createdBy: (mockMe() || {}).name || 'プレビュー', completedAt: '', completedBy: '' };
+      db.handoffs.push(rec); save(db); return rec;
+    },
+    apiCompleteHandoff: function (id) {
+      var db = load(); var target = null; (db.handoffs || []).forEach(function (h) { if (h.id === id) target = h; });
+      if (!target) throw new Error('申し送りが見つかりません'); target.status = 'done'; target.completedAt = todayStr() + ' ' + nowTime(); target.completedBy = (mockMe() || {}).name || 'プレビュー'; save(db); return target;
+    },
+    apiSaveGoalProgress: function (p) {
+      var db = load(); if (!db.goals) db.goals = []; var old = null;
+      db.goals.forEach(function (g) { if (g.id === p.id) old = g; });
+      db.seq += 1; var rec = { id: 'm' + db.seq, userId: p.userId, startDate: old ? old.startDate : todayStr(), deadline: old ? old.deadline : '' }; db.goals.push(rec);
+      rec.goal = p.goal; rec.progress = Number(p.progress); rec.status = p.status || '継続'; rec.note = p.note || ''; rec.updatedDate = todayStr(); rec.updatedBy = (mockMe() || {}).name || 'プレビュー'; save(db); return rec;
+    },
+    apiAdminSaveTemplate: function (p) {
+      var db = load(); if (!db.templates) db.templates = [];
+      if (p.id) db.templates.forEach(function (t) { if (t.id === p.id) { t.kind = p.kind; t.text = p.text; t.active = p.active !== false; } });
+      else db.templates.push({ id: 'tpl' + Date.now().toString(36), kind: p.kind, text: p.text, active: true });
+      save(db); return { templates: db.templates };
+    },
+    apiAdminDeleteTemplate: function (id) {
+      var db = load(); db.templates = (db.templates || []).filter(function (t) { return t.id !== id; }); save(db); return { templates: db.templates };
+    },
+    apiGetMonthlyIndividual: function (userId, month) {
+      var db = load(); function inM(x) { return x.date.slice(0, 7) === month && x.userId === userId; }
+      return { user: db.users.filter(function (u) { return u.id === userId; })[0], month: month,
+        checkins: db.checkins.filter(inM), vitals: db.vitals.filter(inM), exercises: db.records.filter(inM),
+        cognitiveRecords: db.cognitive.filter(inM), assessments: db.assessments.filter(inM),
+        goals: (db.goals || []).filter(function (g) { return g.userId === userId; }).reverse(),
+        handoffs: (db.handoffs || []).filter(function (h) { return h.userId === userId && h.createdDate.slice(0, 7) === month; }) };
+    },
     apiGetMonthly: function (month) {
       var db = load();
       var months = {};
@@ -6856,12 +7367,13 @@ function showFacilityCodeScreen() {
 /** ログイン後のマスタ読み込み */
 function bootAfterLogin() {
   return rpc('apiGetBootstrap').then(function (boot) {
-    if (!boot.apiVersion || boot.apiVersion < 6) {
+    if (!boot.apiVersion || boot.apiVersion < 7) {
       throw new Error('GASが旧バージョンです。Apps Scriptを最新版として再デプロイしてください');
     }
     S.users = sortUsersKana(boot.users);
     S.exercises = boot.exercises;
     S.cognitiveMenu = boot.cognitiveMenu || [];
+    S.templates = boot.templates || [];
     S.today = boot.today;
     S.staff = boot.staff;
     if (S.me && boot.role) S.me.role = boot.role; // 権限はサーバーの現在値を優先

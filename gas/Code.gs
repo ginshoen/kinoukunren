@@ -17,6 +17,10 @@ var SHEETS = {
   cognitive: '脳トレ記録',
   cognitiveMenu: '脳トレメニュー',
   assessments: '評価記録',
+  dailyStatus: '当日進捗',
+  handoffs: '申し送り',
+  templates: '定型文マスタ',
+  goals: '個別目標進捗',
   voids: '取消記録',
 };
 
@@ -30,6 +34,10 @@ var HEADERS = {
   cognitive: ['ID', '日付', '時刻', '利用者ID', '実施内容', '結果・所見', '記録者', '所要時間(分)', '成果数値', '成果単位'],
   cognitiveMenu: ['ID', '内容', '有効'],
   assessments: ['ID', '日付', '利用者ID', '評価種別', '結果', '詳細', '記録者', '種目'],
+  dailyStatus: ['ID', '日付', '利用者ID', '入浴済み', '食事済み', '連絡帳完了', '更新者', '更新時刻'],
+  handoffs: ['ID', '作成日', '対象日', '利用者ID', '区分', '内容', '状態', '記録者', '完了日時', '完了者'],
+  templates: ['ID', '種別', '内容', '有効'],
+  goals: ['ID', '利用者ID', '目標', '開始日', '期限', '状態', '達成度', '最新評価', '更新日', '記録者'],
   voids: ['対象ID', '種別', '取消日時', '取消者'],
 };
 
@@ -102,6 +110,12 @@ var API_REGISTRY = {
   apiGetUserPhotos: { fn: apiGetUserPhotos_, auth: 'staff' },
   apiGetTodayRecords: { fn: apiGetTodayRecords_, auth: 'staff' },
   apiGetUserResults: { fn: apiGetUserResults_, auth: 'staff' },
+  apiGetCareDashboard: { fn: apiGetCareDashboard_, auth: 'staff' },
+  apiSaveDailyStatus: { fn: apiSaveDailyStatus_, auth: 'staff' },
+  apiGetPreviousRecordSet: { fn: apiGetPreviousRecordSet_, auth: 'staff' },
+  apiSaveHandoff: { fn: apiSaveHandoff_, auth: 'staff' },
+  apiCompleteHandoff: { fn: apiCompleteHandoff_, auth: 'staff' },
+  apiSaveGoalProgress: { fn: apiSaveGoalProgress_, auth: 'staff' },
 
   // 管理者(admin)のみ: マスタ編集・帳票
   apiAdminSaveUser: { fn: apiAdminSaveUser_, auth: 'admin' },
@@ -111,7 +125,10 @@ var API_REGISTRY = {
   apiAdminDeleteStaff: { fn: apiAdminDeleteStaff_, auth: 'admin' },
   apiAdminSaveCognitiveMenu: { fn: apiAdminSaveCognitiveMenu_, auth: 'admin' },
   apiAdminDeleteCognitiveMenu: { fn: apiAdminDeleteCognitiveMenu_, auth: 'admin' },
+  apiAdminSaveTemplate: { fn: apiAdminSaveTemplate_, auth: 'admin' },
+  apiAdminDeleteTemplate: { fn: apiAdminDeleteTemplate_, auth: 'admin' },
   apiGetMonthly: { fn: apiGetMonthly_, auth: 'admin' },
+  apiGetMonthlyIndividual: { fn: apiGetMonthlyIndividual_, auth: 'admin' },
   apiGetCommunicationBook: { fn: apiGetCommunicationBook_, auth: 'admin' },
   apiVerifyAdmin: { fn: apiVerifyAdmin_, auth: 'admin' },
 };
@@ -208,10 +225,10 @@ function sheet_(key) {
  */
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
-  if (props.getProperty('SCHEMA_VERSION') === '8') return;
+  if (props.getProperty('SCHEMA_VERSION') === '9') return;
   var cache = CacheService.getScriptCache();
-  if (cache.get('schema-v8')) {
-    props.setProperty('SCHEMA_VERSION', '8');
+  if (cache.get('schema-v9')) {
+    props.setProperty('SCHEMA_VERSION', '9');
     return;
   }
   var lock = LockService.getScriptLock();
@@ -244,6 +261,17 @@ function ensureSchema_() {
         sh.getRange(2, 1, seed.length, 3).setNumberFormat('@')
           .setValues(seed.map(function (r) { return [r[0], r[1], 'true']; }));
       }
+      if (key === 'templates' && sh.getLastRow() < 2) {
+        var templateSeed = [
+          ['tpl1', 'vital', '体調良好', 'true'],
+          ['tpl2', 'vital', '体調変わりなく過ごされています', 'true'],
+          ['tpl3', 'exercise', '体調に合わせて運動量を調整しました', 'true'],
+          ['tpl4', 'cognitive', '集中して取り組まれました', 'true'],
+          ['tpl5', 'notebook', '本日も穏やかに過ごされました', 'true'],
+          ['tpl6', 'handoff', '次回来所時に状態を確認してください', 'true']
+        ];
+        sh.getRange(2, 1, templateSeed.length, 4).setNumberFormat('@').setValues(templateSeed);
+      }
       // 15分×4コマの1コマ目に使う「準備運動」は必ず種目マスタに用意する。
       if (key === 'exercises') {
         var hasPreparation = false;
@@ -260,8 +288,8 @@ function ensureSchema_() {
         }
       }
     });
-    props.setProperty('SCHEMA_VERSION', '8');
-    cache.put('schema-v8', '1', 21600);
+    props.setProperty('SCHEMA_VERSION', '9');
+    cache.put('schema-v9', '1', 21600);
   } finally {
     lock.releaseLock();
   }
@@ -420,6 +448,37 @@ function toAssessment_(r) {
   };
 }
 
+function boolCell_(v) { return String(v) === 'true'; }
+
+function toDailyStatus_(r) {
+  return {
+    id: String(r[0]), date: dateStr_(r[1]), userId: String(r[2]),
+    bathed: boolCell_(r[3]), mealDone: boolCell_(r[4]), notebookDone: boolCell_(r[5]),
+    updatedBy: String(r[6] || ''), updatedAt: String(r[7] || ''),
+  };
+}
+
+function toHandoff_(r) {
+  return {
+    id: String(r[0]), createdDate: dateStr_(r[1]), targetDate: dateStr_(r[2]),
+    userId: String(r[3]), category: String(r[4] || ''), text: String(r[5] || ''),
+    status: String(r[6] || 'open'), createdBy: String(r[7] || ''),
+    completedAt: String(r[8] || ''), completedBy: String(r[9] || ''),
+  };
+}
+
+function toTemplate_(r) {
+  return { id: String(r[0]), kind: String(r[1]), text: String(r[2]), active: String(r[3]) !== 'false' };
+}
+
+function toGoal_(r) {
+  return {
+    id: String(r[0]), userId: String(r[1]), goal: String(r[2]), startDate: dateStr_(r[3]),
+    deadline: String(r[4] || ''), status: String(r[5] || '継続'), progress: Number(r[6]) || 0,
+    note: String(r[7] || ''), updatedDate: dateStr_(r[8]), updatedBy: String(r[9] || ''),
+  };
+}
+
 function cachedMaster_(key, converter) {
   var cache = CacheService.getScriptCache();
   var cacheKey = 'master-v4-' + key;
@@ -472,6 +531,10 @@ function allVitals_() { return notVoided_(rows_('vitals').map(toVital_)); }
 function allRecords_() { return notVoided_(rows_('records').map(toRecord_)); }
 function allCognitive_() { return notVoided_(rows_('cognitive').map(toCognitive_)); }
 function allAssessments_() { return notVoided_(rows_('assessments').map(toAssessment_)); }
+function allDailyStatus_() { return rows_('dailyStatus').map(toDailyStatus_); }
+function allHandoffs_() { return rows_('handoffs').map(toHandoff_); }
+function allTemplates_() { return rows_('templates').map(toTemplate_); }
+function allGoals_() { return rows_('goals').map(toGoal_); }
 
 /** "9:05" → "09:05"(ソート用) */
 function timeKey_(t) {
@@ -484,11 +547,12 @@ function timeKey_(t) {
 function apiGetBootstrap_() {
   ensureSchema_();
   return {
-    apiVersion: 6,
-    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu'],
+    apiVersion: 7,
+    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual'],
     users: allUsers_(),
     exercises: allExercises_(),
     cognitiveMenu: allCognitiveMenu_(),
+    templates: allTemplates_().filter(function (t) { return t.active; }),
     today: todayStr_(),
     staff: currentStaffName_() || '職員',
     role: CURRENT_STAFF_ ? CURRENT_STAFF_.role : 'staff',
@@ -615,6 +679,9 @@ function apiGetUserDetail_(userId) {
     // 数値の経時変化グラフ用に、直近60件まで返す。
     cognitiveRecords: cognitive.reverse().slice(0, 60),
     assessments: assessments.reverse().slice(0, 60),
+    goals: allGoals_().filter(function (g) { return g.userId === userId; }).reverse(),
+    handoffs: allHandoffs_().filter(function (h) { return h.userId === userId && h.status === 'open'; })
+      .sort(function (a, b) { return a.targetDate < b.targetDate ? -1 : 1; }),
   };
 }
 
@@ -1169,10 +1236,22 @@ function evaluateVitalAlerts_(draft, prev) {
   var spo2 = Number(draft.spo2);
   if (draft.spo2 !== '' && !isNaN(spo2) && spo2 <= 92) {
     alerts.push('SpO2が低めです(92%以下)。安静にして再測定してください');
+  } else if (prev && draft.spo2 !== '' && prev.spo2 != null && prev.spo2 - spo2 >= 3) {
+    alerts.push('SpO2が前回より' + (prev.spo2 - spo2) + '%低下しています。状態を確認してください');
   }
   var temp = Number(draft.temp);
   if (draft.temp !== '' && !isNaN(temp) && temp >= 37.5) {
     alerts.push('体温が高めです(37.5℃以上)。本日の運動可否を確認してください');
+  } else if (prev && draft.temp !== '' && Math.abs(temp - prev.temp) >= 1) {
+    alerts.push('体温が前回から' + Math.abs(temp - prev.temp).toFixed(1) + '℃変化しています');
+  }
+  var dia = Number(draft.diastolic);
+  if (prev && draft.diastolic !== '' && Math.abs(dia - prev.diastolic) >= 20) {
+    alerts.push('拡張期血圧が前回から' + Math.abs(dia - prev.diastolic) + 'mmHg変化しています');
+  }
+  var pulse = Number(draft.pulse);
+  if (prev && draft.pulse !== '' && Math.abs(pulse - prev.pulse) >= 25) {
+    alerts.push('脈拍が前回から' + Math.abs(pulse - prev.pulse) + '回/分変化しています');
   }
   return alerts;
 }
@@ -1444,6 +1523,209 @@ function apiGetTodayRecords_() {
     records: allRecords_().filter(function (e) { return e.date === today; }),
     cognitiveRecords: allCognitive_().filter(function (e) { return e.date === today; }),
     assessments: allAssessments_().filter(function (e) { return e.date === today; }),
+  };
+}
+
+/**
+ * 当日ダッシュボード。来所者ごとに記録漏れ・生活状況・申し送りをまとめる。
+ * 「記録完了」はバイタルと、運動/脳トレ/評価のいずれか1件がそろった状態。
+ */
+function apiGetCareDashboard_() {
+  var today = todayStr_();
+  var users = {};
+  allUsers_().forEach(function (u) { users[u.id] = u; });
+  var vitals = allVitals_().filter(function (v) { return v.date === today; });
+  var records = allRecords_().filter(function (r) { return r.date === today; });
+  var cognitive = allCognitive_().filter(function (r) { return r.date === today; });
+  var assessments = allAssessments_().filter(function (r) { return r.date === today; });
+  var statusMap = {};
+  allDailyStatus_().forEach(function (s) { if (s.date === today) statusMap[s.userId] = s; });
+  var allOpenHandoffs = allHandoffs_().filter(function (h) { return h.status === 'open'; });
+  var openHandoffs = allOpenHandoffs.filter(function (h) {
+    return h.status === 'open' && (!h.targetDate || h.targetDate <= today);
+  });
+
+  function countFor(list, userId) {
+    return list.filter(function (x) { return x.userId === userId; }).length;
+  }
+
+  var rows = apiGetTodayCheckins_().map(function (c) {
+    var u = users[c.userId];
+    if (!u) return null;
+    var userVitals = vitals.filter(function (v) { return v.userId === u.id; });
+    var latestVital = userVitals.length ? userVitals[userVitals.length - 1] : null;
+    var exerciseCount = countFor(records, u.id);
+    var cognitiveCount = countFor(cognitive, u.id);
+    var assessmentCount = countFor(assessments, u.id);
+    var activityDone = exerciseCount + cognitiveCount + assessmentCount > 0;
+    var st = statusMap[u.id] || { bathed: false, mealDone: false, notebookDone: false };
+    var missing = [];
+    if (!latestVital) missing.push('バイタル');
+    if (!activityDone) missing.push('活動記録');
+    if (!st.notebookDone) missing.push('連絡帳');
+    return {
+      user: u, checkin: c, vital: latestVital,
+      exerciseCount: exerciseCount, cognitiveCount: cognitiveCount, assessmentCount: assessmentCount,
+      recordComplete: !!latestVital && activityDone, missing: missing,
+      status: st,
+      handoffs: openHandoffs.filter(function (h) { return h.userId === u.id; }),
+    };
+  }).filter(Boolean).sort(function (a, b) {
+    return userSortKey_(a.user) < userSortKey_(b.user) ? -1 : 1;
+  });
+
+  return {
+    date: today, rows: rows,
+    openHandoffs: allOpenHandoffs.sort(function (a, b) { return a.targetDate < b.targetDate ? -1 : 1; }),
+    summary: {
+      checkedIn: rows.length,
+      recordComplete: rows.filter(function (r) { return r.recordComplete; }).length,
+      notebookDone: rows.filter(function (r) { return r.status.notebookDone; }).length,
+      alerts: rows.filter(function (r) { return r.vital && r.vital.flagged; }).length,
+    },
+  };
+}
+
+/** 入浴・食事・連絡帳の完了状態を当日分へ上書き保存する。 */
+function apiSaveDailyStatus_(payload) {
+  var userId = String(payload.userId || '');
+  if (!allUsers_().some(function (u) { return u.id === userId; })) throw new Error('利用者が見つかりません。');
+  var date = validDateStr_(payload.date || todayStr_());
+  var id = 'ds-' + date.replace(/-/g, '') + '-' + userId;
+  var existing = allDailyStatus_().filter(function (s) { return s.id === id; })[0] || {};
+  function picked(key) { return Object.prototype.hasOwnProperty.call(payload, key) ? !!payload[key] : !!existing[key]; }
+  var row = [id, date, userId, picked('bathed'), picked('mealDone'), picked('notebookDone'),
+    currentStaffName_(), Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd H:mm:ss')];
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = sheet_('dailyStatus');
+    var idx = findRowById_(sh, id);
+    if (idx < 0) appendRowNoLock_('dailyStatus', row);
+    else {
+      sh.getRange(idx, 1, 1, row.length).setNumberFormat('@').setValues([row.map(String)]);
+      invalidateRequestRows_('dailyStatus');
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  return toDailyStatus_(row);
+}
+
+/** 前回来所日の入力を、各記録画面のコピー元として返す。 */
+function apiGetPreviousRecordSet_(userId) {
+  if (!allUsers_().some(function (u) { return u.id === userId; })) throw new Error('利用者が見つかりません。');
+  var today = todayStr_();
+  var vitals = allVitals_().filter(function (v) { return v.userId === userId && v.date < today; })
+    .sort(function (a, b) { return (a.date + timeKey_(a.time)) < (b.date + timeKey_(b.time)) ? -1 : 1; });
+  var exercises = allRecords_().filter(function (r) { return r.userId === userId && r.date < today; });
+  var lastExerciseDate = '';
+  exercises.forEach(function (r) { if (r.date > lastExerciseDate) lastExerciseDate = r.date; });
+  var cognitive = allCognitive_().filter(function (r) { return r.userId === userId && r.date < today; })
+    .sort(function (a, b) { return (a.date + timeKey_(a.time)) < (b.date + timeKey_(b.time)) ? -1 : 1; });
+  return {
+    vital: vitals.length ? vitals[vitals.length - 1] : null,
+    exercises: exercises.filter(function (r) { return r.date === lastExerciseDate; })
+      .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; }),
+    exerciseDate: lastExerciseDate,
+    cognitive: cognitive.length ? cognitive[cognitive.length - 1] : null,
+  };
+}
+
+/** 申し送りを登録する。 */
+function apiSaveHandoff_(payload) {
+  var userId = String(payload.userId || '');
+  if (!allUsers_().some(function (u) { return u.id === userId; })) throw new Error('利用者が見つかりません。');
+  var rec = {
+    id: newId_(), createdDate: todayStr_(), targetDate: validDateStr_(payload.targetDate || todayStr_()),
+    userId: userId, category: safeText_(payload.category || '次回確認', 30),
+    text: safeText_(payload.text, 300), status: 'open', createdBy: currentStaffName_(),
+    completedAt: '', completedBy: '',
+  };
+  if (!rec.text) throw new Error('申し送り内容を入力してください。');
+  appendRow_('handoffs', [rec.id, rec.createdDate, rec.targetDate, rec.userId, rec.category,
+    rec.text, rec.status, rec.createdBy, '', '']);
+  return rec;
+}
+
+/** 申し送りを完了にする。 */
+function apiCompleteHandoff_(id) {
+  var sh = sheet_('handoffs');
+  var idx = findRowById_(sh, id);
+  if (idx < 0) throw new Error('申し送りが見つかりません。');
+  var completedAt = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd H:mm:ss');
+  sh.getRange(idx, 7, 1, 4).setNumberFormat('@')
+    .setValues([['done', String(sh.getRange(idx, 8).getDisplayValue()), completedAt, currentStaffName_()]]);
+  invalidateRequestRows_('handoffs');
+  return { id: String(id), status: 'done', completedAt: completedAt };
+}
+
+/** 個別目標を新規登録または進捗更新する。 */
+function apiSaveGoalProgress_(payload) {
+  var userId = String(payload.userId || '');
+  var user = allUsers_().filter(function (u) { return u.id === userId; })[0];
+  if (!user) throw new Error('利用者が見つかりません。');
+  var progress = Number(payload.progress);
+  if (!isFinite(progress) || progress < 0 || progress > 100) throw new Error('達成度は0〜100で入力してください。');
+  var allowed = ['継続', '達成', '見直し', '中止'];
+  var status = allowed.indexOf(String(payload.status)) >= 0 ? String(payload.status) : '継続';
+  var sourceId = String(payload.id || '').trim();
+  var old = allGoals_().filter(function (g) { return g.id === sourceId; })[0];
+  var id = newId_(); // 更新のたびに履歴を残し、達成度の経時変化を追えるようにする
+  var row = [id, userId, safeText_(payload.goal || (old && old.goal) || user.goal, 500),
+    (old && old.startDate) || todayStr_(), payload.deadline || (old && old.deadline) || '', status,
+    progress, safeText_(payload.note, 500), todayStr_(), currentStaffName_()];
+  if (!row[2]) throw new Error('目標を入力してください。');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    appendRowNoLock_('goals', row);
+  } finally {
+    lock.releaseLock();
+  }
+  return toGoal_(row);
+}
+
+function apiAdminSaveTemplate_(payload) {
+  var allowed = ['vital', 'exercise', 'cognitive', 'notebook', 'handoff'];
+  var kind = String(payload.kind || '');
+  if (allowed.indexOf(kind) < 0) throw new Error('定型文の種類が正しくありません。');
+  var text = safeText_(payload.text, 300);
+  if (!text) throw new Error('定型文を入力してください。');
+  var id = String(payload.id || '').trim() || ('tpl' + Date.now().toString(36));
+  var row = [id, kind, text, payload.active === false ? 'false' : 'true'];
+  var sh = sheet_('templates');
+  var idx = findRowById_(sh, id);
+  if (idx < 0) appendRow_('templates', row);
+  else {
+    sh.getRange(idx, 1, 1, 4).setNumberFormat('@').setValues([row]);
+    invalidateRequestRows_('templates');
+  }
+  return { templates: allTemplates_() };
+}
+
+function apiAdminDeleteTemplate_(id) {
+  var sh = sheet_('templates');
+  var idx = findRowById_(sh, id);
+  if (idx < 0) throw new Error('定型文が見つかりません。');
+  sh.deleteRow(idx);
+  invalidateRequestRows_('templates');
+  return { templates: allTemplates_() };
+}
+
+/** 家族・ケアマネ向けの個人月次報告書データ。 */
+function apiGetMonthlyIndividual_(userId, month) {
+  var user = allUsers_().filter(function (u) { return u.id === userId; })[0];
+  if (!user) throw new Error('利用者が見つかりません。');
+  var result = apiGetUserResults_(userId, month);
+  var cognitive = result.cognitiveRecords.filter(function (r) { return r.date.slice(0, 7) === month; });
+  var assessments = result.assessments.filter(function (r) { return r.date.slice(0, 7) === month; });
+  return {
+    user: user, month: month,
+    checkins: result.monthCheckins, vitals: result.monthVitals, exercises: result.monthExercises,
+    cognitiveRecords: cognitive, assessments: assessments,
+    goals: allGoals_().filter(function (g) { return g.userId === userId; }).reverse(),
+    handoffs: allHandoffs_().filter(function (h) { return h.userId === userId && h.createdDate.slice(0, 7) === month; }),
   };
 }
 
