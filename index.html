@@ -2571,11 +2571,653 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
   body.results-print-mode .day-table { font-size: 9px; }
 }
 
+/* ========================================================================== */
+/* Google Workspace inspired UI(2026-10-03 本番反映)                        */
+/* 印刷帳票の既存レイアウトを変えないよう、画面表示だけに適用する。             */
+/* ========================================================================== */
+@media screen {
+  :root {
+    --green: #1a73e8;
+    --green-dark: #0b57d0;
+    --green-l1: #a8c7fa;
+    --green-l2: #4c8df6;
+    --green-l3: #c2e7ff;
+    --green-l4: #e8f0fe;
+    --purple: #7c4dff;
+    --purple-dark: #5e35b1;
+    --purple-pale: #f3e8ff;
+    --alert: #d93025;
+    --alert-bg: #fce8e6;
+    --alert-border: #f6aea8;
+    --alert-text: #b3261e;
+    --page: #f8fafd;
+    --card-face: #ffffff;
+    --input-bg: #f8fafd;
+    --subtle-bg: #f1f3f4;
+    --sidebar: #f0f4f9;
+    --camera: #202124;
+    --border: #dadce0;
+    --border-success: #a8dab5;
+    --border-undone: #bdc1c6;
+    --text: #202124;
+    --text-sub: #3c4043;
+    --text-aux: #5f6368;
+    --text-success: #137333;
+    --text-disabled: #9aa0a6;
+    --success-bg: #e6f4ea;
+    --shadow-sm: 0 1px 2px rgba(60,64,67,.18), 0 1px 3px 1px rgba(60,64,67,.08);
+    --shadow-md: 0 2px 6px 2px rgba(60,64,67,.15);
+  }
+
+  body {
+    background: var(--page);
+    font-family: "Google Sans", "Noto Sans JP", Roboto, -apple-system, BlinkMacSystemFont,
+      "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+    letter-spacing: .005em;
+  }
+
+  a { color: var(--green); }
+  a:hover { color: var(--green-dark); }
+
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--green);
+    outline-offset: 2px;
+  }
+
+  .phone-wrap { padding: 24px 12px 56px; }
+  .phone {
+    max-width: 480px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: var(--shadow-md);
+  }
+  .phone > .phone-header:first-child { border-radius: 23px 23px 0 0; }
+  .phone > :last-child,
+  .phone > .phone-body:last-child { border-radius: 0 0 23px 23px; }
+
+  .phone-header,
+  .phone-header.training,
+  .phone-header.compact {
+    min-height: 72px;
+    padding: 13px 20px;
+    background: rgba(255,255,255,.96);
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    box-shadow: none;
+    backdrop-filter: blur(14px);
+  }
+  .phone-header .logo {
+    width: 40px;
+    height: 40px;
+    border: 1px solid var(--border);
+    box-shadow: none;
+  }
+  .phone-header .back-btn {
+    color: var(--text-sub);
+    border-radius: 50%;
+    justify-content: center;
+    margin-left: -8px;
+  }
+  .phone-header .back-btn:hover { background: var(--subtle-bg); }
+  .phone-header .h-sub { color: var(--text-aux); opacity: 1; }
+  .phone-header .h-title { color: var(--text); font-size: 19px; font-weight: 600; }
+  .phone-header .avatar-md {
+    background: var(--green-l4);
+    border-color: var(--green-l3);
+    color: var(--green-dark);
+  }
+
+  .pill-badge,
+  .role-badge,
+  .qr-read-badge {
+    border-color: var(--border);
+    background: var(--subtle-bg);
+    color: var(--text-sub);
+  }
+  .role-badge.admin { background: var(--green-l4); border-color: var(--green-l3); color: var(--green-dark); }
+
+  .phone-body {
+    padding: 22px 22px 28px;
+    gap: 18px;
+    background: #fff;
+  }
+  .screen-intro .eyebrow,
+  .eyebrow,
+  .training-intro .eyebrow { color: var(--green); letter-spacing: .08em; }
+  .screen-intro h1 { font-size: 24px; font-weight: 600; letter-spacing: -.02em; }
+  .screen-intro p { color: var(--text-aux); }
+
+  .workflow-steps:before { background: var(--border); }
+  .workflow-number { border-color: var(--border); background: #fff; }
+  .workflow-step.done,
+  .workflow-step.current { color: var(--green-dark); }
+  .workflow-step.done .workflow-number { border-color: var(--green-l1); background: var(--green-l4); }
+  .workflow-step.current .workflow-number {
+    border-color: var(--green);
+    background: var(--green);
+    box-shadow: 0 0 0 4px var(--green-l4);
+  }
+
+  .tab-bar {
+    gap: 6px;
+    background: rgba(255,255,255,.97);
+    border-color: var(--border);
+    box-shadow: 0 -1px 3px rgba(60,64,67,.12);
+    padding-top: 7px;
+  }
+  .tab-item {
+    min-height: 58px;
+    border-radius: 18px;
+    color: var(--text-aux);
+    font-weight: 600;
+    letter-spacing: .01em;
+  }
+  .tab-item.active { color: var(--green-dark); background: var(--green-l4); }
+  .tab-item:hover { background: var(--subtle-bg); }
+
+  .section-head { align-items: end; }
+  .section-title,
+  .panel-title { color: var(--text); font-weight: 600; letter-spacing: -.01em; }
+  .section-note { color: var(--text-aux); }
+
+  .card,
+  .panel,
+  .vital-cell,
+  .today-card,
+  .trend-card,
+  .progress-tile,
+  .progress-person-card,
+  .handoff-card,
+  .monthly-individual-sheet {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: none;
+  }
+  .card { padding: 17px; }
+  .panel { padding: 20px; }
+  .card-label { color: var(--text-aux); font-weight: 600; }
+
+  .person-row,
+  .exercise-row,
+  .assessment-grid-row,
+  .record-line,
+  .exercise-slot,
+  .profile-item {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: none;
+  }
+  .person-row:hover,
+  .person-row.tappable:hover,
+  .exercise-row:hover { background: var(--subtle-bg); }
+  .person-row.pending,
+  .exercise-row.undone,
+  .person-row.offday { background: #f8fafd; }
+  .status-dot { background: #34a853; }
+
+  .menu-action {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: none;
+  }
+  .menu-action:hover { background: var(--subtle-bg); border-color: #c4c7c5; }
+  .menu-action:active { background: var(--green-l4); }
+  .menu-action.training { border-color: var(--border); }
+  .menu-action.training:active { background: var(--purple-pale); }
+  .menu-text strong { font-weight: 600; }
+
+  .btn-primary,
+  .btn-training,
+  .btn-outline,
+  .btn-csv,
+  .capture-btn,
+  .update-btn {
+    min-height: 48px;
+    border-radius: 999px;
+    font-weight: 600;
+    letter-spacing: .01em;
+    box-shadow: none;
+  }
+  .btn-primary,
+  .btn-training {
+    background: var(--green);
+    color: #fff;
+  }
+  .btn-primary:hover,
+  .btn-training:hover { background: var(--green-dark); box-shadow: var(--shadow-sm); }
+  .btn-primary:active,
+  .btn-training:active { background: #0842a0; transform: none; }
+  .btn-primary:disabled,
+  .btn-training:disabled { background: #e3e3e3; color: #8a8a8a; box-shadow: none; }
+  .btn-outline,
+  .btn-csv {
+    background: #fff;
+    border: 1px solid #747775;
+    color: var(--green-dark);
+  }
+  .btn-outline:hover,
+  .btn-csv:hover { background: var(--green-l4); border-color: var(--green); }
+  .btn-danger { border-radius: 999px; }
+  .link-plain { color: var(--green-dark); font-weight: 600; }
+
+  .num-box,
+  .vital-cell,
+  .search-box,
+  .note-area,
+  .form-select,
+  .slot-main select,
+  .assessment-grid-row input,
+  .cognitive-metric-grid input,
+  .select-plain,
+  .form-grid input,
+  .form-grid select {
+    background: var(--input-bg);
+    border: 1px solid #747775;
+    border-radius: 8px;
+    box-shadow: none;
+  }
+  .num-box:focus-within,
+  .vital-cell:focus-within,
+  .search-box:focus-within,
+  .note-area:focus,
+  .form-select:focus,
+  .slot-main select:focus,
+  .assessment-grid-row input:focus,
+  .cognitive-metric-grid input:focus,
+  .select-plain:focus,
+  .form-grid input:focus,
+  .form-grid select:focus {
+    background: #fff;
+    border-color: var(--green);
+    box-shadow: inset 0 0 0 1px var(--green);
+    outline: none;
+  }
+  .note-area { padding: 14px; }
+
+  .segment,
+  .chip,
+  .check-item,
+  .care-checks label {
+    background: #fff;
+    border: 1px solid #747775;
+    border-radius: 999px;
+    color: var(--text-sub);
+    font-weight: 600;
+  }
+  .segment:hover,
+  .chip:hover,
+  .check-item:hover,
+  .care-checks label:hover { background: var(--subtle-bg); }
+  .segment.selected,
+  .chip.selected,
+  .check-item:has(input:checked),
+  .care-checks label:has(input:checked) {
+    border-color: var(--green);
+    background: var(--green-l4);
+    color: var(--green-dark);
+  }
+  .segment.selected,
+  .chip.selected { border-width: 1px; }
+  input[type="checkbox"],
+  input[type="radio"] { accent-color: var(--green); }
+
+  .alert-banner,
+  .dashboard-alert {
+    background: var(--alert-bg);
+    border-color: var(--alert-border);
+    color: var(--alert-text);
+    border-radius: 12px;
+  }
+  .toast-success,
+  .toast-success.toast-info,
+  .toast-error {
+    border-radius: 12px;
+    box-shadow: none;
+  }
+  .toast-success { background: var(--success-bg); border-color: var(--border-success); }
+  .toast-success.toast-info { background: var(--green-l4); border-color: var(--green-l3); }
+  .toast-success.toast-info .check-circle { background: var(--green); }
+  .toast-success.toast-info .t-sub { color: var(--green-dark); }
+  .snackbar,
+  .update-banner {
+    background: #303134;
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(60,64,67,.3);
+  }
+  .snack-undo { color: #8ab4f8; }
+  .update-btn { background: #8ab4f8; color: #202124; }
+
+  .modal-backdrop { background: rgba(32,33,36,.45); backdrop-filter: blur(2px); }
+  .modal-sheet {
+    background: #fff;
+    border-radius: 28px 28px 0 0;
+    box-shadow: 0 8px 28px rgba(60,64,67,.28);
+  }
+  .modal-close { background: transparent; color: var(--text-aux); }
+  .modal-close:hover { background: var(--subtle-bg); }
+  .modal-row { border-radius: 12px; }
+  .modal-row:hover { background: var(--subtle-bg); }
+
+  .admin-wrap { padding: 20px; background: var(--page); }
+  .admin-frame {
+    max-width: 1320px;
+    min-height: calc(100dvh - 40px);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    background: #fff;
+    box-shadow: none;
+  }
+  .admin-sidebar {
+    width: 244px;
+    padding: 20px 14px;
+    background: var(--sidebar);
+    color: var(--text);
+    border-right: 1px solid #e1e5eb;
+  }
+  .admin-sidebar .brand { color: var(--text); }
+  .admin-sidebar .brand img { background: #fff; border: 1px solid var(--border); }
+  .admin-sidebar .brand-name { color: var(--text); font-weight: 600; }
+  .admin-staff { color: var(--text-aux); border-color: var(--border); }
+  .nav-item {
+    min-height: 46px;
+    padding: 0 14px;
+    border-radius: 999px;
+    color: var(--text-sub);
+    font-weight: 500;
+  }
+  .nav-item:hover { background: #e3e8ef; color: var(--text); }
+  .nav-item.active {
+    background: var(--green-l3);
+    color: #001d35;
+    box-shadow: none;
+    font-weight: 700;
+  }
+  .admin-content { padding: 28px 32px; gap: 22px; background: #fff; }
+  .breadcrumb { color: var(--text-aux); }
+  .admin-h1 { color: var(--text); font-size: 28px; font-weight: 500; }
+  .admin-h1 .attrs { color: var(--text-aux); }
+  .admin-mobile-head {
+    background: #fff;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    box-shadow: none;
+  }
+  .admin-mobile-head .back-btn { background: transparent; color: var(--text-sub); }
+  .admin-mobile-head .back-btn:hover { background: var(--subtle-bg); }
+  .admin-mobile-head .h-sub { color: var(--text-aux); opacity: 1; }
+  .admin-mobile-head .h-title { color: var(--text); font-weight: 600; }
+
+  .gen-table th,
+  .day-table .th { background: var(--subtle-bg); color: var(--text-sub); }
+  .gen-table td,
+  .gen-table th,
+  .day-table .td,
+  .day-table .th { border-color: var(--border); }
+  .bar-track,
+  .goal-progress-bar { background: #e8eaed; }
+  .bar-fill,
+  .goal-progress-bar i { background: var(--green); }
+  .progress-person-card { border-left: 4px solid #f9ab00; }
+  .progress-person-card[data-complete="1"] { border-left-color: #34a853; }
+  .missing-badge { background: #fef7e0; color: #7a4f01; }
+  .complete-badge { background: var(--success-bg); color: #137333; }
+  .dashboard-handoff,
+  .handoff-summary,
+  .handoff-category { background: #f3e8fd; color: #681da8; }
+  .goal-progress-head span,
+  .monthly-report-grid h2 { color: var(--green-dark); }
+  .monthly-individual-sheet > header { border-bottom-color: var(--green); }
+  .monthly-report-summary > div { background: var(--green-l4); }
+
+  .pin-key {
+    border-color: var(--border);
+    border-radius: 50%;
+    background: #fff;
+    font-weight: 500;
+  }
+  .pin-key:hover { background: var(--subtle-bg); }
+  .pin-key:active { background: var(--green-l4); }
+  .pin-key.sub { border-radius: 18px; background: var(--subtle-bg); }
+  .pin-dot.filled { background: var(--green); border-color: var(--green); }
+
+  .camera-view {
+    border-radius: 16px;
+    box-shadow: none;
+    background: var(--camera);
+  }
+  .capture-btn { background: #fff; color: var(--green-dark); }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-primary,
+    .btn-training,
+    .btn-outline,
+    .btn-csv,
+    .nav-item,
+    .tab-item,
+    .menu-action,
+    .person-row,
+    .segment,
+    .chip {
+      transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .admin-wrap { padding: 0; }
+    .admin-frame { min-height: 100dvh; border: 0; border-radius: 0; }
+  }
+
+  @media (max-width: 520px) {
+    .phone-wrap { padding: 0; }
+    .phone { border: 0; border-radius: 0; box-shadow: none; }
+    .phone > .phone-header:first-child,
+    .phone > :last-child,
+    .phone > .phone-body:last-child { border-radius: 0; }
+    .phone-body { padding: 20px 18px max(30px, env(safe-area-inset-bottom)); }
+  }
+}
+
+/* 2026-09-05: 読みやすさ・操作の優先順位を揃える（ローカル確認版） */
+.ui-icon { width: 24px; height: 24px; flex: none; vertical-align: middle; }
+[hidden] { display: none !important; }
+@media screen {
+  :root { --text-aux: #596579; --border: #e0e5ed; }
+  body { line-height: 1.55; }
+  .phone { max-width: 520px; min-height: calc(100dvh - 80px); }
+  .phone-header, .phone-header.compact, .phone-header.training {
+    position: sticky; top: 0; z-index: 30; min-height: 80px;
+    padding: 12px 20px; gap: 10px; background: rgba(255,255,255,.98);
+  }
+  .phone-header .h-title { font-size: 19px; line-height: 1.45; }
+  .phone-header .h-sub { font-size: 12px; }
+  .phone-header .h-right { justify-self: end; }
+  .patient-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .patient-heading > div { min-width: 0; }
+  .patient-heading .avatar-md { width: 34px; height: 34px; font-size: 15px; }
+  /* 利用者詳細の「戻る・写真・氏名・属性」が別の行に流れないようにする。 */
+  .phone-header:has(> .avatar-md) { grid-template-columns: 38px 40px minmax(0,1fr); }
+  .phone-header:has(> .avatar-md) > .back-btn,
+  .phone-header:has(> .avatar-md) > .avatar-md { grid-row: 1 / 3; }
+  .phone-header:has(> .avatar-md) > .h-right { grid-column: 3; justify-self: start; }
+  .phone-body { padding: 22px; gap: 20px; background: #f8fafd; }
+  .screen-intro h1 { font-size: 23px; line-height: 1.45; font-weight: 700; letter-spacing: -.02em; }
+  .screen-intro p { font-size: 14px; line-height: 1.7; margin-top: 6px; }
+  .screen-intro .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .03em; }
+  .section-head { gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .section-title { font-size: 16px; font-weight: 700; }
+  .section-note { font-size: 13px; line-height: 1.6; }
+  .section-head + p.section-note { margin: -3px 0 12px; }
+  .card, .vital-cell, .panel, .progress-person-card { border-color: var(--border); }
+  .btn-primary, .btn-outline, .btn-training { min-height: 50px; border-radius: 14px; font-size: 15px; }
+  .btn-outline { border-color: #c7d4e9; background: #fff; }
+  .btn-outline .ui-icon { margin-right: 6px; }
+  .btn-primary:disabled { opacity: 1; background: #e3e8f0; color: #596579; }
+  .btn-csv { border-color: #c7d4e9; min-height: 44px; border-radius: 10px; }
+  .reception-primary { display: flex; gap: 10px; align-items: center; justify-content: center; flex: none; width: 100%; }
+
+  /* 待機中はコンパクトに。カメラ起動後は既存の読取領域を使う。 */
+  .camera-idle-mark { display: none; }
+  .camera-view:not(:has(video)) {
+    height: auto; min-height: 0; padding: 16px; background: #fff;
+    border: 1px solid var(--border); display: grid; justify-items: center; gap: 10px;
+  }
+  .camera-view:not(:has(video)) .camera-idle-mark { display: block; color: #47658e; }
+  .camera-idle-mark .ui-icon { width: 36px; height: 36px; }
+  .camera-view:not(:has(video)) .camera-frame { display: none; }
+  .camera-view:not(:has(video)) .camera-hint {
+    position: static; transform: none; color: var(--text-aux); font-size: 13px;
+    width: 100%; max-width: none; text-align: center;
+  }
+  .camera-view:not(:has(video)) .capture-wrap {
+    position: static; display: flex; flex-direction: row; gap: 8px; width: 100%; transform: none;
+  }
+  .camera-view:not(:has(video)) .capture-btn {
+    flex: 1; padding: 8px; min-height: 46px; border-radius: 10px; font-size: 13px;
+    color: #0b57d0; background: #edf3fd; box-shadow: none;
+  }
+  .camera-view:not(:has(video)) .capture-btn.live { color: var(--text-sub); background: #f1f3f6; }
+  .preview-notice { display: grid; gap: 4px; padding: 13px 16px; border-radius: 12px; border: 1px dashed #c6d6ee; background: #eef4fd; font-size: 13px; color: #476080; }
+  .preview-notice strong { color: #315281; }
+  .signed-in-bar { flex-wrap: wrap; }
+  .signed-in-name { font-weight: 500; }
+  .footer-links { flex-wrap: wrap; }
+  .empty-state { padding: 24px 18px; text-align: center; border: 1px dashed #c9d3e3; border-radius: 16px; background: #fff; }
+  .empty-state strong { font-size: 16px; }
+  .empty-state p { margin: 8px 0 14px; font-size: 14px; color: var(--text-aux); }
+  .empty-state .btn-outline { width: 100%; }
+
+  .row-list { gap: 8px; }
+  .person-row, .person-row.tappable { min-height: 74px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: #fff; }
+  .person-row .person-name { font-size: 17px; line-height: 1.5; font-weight: 650; }
+  .person-care { font-size: 13px; line-height: 1.5; }
+  .person-time { font-size: 13px; color: #267342; }
+  .person-row.offday .person-time, .person-row.pending .person-time { color: #677487; }
+  .avatar-sm { width: 40px; height: 40px; font-size: 16px; background: #edf3fd; }
+  .list-controls { top: 80px; z-index: 20; background: #f8fafd; padding: 8px 0 12px; gap: 12px; }
+  .search-box { border-color: #c8d3e4; border-radius: 14px; background: #fff; min-height: 52px; }
+  .search-box input { min-width: 0; flex: 1; }
+  .search-box .ui-icon { color: #607089; width: 21px; height: 21px; }
+  .search-clear { width: 44px; height: 44px; margin-right: -8px; display: grid; place-items: center; flex: none; border-radius: 50%; }
+  .search-clear:hover { background: #edf3fd; }
+  .filter-chips { gap: 6px; }
+  .filter-chips .chip { padding: 8px; border-radius: 10px; border-color: #d5dce7; min-height: 44px; font-size: 13px; }
+  .filter-chips .chip.selected { border-color: #a7c4ef; background: #e8f0fe; color: #0b57d0; box-shadow: inset 0 -2px #1a73e8; }
+  .list-results { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--text-aux); }
+  .kana-head { position: static; padding: 4px 2px 8px; background: transparent; font-weight: 600; font-size: 13px; color: #53647d; }
+
+  .session-summary { background: #eef4fd; padding: 14px 16px; gap: 6px; border-color: #dce7f7; }
+  .session-summary .today-status { font-size: 14px; }
+  .session-summary .today-vitals { font-size: 13px; line-height: 1.7; }
+  .session-summary .today-vitals b { font-size: 15px; }
+  .record-action-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .record-action { position: relative; display: flex; flex-direction: column; align-items: flex-start; padding: 15px; text-align: left; min-height: 178px; background: #fff; border: 1px solid #d8e1ee; border-radius: 18px; color: var(--text); gap: 8px; }
+  .record-action:hover { border-color: #9dbcea; box-shadow: 0 3px 10px #2851810f; }
+  .record-action:active { background: #edf3fd; }
+  .record-icon { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; color: #1967d2; background: #e8f0fe; margin-bottom: 2px; }
+  .record-action.exercise .record-icon { background: #e6f4ea; color: #188038; }
+  .record-action.cognitive .record-icon { background: #f3e8fd; color: #8430b5; }
+  .record-action.assessment .record-icon { background: #fef3dd; color: #996515; }
+  .record-action strong { font-size: 17px; line-height: 1.4; }
+  .record-action small { color: var(--text-aux); font-size: 12px; line-height: 1.5; }
+  .record-state { position: absolute; top: 20px; right: 12px; font-size: 11px; font-weight: 600; color: #64748b; }
+  .record-state.done { color: #137333; }
+  .record-open { display: flex; justify-content: space-between; gap: 10px; width: 100%; margin-top: auto; color: #0b57d0; font-size: 13px; font-weight: 600; }
+  .menu-action { padding: 16px; min-height: 84px; gap: 12px; }
+  .menu-icon { width: 40px; height: 40px; border-radius: 12px; background: #edf3fd; color: #496a9a; display: grid; place-items: center; }
+  .menu-text strong { font-size: 16px; line-height: 1.5; }
+  .menu-text small { font-size: 13px; font-weight: 400; line-height: 1.6; }
+  .compact-action { min-height: 74px; }
+
+  .form-section-label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; margin-top: 4px; }
+  .form-section-label > span { font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 5px; background: #e9edf4; color: #536278; }
+  .form-section-label .required-tag { background: #e7effd; color: #0b57d0; }
+  .vital-form-screen .vitals-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .vital-form-screen .num-box, .vital-form-screen .vital-cell { border: 1px solid #c5d0e0; background: #fff; border-radius: 12px; padding: 12px; min-height: 94px; }
+  .vital-form-screen .num-box input, .vital-form-screen .vital-cell input { font-size: 30px; line-height: 1.25; font-weight: 600; padding: 2px 0; }
+  .vital-form-screen .num-box.has-value, .vital-form-screen .vital-cell.has-value { background: #f1f6ff; border-color: #aec8ed; }
+  .vital-form-screen .card-label, .vital-form-screen .nb-label { font-size: 13px; color: #4a5970; }
+  .vital-form-screen .vital-prev { display: block; margin: 3px 0 0; font-size: 11px; }
+  .form-actions { position: sticky; z-index: 25; bottom: calc(72px + env(safe-area-inset-bottom,0px)); padding: 10px 20px 14px; background: rgba(255,255,255,.98); border-top: 1px solid var(--border); box-shadow: 0 -4px 14px #36476c08; }
+  .form-actions .btn-row { align-items: center; flex-direction: row; gap: 12px; }
+  .form-actions .btn-row > .link-plain { flex: 0 0 58px; width: auto; padding: 0; min-height: 48px; font-size: 14px; }
+  .form-actions .btn-primary { flex: 1; }
+  .form-actions .save-hint { font-weight: 500; font-size: 12px; padding-bottom: 8px; min-height: 0; }
+  .note-area, .form-select, .select-plain { border-color: #c5d0e0; background: #fff; font-size: 16px; border-radius: 10px; }
+  .cond-chips .chip { border-radius: 10px; border-color: #d0daea; font-size: 13px; }
+  .copy-previous { background: #edf3fd; border: 0; font-size: 13px; text-align: left; padding: 12px 16px; line-height: 1.6; }
+  .exercise-slot { grid-template-columns: 30px minmax(0,1fr); gap: 8px; }
+  .exercise-slot.fixed { grid-template-columns: 30px minmax(0,1fr) 28px; }
+  .exercise-slot select { font-size: 14px; padding-right: 22px; }
+
+  .phone.admin-hub { max-width: 880px; }
+  .menu-group > .section-head { margin-bottom: 2px; }
+  .menu-group h2 { margin: 0; font-size: 18px; font-weight: 700; }
+  .menu-group > p { margin: 0 0 12px; font-size: 13px; color: var(--text-aux); }
+  .admin-menu-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+  .menu-group:first-child .menu-action:first-child { background: #eaf2ff; border-color: #c6dafa; }
+  .admin-wrap { padding: 16px; }
+  .admin-content { background: #f8fafd; }
+  .admin-h1 { font-size: 26px; font-weight: 650; }
+  .admin-sidebar { position: sticky; top: 16px; align-self: flex-start; min-height: calc(100dvh - 32px); }
+  .admin-sidebar .nav-item { font-size: 14px; min-height: 48px; }
+  .progress-tiles { margin-bottom: 0; gap: 12px; }
+  .progress-tile { padding: 16px 18px; }
+  .progress-tile strong { font-weight: 600; font-size: 30px; }
+  .dashboard-toolbar { display: grid; grid-template-columns: minmax(220px,1fr) minmax(300px,1fr); align-items: center; gap: 12px; }
+  .dashboard-toolbar .list-results { grid-column: 1 / -1; }
+  .progress-person-card { gap: 12px; padding: 18px; border-left-width: 3px; }
+  .progress-person-head strong { font-size: 17px; }
+  .progress-person-head small { font-size: 12px; }
+  .progress-person-head .link-plain { width: auto; padding: 5px; min-width: 50px; }
+  .missing-label { font-size: 12px; color: #846738; padding: 3px 2px; }
+  .missing-badge, .complete-badge { font-weight: 600; }
+  .care-checks { gap: 7px; padding-top: 12px; border-top: 1px solid #edf0f4; }
+  .care-checks label { border-radius: 9px; min-height: 44px; border-color: #dbe2ec; font-size: 14px; font-weight: 500; }
+  .progress-actions { padding-top: 2px; gap: 8px; }
+  .progress-actions .btn-csv { font-size: 13px; padding: 8px 12px; }
+  .progress-actions .checkout-controls { flex-wrap: wrap; min-width: 0; gap: 6px; }
+  .checkout-controls select { min-width: 0; flex: 1; }
+  .tab-bar { min-height: calc(72px + env(safe-area-inset-bottom,0px)); padding-top: 5px; padding-bottom: calc(5px + env(safe-area-inset-bottom,0px)); box-shadow: none; }
+  .tab-item { font-size: 12px; gap: 4px; min-height: 60px; background: transparent; color: #596579; border-radius: 12px; }
+  .tab-item.active { background: transparent; color: #0b57d0; }
+  .tab-item.active svg { box-sizing: content-box; padding: 4px 16px; margin: -4px -16px; border-radius: 99px; background: #dce9fc; }
+  .phone > :last-child { border-top-left-radius: 0; border-top-right-radius: 0; }
+  @media (max-width: 900px) {
+    .admin-wrap { padding: 0 0 calc(80px + env(safe-area-inset-bottom,0px)); }
+    .admin-content { padding: 22px 18px 30px; }
+    .dashboard-toolbar { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) { .admin-menu-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 520px) {
+    .phone { max-width: none; min-height: 100dvh; }
+    .phone-body { padding: 18px 16px 24px; }
+    .phone-header, .phone-header.compact, .phone-header.training { padding: 12px 16px; }
+    .form-actions { padding-right: 16px; padding-left: 16px; }
+  }
+  @media (max-width: 359px) {
+    .patient-heading .avatar-md { display: none; }
+    .record-action { padding: 12px; min-height: 178px; }
+    .record-state { right: 9px; font-size: 10px; }
+    .record-action strong { font-size: 15px; }
+    .vital-form-screen .vitals-grid { gap: 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+}
+@media print {
+  .camera-idle-mark, .form-actions, .preview-notice, .dashboard-toolbar, #dashboard-empty { display: none !important; }
+}
 </style>
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20260824-1738';</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261003-1958';window.APP_MOCK=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -2596,8 +3238,8 @@ var PREPARATION_EXERCISE_ID = 'prep';
 var WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 // ホスティング版の接続設定: ファイル編集不要。画面の「接続設定」から入力し端末に保存される
-window.GAS_API_URL = window.GAS_API_URL || localStorage.getItem('gasApiUrl') || '';
-window.GAS_API_TOKEN = window.GAS_API_TOKEN || localStorage.getItem('gasApiToken') || '';
+window.GAS_API_URL = window.APP_MOCK ? '' : (window.GAS_API_URL || localStorage.getItem('gasApiUrl') || '');
+window.GAS_API_TOKEN = window.APP_MOCK ? '' : (window.GAS_API_TOKEN || localStorage.getItem('gasApiToken') || '');
 
 /**
  * 施設コード。管理者が配布するリンク( .../?c=ginshoen )に含まれる合言葉。
@@ -2738,7 +3380,9 @@ function rpc(name) {
 
   var request;
   // ホスティング版: GAS の /exec を JSON API として呼ぶ(iOSライブカメラ対応構成)
-  if (window.GAS_API_URL) {
+  if (window.APP_MOCK) {
+    request = Mock.call(name, args); // 明示的な確認版は端末の保存済み接続先も使わない
+  } else if (window.GAS_API_URL) {
     request = fetchRpc(name, args).catch(function (err) {
       // 読み取りだけを1回再試行。保存系は二重登録を避けるため自動再試行しない。
       if (!ttl || String(err && err.message || err).indexOf('認証') >= 0) throw err;
@@ -2767,6 +3411,7 @@ function rpc(name) {
 
 /** 未登録端末を管理者PINでGASへペアリングする。 */
 function pairDeviceRpc(pin) {
+  if (window.APP_MOCK) return Promise.reject(new Error('確認版では本番に接続できません'));
   if (!window.GAS_API_URL) return Promise.reject(new Error('GAS URLが未設定です'));
   return fetch(window.GAS_API_URL, {
     method: 'POST',
@@ -3266,9 +3911,31 @@ function decodeQrFromFile(file) {
   });
 }
 
+/** 小さな画面でも意味を揃えて伝える共通アイコン。外部フォントは不要。 */
+function uiIcon(name) {
+  var paths = {
+    search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+    users: '<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-3-5"/>',
+    vital: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    exercise: '<path d="m6 8 10 8M3 8l5-5M2 5l3-3M16 21l5-5M19 22l3-3M5 10l5-5M14 19l5-5"/>',
+    cognitive: '<path d="M12 4a3 3 0 0 0-5-1 4 4 0 0 0-4 5 4 4 0 0 0 0 7 4 4 0 0 0 4 5 3 3 0 0 0 5 1V4Zm0 0a3 3 0 0 1 5-1 4 4 0 0 1 4 5 4 4 0 0 1 0 7 4 4 0 0 1-4 5 3 3 0 0 1-5 1M7 7v3H4m13-3v3h3M7 16h2m6 0h2"/>',
+    assessment: '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 7v4m5-4v6m5-6v4"/>',
+    handoff: '<path d="M4 5h16v12H9l-5 4V5Zm4 4h8m-8 4h5"/>',
+    chart: '<path d="M4 3v18h17M8 16v-5m5 5V6m5 10v-8"/>',
+    check: '<path d="m5 12 4 4L19 6"/>',
+    notebook: '<path d="M6 3h14v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 0v18m3-13h6m-6 4h6m-6 4h4"/>',
+    settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor"/><circle cx="15" cy="17" r="3" fill="currentColor"/>',
+    qr: '<path d="M3 8V3h5m8 0h5v5M3 16v5h5m8 0h5v-5"/><path d="M7 7h3v3H7Zm7 0h3v3h-3ZM7 14h3v3H7Zm7 0h3v3h-3Z"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/>',
+    close: '<path d="m6 6 12 12M6 18 18 6"/>'
+  };
+  return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[name] || paths.notebook) + '</svg>';
+}
+
 function cameraHtml(hint) {
   return (
     '<div class="camera-view" id="camera-view">' +
+    '<div class="camera-idle-mark" aria-hidden="true">' + uiIcon('qr') + '</div>' +
     '<div class="camera-frame" aria-hidden="true">' +
     '<div class="camera-corner tl"></div><div class="camera-corner tr"></div>' +
     '<div class="camera-corner bl"></div><div class="camera-corner br"></div></div>' +
@@ -3286,6 +3953,7 @@ function cameraHtml(hint) {
  * 記録の途中で移動しても入力中の下書き(S.vDraft/S.exDraft)は保持される。
  */
 function tabBarHtml(active) {
+  if (!active && S.currentUserId) active = 'users';
   var icoScan =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>' +
@@ -3501,7 +4169,10 @@ function go(hash) {
   return false;
 }
 
-window.addEventListener('hashchange', render);
+window.addEventListener('hashchange', function () {
+  window.scrollTo(0, 0);
+  render();
+});
 
 /**
  * スマホ幅では表をカード形式に組み替える。その際の項目ラベルを
@@ -3603,7 +4274,7 @@ function checkinStatusView() {
     );
   }).join('');
   // 予定外の来所(振替など)も分母に含める
-  return { rows: rows, scheduledCount: pending.length + S.todayCheckins.length };
+  return { rows: rows || '<div class="empty-state"><strong>まだ来所された方はいません</strong><p>名前を選ぶか、QRカードから受付できます。</p></div>', scheduledCount: pending.length + S.todayCheckins.length };
 }
 
 function updateCheckinStatusDom() {
@@ -3642,18 +4313,18 @@ function renderCheckin(app) {
     '<div style="font-size:16px;font-weight:700;" id="clock-time">' + clock.time + '</div></div>' +
     '</header>' +
     '<div class="phone-body">' +
-    '<div class="screen-intro"><span class="eyebrow">来所受付</span><h1>利用者カードを読み取る</h1>' +
-    '<p>受付後は、下の一覧から利用者を選べばいつでも記録できます。</p></div>' +
+    '<div class="screen-intro"><span class="eyebrow">今日の受付</span><h1>来所受付をはじめる</h1>' +
+    '<p>名前を選ぶか、QRカードで受付できます。</p></div>' +
+    '<button class="btn-primary reception-primary" onclick="Actions.openPicker()">' + uiIcon('users') + '名前から選んで受付</button>' +
     cameraHtml('利用者のQRカードをかざしてください') +
     toastHtml +
     '<div><div class="section-head"><span class="section-title">本日の来所状況</span>' +
     '<span class="section-note" id="checkin-count">' + S.todayCheckins.length + '名 / 予定' + statusView.scheduledCount + '名</span></div>' +
+    '<p class="section-note">受付済みの方を選ぶと、記録を始められます。</p>' +
     '<div class="row-list" id="checkin-list">' + statusView.rows + '</div></div>' +
-    '<button class="btn-outline" style="flex:none;width:100%;" onclick="Actions.openPicker()">👤 名前から選んで受付する</button>' +
     (isStandalone() && !window.GAS_API_URL
-      ? '<div class="toast-error" role="alert"><span class="x-circle">!</span><span>' +
-        '<span class="t-title" style="display:block;">デモモードで動作中(記録は保存されません)</span>' +
-        '<span class="t-sub">GASと接続するには下の「接続設定」からURLを貼り付けてください</span></span></div>'
+      ? '<div class="preview-notice" role="note"><strong>デザイン確認用プレビュー</strong>' +
+        '<span>デモデータで操作できます。本番の記録には影響しません。</span></div>'
       : '') +
     '<div class="signed-in-bar">' +
     '<span class="signed-in-name">' + esc(S.me ? S.me.name : '') + ' さん でログイン中' +
@@ -3662,7 +4333,7 @@ function renderCheckin(app) {
     '</div>' +
     '<div class="footer-links">' +
     (APP_BUILD ? '<button class="link-plain" onclick="reloadApp()">⟳ アプリを更新</button>' : '') +
-    (isStandalone()
+    (isStandalone() && !window.APP_MOCK
       ? '<button class="link-plain" onclick="Actions.openSettings()">⚙ 接続設定</button>'
       : '') +
     '</div>' +
@@ -3813,8 +4484,20 @@ function renderUserMenu(app, renderId) {
     var vitalDone = !!vital;
     var exDone = doneCount > 0;
 
+    function recordAction(action, icon, title, description, state, done) {
+      return '<button class="record-action ' + icon + '" onclick="' + action + '">' +
+        '<span class="record-icon">' + uiIcon(icon) + '</span>' +
+        '<span class="record-state' + (done ? ' done' : '') + '">' + (done ? '✓ ' : '') + state + '</span>' +
+        '<strong>' + title + '</strong><small>' + description + '</small>' +
+        '<span class="record-open">' + (done ? (icon === 'vital' ? '再測定する' : '追加で記録') : '記録する') + ' <span aria-hidden="true">→</span></span></button>';
+    }
+    var recordActions = recordAction('Actions.goVitals()', 'vital', 'バイタル', '血圧・脈拍・体温', vitalDone ? '記録済み' : '未記録', vitalDone) +
+      recordAction('Actions.goExercise()', 'exercise', '機能訓練', '準備運動＋15分×3枠', exDone ? doneCount + '種目済み' : '未記録', exDone) +
+      recordAction("Actions.goRecord('cognitive')", 'cognitive', '脳トレ', '実施内容・時間・成果', cogCount ? cogCount + '件済み' : '未記録', cogCount > 0) +
+      recordAction("Actions.goRecord('assessment')", 'assessment', '体力測定・評価', '種目別一括・HDS-R等', '測定時に', false);
+
     var statusHtml =
-      '<div class="card today-card">' +
+      '<div class="card today-card session-summary">' +
       '<div class="today-status"><span class="status-dot"></span>' +
       (checkin ? esc(checkin.time) + ' 受付済み' : '受付記録なし') + '</div>' +
       (vital
@@ -3832,45 +4515,22 @@ function renderUserMenu(app, renderId) {
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
       '<button class="back-btn" onclick="Actions.backToCheckin()" aria-label="受付へ戻る">‹</button>' +
-      avatarHtml(user, 'avatar-md') +
-      '<div><div class="h-sub">記録メニュー</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
+      '<div class="patient-heading">' + avatarHtml(user, 'avatar-md') +
+      '<div><div class="h-sub">記録する利用者</div><div class="h-title">' + esc(user.name) + ' さま</div></div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
-      '<div class="screen-intro compact-intro"><span class="eyebrow">記録メニュー</span>' +
-      '<h1>記録する内容を選んでください</h1>' +
-      '<p>バイタル・機能訓練は、どちらからでも何度でも記録できます。</p></div>' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">' + esc(dayLabel(S.today)) + ' の記録</span>' +
+      '<h1>何を記録しますか？</h1>' +
+      '<p>実施した内容を選んで入力してください。</p></div>' +
       precautionHtml(user, false) +
       snackbarHtml() +
       statusHtml +
-      '<button class="menu-action" onclick="Actions.goVitals()">' +
-      '<span class="menu-icon">🩺</span>' +
-      '<span class="menu-text"><strong>バイタルを記録</strong>' +
-      '<small>' + (vitalDone ? '記録済み(再測定もできます)' : '血圧・脈拍・体温を入力') + '</small></span>' +
-      (vitalDone ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
-      '</button>' +
-      '<button class="menu-action training" onclick="Actions.goExercise()">' +
-      '<span class="menu-icon">🏃</span>' +
-      '<span class="menu-text"><strong>機能訓練を記録</strong>' +
-      '<small>' + (exDone ? doneCount + '種目 記録済み(追加もできます)' : '実施した種目をタップして記録') + '</small></span>' +
-      (exDone ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
-      '</button>' +
-      '<button class="menu-action" onclick="Actions.goRecord(\'cognitive\')">' +
-      '<span class="menu-icon">🧠</span>' +
-      '<span class="menu-text"><strong>脳トレを記録</strong>' +
-      '<small>' + (cogCount > 0 ? '本日 ' + cogCount + '件 記録済み' : '実施内容を選んで記録') + '</small></span>' +
-      (cogCount > 0 ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
-      '</button>' +
-      '<button class="menu-action" onclick="Actions.goRecord(\'assessment\')">' +
-      '<span class="menu-icon">📏</span>' +
-      '<span class="menu-text"><strong>体力測定・評価を記録</strong>' +
-      '<small>体力測定(種目別)・HDS-R・MMSE</small></span>' +
-      '<span class="chev">›</span>' +
-      '</button>' +
-      '<button class="menu-action" onclick="Actions.quickHandoff(\'' + user.id + '\')"><span class="menu-icon">📣</span>' +
+      '<div class="record-action-grid" aria-label="記録する内容">' + recordActions + '</div>' +
+      '<button class="menu-action compact-action" onclick="Actions.quickHandoff(\'' + user.id + '\')"><span class="menu-icon">' + uiIcon('handoff') + '</span>' +
       '<span class="menu-text"><strong>申し送りを追加</strong><small>次回確認・看護師・ご家族への共有</small></span><span class="chev">›</span></button>' +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users/' + user.id + '\')">' +
-      '📋 この方の記録・経過を見る</button>' +
+      uiIcon('chart') + ' この方の記録・経過を見る</button>' +
       '</div>' + tabBarHtml('') + '</div></div>';
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
@@ -3899,7 +4559,7 @@ function renderVitals(app, renderId) {
 
     function cell(key, label, unit, prevValue) {
       return (
-        '<label class="vital-cell"><span class="card-label">' + label +
+        '<label class="vital-cell" data-vital-field="' + key + '"><span class="card-label">' + label +
         ' <span class="unit">' + unit + '</span>' +
         (prevValue != null ? '<span class="vital-prev">(前回 ' + prevValue + ')</span>' : '') +
         '</span><input inputmode="decimal" placeholder="--" value="' + esc(d[key]) + '"' +
@@ -3908,28 +4568,30 @@ function renderVitals(app, renderId) {
     }
 
     app.innerHTML =
-      '<div class="phone-wrap"><div class="phone">' +
+      '<div class="phone-wrap"><div class="phone vital-form-screen">' +
       '<header class="phone-header compact">' +
       '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
       '<div><div class="h-sub">バイタル記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:12px;">' +
-      '<div class="screen-intro compact-intro"><span class="eyebrow">バイタル</span><h1>バイタルを記録</h1><p>血圧・脈拍・体温は必須です(SpO2・体重は任意)。</p></div>' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">バイタル</span><h1>測定した値を入力</h1><p>血圧・脈拍・体温を入力すると保存できます。</p></div>' +
       (prev ? '<button class="btn-outline copy-previous" onclick="Actions.vCopyPrevious()">↻ 前回 ' + esc(dayLabel(prev.date)) + ' の値と特記事項をコピー</button>' : '') +
       precautionHtml(user, true) +
+      '<div class="form-section-label">必須の測定値 <span class="required-tag">必須</span></div>' +
       '<div class="card"><div class="bp-head"><span class="bp-title">血圧</span><span class="bp-unit">mmHg</span>' +
       '<span class="bp-prev">' + (prev ? '前回 ' + prev.systolic + ' / ' + prev.diastolic : '前回記録なし') + '</span></div>' +
       '<div class="bp-inputs">' +
-      '<label class="num-box"><span class="nb-label">収縮期(上)</span>' +
+      '<label class="num-box" data-vital-field="systolic"><span class="nb-label">収縮期(上)</span>' +
       '<input inputmode="decimal" placeholder="---" value="' + esc(d.systolic) + '" oninput="Actions.vInput(\'systolic\', this.value)" aria-label="収縮期血圧"></label>' +
       '<span class="bp-slash">/</span>' +
-      '<label class="num-box"><span class="nb-label">拡張期(下)</span>' +
+      '<label class="num-box" data-vital-field="diastolic"><span class="nb-label">拡張期(下)</span>' +
       '<input inputmode="decimal" placeholder="---" value="' + esc(d.diastolic) + '" oninput="Actions.vInput(\'diastolic\', this.value)" aria-label="拡張期血圧"></label>' +
       '</div></div>' +
       '<div class="vitals-grid">' +
       cell('pulse', '脈拍', 'bpm', prev ? String(prev.pulse) : null) +
       cell('temp', '体温', '℃', prev ? prev.temp.toFixed(1) : null) +
+      '</div><div class="form-section-label">その他の測定値 <span>任意</span></div><div class="vitals-grid">' +
       cell('spo2', 'SpO2(任意)', '%', prev && prev.spo2 != null ? String(prev.spo2) : null) +
       cell('weight', '体重(任意)', 'kg', prev && prev.weight != null ? prev.weight.toFixed(1) : null) +
       '</div>' +
@@ -3939,9 +4601,9 @@ function renderVitals(app, renderId) {
       '<textarea class="note-area" maxlength="300" placeholder="自由記載(例: 食欲・睡眠・痛み・ふらつきなど)" oninput="Actions.vCondition(this.value)">' + esc(d.conditionNote || '') + '</textarea></div>' +
       '<div id="v-alerts"></div>' +
       '<div id="save-error"></div>' +
-      '<div class="save-hint" id="v-hint"></div>' +
-      '<div class="btn-row">' +
-      '<button class="btn-outline" onclick="Actions.vReset()">入力し直す</button>' +
+      '</div><div class="form-actions">' +
+      '<div class="save-hint" id="v-hint" role="status" aria-live="polite"></div>' +
+      '<div class="btn-row"><button class="link-plain" onclick="Actions.vReset()">クリア</button>' +
       '<button class="btn-primary" id="v-save" onclick="Actions.vSave()">バイタルを保存</button>' +
       '</div></div>' + tabBarHtml('') + '</div></div>';
 
@@ -4311,6 +4973,14 @@ function applyUserAlerts(alerts) {
   Actions.applyUserFilters();
 }
 
+function normalizeUserSearch(value) {
+  var text = String(value || '');
+  if (text.normalize) text = text.normalize('NFKC');
+  return text.replace(/\s/g, '').replace(/[ァ-ヶ]/g, function (c) {
+    return String.fromCharCode(c.charCodeAt(0) - 0x60);
+  }).toLowerCase();
+}
+
 function renderUserList(app, renderId) {
     // 一覧そのものは起動時に取得済みの利用者情報で即時表示する。
     // 当日アラートは画面をブロックせず、取得後に該当行だけを更新する。
@@ -4350,15 +5020,16 @@ function renderUserList(app, renderId) {
       '</header>' +
       '<div class="phone-body" style="gap:12px;">' +
       '<div class="list-controls">' +
-      '<label class="search-box"><span aria-hidden="true">⌕</span>' +
-      '<input type="search" placeholder="氏名・ふりがなで検索" oninput="Actions.filterUsers(this.value)"></label>' +
+      '<div class="search-box">' + uiIcon('search') +
+      '<input id="user-search" type="search" aria-label="利用者を検索" placeholder="氏名・ふりがなで検索" value="' + esc(S.userQueryRaw || S.userQuery || '') + '" oninput="Actions.filterUsers(this.value)">' +
+      '<button class="search-clear" id="user-search-clear" aria-label="検索をクリア" onclick="Actions.clearUserSearch()">' + uiIcon('close') + '</button></div>' +
       '<div class="filter-chips">' +
       '<button class="chip selected" data-filter="all" onclick="Actions.userFilter(\'all\')">すべて</button>' +
       '<button class="chip" data-filter="today" onclick="Actions.userFilter(\'today\')">本日来所</button>' +
-      '<button class="chip chip-alert" data-filter="alert" onclick="Actions.userFilter(\'alert\')">⚑ アラート</button>' +
-      '</div></div>' +
+      '<button class="chip chip-alert" data-filter="alert" onclick="Actions.userFilter(\'alert\')">要確認</button>' +
+      '</div><div class="list-results"><span id="user-result-count" role="status" aria-live="polite"></span><span>五十音順</span></div></div>' +
       listHtml +
-      '<div class="empty-note" id="user-empty" hidden>該当する利用者がいません</div>' +
+      '<div class="empty-state" id="user-empty" hidden><strong>該当する利用者がいません</strong><p>名前や表示条件を変えてお試しください。</p><button class="btn-outline" onclick="Actions.clearUserSearch(true)">検索条件をリセット</button></div>' +
       '</div>' + tabBarHtml('users') + '</div></div>';
 
     Actions.applyUserFilters();
@@ -4599,23 +5270,34 @@ var ADMIN_MENU_ITEMS = [
  * 大きなボタンの一覧から各機能へ入る方式にする。
  */
 function renderAdminMenu(app) {
-  var rows = ADMIN_MENU_ITEMS.map(function (it) {
-    return (
+  var icons = { admin: 'chart', 'admin/today': 'check', 'admin/handoffs': 'handoff', 'admin/notebook': 'notebook',
+    'admin/users': 'users', 'admin/staff': 'settings', 'admin/master': 'qr', 'admin/monthly': 'calendar' };
+  var buttons = {};
+  ADMIN_MENU_ITEMS.forEach(function (it) {
+    buttons[it[0]] = (
       '<button class="menu-action" onclick="go(\'' + it[0] + '\')">' +
-      '<span class="menu-icon">' + it[1] + '</span>' +
+      '<span class="menu-icon">' + uiIcon(icons[it[0]]) + '</span>' +
       '<span class="menu-text"><strong>' + it[2] + '</strong>' +
       '<small>' + it[3] + '</small></span>' +
       '<span class="chev">›</span></button>'
     );
+  });
+  var rows = [
+    ['今日の業務', 'まずは記録漏れと連絡事項を確認', ['admin/today', 'admin/handoffs', 'admin/notebook']],
+    ['記録とレポート', '利用者ごとの変化を振り返る', ['admin', 'admin/monthly']],
+    ['登録・設定', '利用者・職員・メニューを管理', ['admin/users', 'admin/staff', 'admin/master']]
+  ].map(function (group) {
+    return '<section class="menu-group"><div class="section-head"><h2>' + group[0] + '</h2></div><p>' + group[1] + '</p>' +
+      '<div class="admin-menu-grid">' + group[2].map(function (route) { return buttons[route]; }).join('') + '</div></section>';
   }).join('');
 
   app.innerHTML =
-    '<div class="phone-wrap"><div class="phone">' +
+    '<div class="phone-wrap"><div class="phone admin-hub">' +
     '<header class="phone-header">' +
     '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ">' +
     '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">管理メニュー</div></div>' +
     '</header>' +
-    '<div class="phone-body" style="gap:10px;">' +
+    '<div class="phone-body">' +
     rows +
     '<div class="signed-in-bar">' +
     '<span class="signed-in-name">' + esc(S.me ? S.me.name : '') + ' さん <span class="role-badge admin">管理者</span></span>' +
@@ -5184,10 +5866,12 @@ function renderAdminToday(app, renderId) {
         ? '<div class="dashboard-alert">⚑ ' + vital.alerts.map(esc).join('<br>⚑ ') + '</div>' : '';
       var handoffHtml = row.handoffs.length
         ? '<div class="dashboard-handoff">📣 ' + row.handoffs.map(function (h) { return esc(h.text); }).join('<br>') + '</div>' : '';
-      return '<article class="progress-person-card" data-complete="' + (row.recordComplete && st.notebookDone ? '1' : '0') + '">' +
+      return '<article class="progress-person-card" data-dashboard-name="' + esc(normalizeUserSearch(u.name + u.kana)) + '"' +
+        ' data-review="' + ((vital && vital.flagged) || row.handoffs.length ? '1' : '0') + '"' +
+        ' data-complete="' + (row.recordComplete && st.notebookDone ? '1' : '0') + '">' +
         '<div class="progress-person-head">' + avatarHtml(u, 'avatar-sm') + '<div><strong>' + esc(u.name) + '</strong><small>' + esc(c.time) + ' 来所 · ' + esc(u.careLevel) + '</small></div>' +
         '<button class="link-plain" onclick="go(\'users/' + u.id + '\')">詳細 ›</button></div>' +
-        '<div class="missing-list">' + missing + '</div>' + alertHtml + handoffHtml +
+        '<div class="missing-list">' + (row.missing.length ? '<span class="missing-label">未完了</span>' : '') + missing + '</div>' + alertHtml + handoffHtml +
         '<div class="care-checks">' +
         '<label><input type="checkbox"' + (st.bathed ? ' checked' : '') + ' onchange="Actions.dailyStatus(\'' + u.id + '\',\'bathed\',this.checked)">入浴</label>' +
         '<label><input type="checkbox"' + (st.mealDone ? ' checked' : '') + ' onchange="Actions.dailyStatus(\'' + u.id + '\',\'mealDone\',this.checked)">食事</label>' +
@@ -5202,9 +5886,17 @@ function renderAdminToday(app, renderId) {
       ' <span class="attrs">帰宅前の記録漏れを確認</span></div></div>' +
       '<div class="admin-actions"><button class="btn-csv" onclick="Actions.refreshDashboard()">↻ 最新に更新</button></div></div>' +
       '<div class="progress-tiles">' + tiles + '</div>' +
+      '<div class="dashboard-toolbar"><div class="search-box">' + uiIcon('search') +
+      '<input type="search" aria-label="進捗の利用者を検索" placeholder="氏名・ふりがなで検索" value="' + esc(S.dashboardQuery || '') + '" oninput="Actions.dashboardSearch(this.value)"></div>' +
+      '<div class="filter-chips" aria-label="進捗の表示条件">' +
+      [['all', '全員'], ['missing', '未完了'], ['review', '要確認・申し送り']].map(function (f) {
+        return '<button class="chip" data-dashboard-filter="' + f[0] + '" onclick="Actions.dashboardFilter(\'' + f[0] + '\')">' + f[1] + '</button>';
+      }).join('') + '</div><div class="list-results" id="dashboard-result-count" role="status" aria-live="polite"></div></div>' +
+      '<div class="empty-state" id="dashboard-empty" hidden><strong>該当する利用者はいません</strong><p>名前や表示条件を変えると、ほかの利用者を確認できます。</p><button class="btn-outline" onclick="Actions.resetDashboardFilters()">全員を表示</button></div>' +
       '<div class="progress-person-grid">' + (rows || '<div class="panel empty-note">本日のチェックインはまだありません</div>') + '</div>';
 
     app.innerHTML = adminShell('admin/today', content);
+    Actions.applyDashboardFilters();
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
     app.innerHTML = adminShell('admin/today', renderErrorHtml('本日の記録を読み込めませんでした', 'admin/today'));
@@ -5787,8 +6479,14 @@ var Actions = {
         ? 'あと入力: ' + missing.map(function (k) { return requiredLabels[k]; }).join('・')
         : (precautionPending
           ? '運動の禁止事項・注意点を確認してください'
-          : (alerts.length && !S.vitalConfirmed ? '「職員による確認済み」にチェックすると保存できます' : ''));
+          : (errors.length ? '入力値を確認してください' : (alerts.length && !S.vitalConfirmed ? '「職員による確認済み」にチェックすると保存できます' : '入力完了 · 保存できます')));
     }
+    document.querySelectorAll('[data-vital-field]').forEach(function (field) {
+      var input = field.querySelector('input');
+      var filled = String(S.vDraft[field.getAttribute('data-vital-field')] || '').trim() !== '';
+      field.classList.toggle('has-value', filled);
+      if (input) input.setAttribute('aria-required', Object.prototype.hasOwnProperty.call(requiredLabels, field.getAttribute('data-vital-field')) ? 'true' : 'false');
+    });
     var btn = document.getElementById('v-save');
     if (btn) btn.disabled = missing.length > 0 || errors.length > 0 || precautionPending || (alerts.length > 0 && !S.vitalConfirmed);
   },
@@ -5934,14 +6632,20 @@ var Actions = {
 
   // --- 利用者一覧 ---
   filterUsers: function (query) {
-    S.userQuery = (query || '').replace(/\s/g, '');
+    S.userQueryRaw = query || '';
+    S.userQuery = normalizeUserSearch(query);
     Actions.applyUserFilters();
+  },
+  clearUserSearch: function (resetFilter) {
+    S.userQuery = S.userQueryRaw = '';
+    var input = document.getElementById('user-search');
+    if (input) input.value = '';
+    if (resetFilter) S.userFilterMode = 'all';
+    Actions.applyUserFilters();
+    if (input) input.focus();
   },
   userFilter: function (mode) {
     S.userFilterMode = mode;
-    document.querySelectorAll('.filter-chips .chip').forEach(function (el) {
-      el.classList.toggle('selected', el.getAttribute('data-filter') === mode);
-    });
     Actions.applyUserFilters();
   },
   applyUserFilters: function () {
@@ -5949,7 +6653,7 @@ var Actions = {
     var mode = S.userFilterMode || 'all';
     var visible = 0;
     document.querySelectorAll('.person-row.tappable[data-state]').forEach(function (el) {
-      var name = el.getAttribute('data-name') || '';
+      var name = normalizeUserSearch(el.getAttribute('data-name'));
       var state = el.getAttribute('data-state');
       var hasAlert = el.getAttribute('data-alert') === '1';
       var show = (!q || name.indexOf(q) >= 0) &&
@@ -5965,6 +6669,15 @@ var Actions = {
     });
     var empty = document.getElementById('user-empty');
     if (empty) empty.hidden = visible > 0;
+    document.querySelectorAll('[data-filter]').forEach(function (el) {
+      var selected = el.getAttribute('data-filter') === mode;
+      el.classList.toggle('selected', selected);
+      el.setAttribute('aria-pressed', String(selected));
+    });
+    var count = document.getElementById('user-result-count');
+    if (count) count.textContent = visible + '名を表示 / 全' + S.users.length + '名';
+    var clear = document.getElementById('user-search-clear');
+    if (clear) clear.hidden = !q;
   },
 
   // --- 脳トレ記録 ---
@@ -6345,6 +7058,43 @@ var Actions = {
     clearRpcCache();
     render();
   },
+  dashboardSearch: function (value) {
+    S.dashboardQuery = value;
+    Actions.applyDashboardFilters();
+  },
+  dashboardFilter: function (mode) {
+    S.dashboardFilterMode = mode;
+    Actions.applyDashboardFilters();
+  },
+  resetDashboardFilters: function () {
+    S.dashboardQuery = '';
+    S.dashboardFilterMode = 'all';
+    var input = document.querySelector('.dashboard-toolbar input');
+    if (input) input.value = '';
+    Actions.applyDashboardFilters();
+  },
+  applyDashboardFilters: function () {
+    var q = normalizeUserSearch(S.dashboardQuery);
+    var mode = S.dashboardFilterMode || 'all';
+    var visible = 0;
+    var cards = document.querySelectorAll('[data-dashboard-name]');
+    cards.forEach(function (card) {
+      var matches = (!q || card.getAttribute('data-dashboard-name').indexOf(q) >= 0) &&
+        (mode === 'all' || (mode === 'missing' && card.getAttribute('data-complete') !== '1') ||
+          (mode === 'review' && card.getAttribute('data-review') === '1'));
+      card.hidden = !matches;
+      if (matches) visible++;
+    });
+    document.querySelectorAll('[data-dashboard-filter]').forEach(function (button) {
+      var selected = button.getAttribute('data-dashboard-filter') === mode;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
+    var count = document.getElementById('dashboard-result-count');
+    if (count) count.textContent = visible + '名を表示 / 来所 ' + cards.length + '名';
+    var empty = document.getElementById('dashboard-empty');
+    if (empty) empty.hidden = visible > 0 || !cards.length;
+  },
   dailyStatus: function (userId, field, checked) {
     var row = null;
     ((S.dashboard && S.dashboard.rows) || []).forEach(function (r) { if (r.user.id === userId) row = r; });
@@ -6511,6 +7261,7 @@ var Actions = {
 
   // --- 接続設定(ホスティング版) ---
   openSettings: function () {
+    if (window.APP_MOCK) return;
     document.getElementById('picker').innerHTML =
       '<div class="modal-backdrop" onclick="Actions.closePicker()">' +
       '<div class="modal-sheet" onclick="event.stopPropagation()">' +
@@ -6542,6 +7293,7 @@ var Actions = {
     });
   },
   saveSettings: function () {
+    if (window.APP_MOCK) return;
     var url = document.getElementById('set-url').value.trim();
     var token = document.getElementById('set-token').value.trim();
     var errBox = document.getElementById('set-error');
