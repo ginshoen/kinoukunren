@@ -13,8 +13,8 @@ var PREPARATION_EXERCISE_ID = 'prep';
 var WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 // ホスティング版の接続設定: ファイル編集不要。画面の「接続設定」から入力し端末に保存される
-window.GAS_API_URL = window.GAS_API_URL || localStorage.getItem('gasApiUrl') || '';
-window.GAS_API_TOKEN = window.GAS_API_TOKEN || localStorage.getItem('gasApiToken') || '';
+window.GAS_API_URL = window.APP_MOCK ? '' : (window.GAS_API_URL || localStorage.getItem('gasApiUrl') || '');
+window.GAS_API_TOKEN = window.APP_MOCK ? '' : (window.GAS_API_TOKEN || localStorage.getItem('gasApiToken') || '');
 
 /**
  * 施設コード。管理者が配布するリンク( .../?c=ginshoen )に含まれる合言葉。
@@ -155,7 +155,9 @@ function rpc(name) {
 
   var request;
   // ホスティング版: GAS の /exec を JSON API として呼ぶ(iOSライブカメラ対応構成)
-  if (window.GAS_API_URL) {
+  if (window.APP_MOCK) {
+    request = Mock.call(name, args); // 明示的な確認版は端末の保存済み接続先も使わない
+  } else if (window.GAS_API_URL) {
     request = fetchRpc(name, args).catch(function (err) {
       // 読み取りだけを1回再試行。保存系は二重登録を避けるため自動再試行しない。
       if (!ttl || String(err && err.message || err).indexOf('認証') >= 0) throw err;
@@ -184,6 +186,7 @@ function rpc(name) {
 
 /** 未登録端末を管理者PINでGASへペアリングする。 */
 function pairDeviceRpc(pin) {
+  if (window.APP_MOCK) return Promise.reject(new Error('確認版では本番に接続できません'));
   if (!window.GAS_API_URL) return Promise.reject(new Error('GAS URLが未設定です'));
   return fetch(window.GAS_API_URL, {
     method: 'POST',
@@ -683,9 +686,31 @@ function decodeQrFromFile(file) {
   });
 }
 
+/** 小さな画面でも意味を揃えて伝える共通アイコン。外部フォントは不要。 */
+function uiIcon(name) {
+  var paths = {
+    search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>',
+    users: '<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 5a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-3-5"/>',
+    vital: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+    exercise: '<path d="m6 8 10 8M3 8l5-5M2 5l3-3M16 21l5-5M19 22l3-3M5 10l5-5M14 19l5-5"/>',
+    cognitive: '<path d="M12 4a3 3 0 0 0-5-1 4 4 0 0 0-4 5 4 4 0 0 0 0 7 4 4 0 0 0 4 5 3 3 0 0 0 5 1V4Zm0 0a3 3 0 0 1 5-1 4 4 0 0 1 4 5 4 4 0 0 1 0 7 4 4 0 0 1-4 5 3 3 0 0 1-5 1M7 7v3H4m13-3v3h3M7 16h2m6 0h2"/>',
+    assessment: '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 7v4m5-4v6m5-6v4"/>',
+    handoff: '<path d="M4 5h16v12H9l-5 4V5Zm4 4h8m-8 4h5"/>',
+    chart: '<path d="M4 3v18h17M8 16v-5m5 5V6m5 10v-8"/>',
+    check: '<path d="m5 12 4 4L19 6"/>',
+    notebook: '<path d="M6 3h14v18H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 0v18m3-13h6m-6 4h6m-6 4h4"/>',
+    settings: '<path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="currentColor"/><circle cx="15" cy="17" r="3" fill="currentColor"/>',
+    qr: '<path d="M3 8V3h5m8 0h5v5M3 16v5h5m8 0h5v-5"/><path d="M7 7h3v3H7Zm7 0h3v3h-3ZM7 14h3v3H7Zm7 0h3v3h-3Z"/>',
+    calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 11h18m-14 4h3m4 0h3"/>',
+    close: '<path d="m6 6 12 12M6 18 18 6"/>'
+  };
+  return '<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[name] || paths.notebook) + '</svg>';
+}
+
 function cameraHtml(hint) {
   return (
     '<div class="camera-view" id="camera-view">' +
+    '<div class="camera-idle-mark" aria-hidden="true">' + uiIcon('qr') + '</div>' +
     '<div class="camera-frame" aria-hidden="true">' +
     '<div class="camera-corner tl"></div><div class="camera-corner tr"></div>' +
     '<div class="camera-corner bl"></div><div class="camera-corner br"></div></div>' +
@@ -703,6 +728,7 @@ function cameraHtml(hint) {
  * 記録の途中で移動しても入力中の下書き(S.vDraft/S.exDraft)は保持される。
  */
 function tabBarHtml(active) {
+  if (!active && S.currentUserId) active = 'users';
   var icoScan =
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>' +
@@ -918,7 +944,10 @@ function go(hash) {
   return false;
 }
 
-window.addEventListener('hashchange', render);
+window.addEventListener('hashchange', function () {
+  window.scrollTo(0, 0);
+  render();
+});
 
 /**
  * スマホ幅では表をカード形式に組み替える。その際の項目ラベルを
@@ -1020,7 +1049,7 @@ function checkinStatusView() {
     );
   }).join('');
   // 予定外の来所(振替など)も分母に含める
-  return { rows: rows, scheduledCount: pending.length + S.todayCheckins.length };
+  return { rows: rows || '<div class="empty-state"><strong>まだ来所された方はいません</strong><p>名前を選ぶか、QRカードから受付できます。</p></div>', scheduledCount: pending.length + S.todayCheckins.length };
 }
 
 function updateCheckinStatusDom() {
@@ -1059,18 +1088,18 @@ function renderCheckin(app) {
     '<div style="font-size:16px;font-weight:700;" id="clock-time">' + clock.time + '</div></div>' +
     '</header>' +
     '<div class="phone-body">' +
-    '<div class="screen-intro"><span class="eyebrow">来所受付</span><h1>利用者カードを読み取る</h1>' +
-    '<p>受付後は、下の一覧から利用者を選べばいつでも記録できます。</p></div>' +
+    '<div class="screen-intro"><span class="eyebrow">今日の受付</span><h1>来所受付をはじめる</h1>' +
+    '<p>名前を選ぶか、QRカードで受付できます。</p></div>' +
+    '<button class="btn-primary reception-primary" onclick="Actions.openPicker()">' + uiIcon('users') + '名前から選んで受付</button>' +
     cameraHtml('利用者のQRカードをかざしてください') +
     toastHtml +
     '<div><div class="section-head"><span class="section-title">本日の来所状況</span>' +
     '<span class="section-note" id="checkin-count">' + S.todayCheckins.length + '名 / 予定' + statusView.scheduledCount + '名</span></div>' +
+    '<p class="section-note">受付済みの方を選ぶと、記録を始められます。</p>' +
     '<div class="row-list" id="checkin-list">' + statusView.rows + '</div></div>' +
-    '<button class="btn-outline" style="flex:none;width:100%;" onclick="Actions.openPicker()">👤 名前から選んで受付する</button>' +
     (isStandalone() && !window.GAS_API_URL
-      ? '<div class="toast-error" role="alert"><span class="x-circle">!</span><span>' +
-        '<span class="t-title" style="display:block;">デモモードで動作中(記録は保存されません)</span>' +
-        '<span class="t-sub">GASと接続するには下の「接続設定」からURLを貼り付けてください</span></span></div>'
+      ? '<div class="preview-notice" role="note"><strong>デザイン確認用プレビュー</strong>' +
+        '<span>デモデータで操作できます。本番の記録には影響しません。</span></div>'
       : '') +
     '<div class="signed-in-bar">' +
     '<span class="signed-in-name">' + esc(S.me ? S.me.name : '') + ' さん でログイン中' +
@@ -1079,7 +1108,7 @@ function renderCheckin(app) {
     '</div>' +
     '<div class="footer-links">' +
     (APP_BUILD ? '<button class="link-plain" onclick="reloadApp()">⟳ アプリを更新</button>' : '') +
-    (isStandalone()
+    (isStandalone() && !window.APP_MOCK
       ? '<button class="link-plain" onclick="Actions.openSettings()">⚙ 接続設定</button>'
       : '') +
     '</div>' +
@@ -1230,8 +1259,20 @@ function renderUserMenu(app, renderId) {
     var vitalDone = !!vital;
     var exDone = doneCount > 0;
 
+    function recordAction(action, icon, title, description, state, done) {
+      return '<button class="record-action ' + icon + '" onclick="' + action + '">' +
+        '<span class="record-icon">' + uiIcon(icon) + '</span>' +
+        '<span class="record-state' + (done ? ' done' : '') + '">' + (done ? '✓ ' : '') + state + '</span>' +
+        '<strong>' + title + '</strong><small>' + description + '</small>' +
+        '<span class="record-open">' + (done ? (icon === 'vital' ? '再測定する' : '追加で記録') : '記録する') + ' <span aria-hidden="true">→</span></span></button>';
+    }
+    var recordActions = recordAction('Actions.goVitals()', 'vital', 'バイタル', '血圧・脈拍・体温', vitalDone ? '記録済み' : '未記録', vitalDone) +
+      recordAction('Actions.goExercise()', 'exercise', '機能訓練', '準備運動＋15分×3枠', exDone ? doneCount + '種目済み' : '未記録', exDone) +
+      recordAction("Actions.goRecord('cognitive')", 'cognitive', '脳トレ', '実施内容・時間・成果', cogCount ? cogCount + '件済み' : '未記録', cogCount > 0) +
+      recordAction("Actions.goRecord('assessment')", 'assessment', '体力測定・評価', '種目別一括・HDS-R等', '測定時に', false);
+
     var statusHtml =
-      '<div class="card today-card">' +
+      '<div class="card today-card session-summary">' +
       '<div class="today-status"><span class="status-dot"></span>' +
       (checkin ? esc(checkin.time) + ' 受付済み' : '受付記録なし') + '</div>' +
       (vital
@@ -1249,45 +1290,22 @@ function renderUserMenu(app, renderId) {
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
       '<button class="back-btn" onclick="Actions.backToCheckin()" aria-label="受付へ戻る">‹</button>' +
-      avatarHtml(user, 'avatar-md') +
-      '<div><div class="h-sub">記録メニュー</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
+      '<div class="patient-heading">' + avatarHtml(user, 'avatar-md') +
+      '<div><div class="h-sub">記録する利用者</div><div class="h-title">' + esc(user.name) + ' さま</div></div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
-      '<div class="screen-intro compact-intro"><span class="eyebrow">記録メニュー</span>' +
-      '<h1>記録する内容を選んでください</h1>' +
-      '<p>バイタル・機能訓練は、どちらからでも何度でも記録できます。</p></div>' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">' + esc(dayLabel(S.today)) + ' の記録</span>' +
+      '<h1>何を記録しますか？</h1>' +
+      '<p>実施した内容を選んで入力してください。</p></div>' +
       precautionHtml(user, false) +
       snackbarHtml() +
       statusHtml +
-      '<button class="menu-action" onclick="Actions.goVitals()">' +
-      '<span class="menu-icon">🩺</span>' +
-      '<span class="menu-text"><strong>バイタルを記録</strong>' +
-      '<small>' + (vitalDone ? '記録済み(再測定もできます)' : '血圧・脈拍・体温を入力') + '</small></span>' +
-      (vitalDone ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
-      '</button>' +
-      '<button class="menu-action training" onclick="Actions.goExercise()">' +
-      '<span class="menu-icon">🏃</span>' +
-      '<span class="menu-text"><strong>機能訓練を記録</strong>' +
-      '<small>' + (exDone ? doneCount + '種目 記録済み(追加もできます)' : '実施した種目をタップして記録') + '</small></span>' +
-      (exDone ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
-      '</button>' +
-      '<button class="menu-action" onclick="Actions.goRecord(\'cognitive\')">' +
-      '<span class="menu-icon">🧠</span>' +
-      '<span class="menu-text"><strong>脳トレを記録</strong>' +
-      '<small>' + (cogCount > 0 ? '本日 ' + cogCount + '件 記録済み' : '実施内容を選んで記録') + '</small></span>' +
-      (cogCount > 0 ? '<span class="menu-done">✓</span>' : '<span class="chev">›</span>') +
-      '</button>' +
-      '<button class="menu-action" onclick="Actions.goRecord(\'assessment\')">' +
-      '<span class="menu-icon">📏</span>' +
-      '<span class="menu-text"><strong>体力測定・評価を記録</strong>' +
-      '<small>体力測定(種目別)・HDS-R・MMSE</small></span>' +
-      '<span class="chev">›</span>' +
-      '</button>' +
-      '<button class="menu-action" onclick="Actions.quickHandoff(\'' + user.id + '\')"><span class="menu-icon">📣</span>' +
+      '<div class="record-action-grid" aria-label="記録する内容">' + recordActions + '</div>' +
+      '<button class="menu-action compact-action" onclick="Actions.quickHandoff(\'' + user.id + '\')"><span class="menu-icon">' + uiIcon('handoff') + '</span>' +
       '<span class="menu-text"><strong>申し送りを追加</strong><small>次回確認・看護師・ご家族への共有</small></span><span class="chev">›</span></button>' +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users/' + user.id + '\')">' +
-      '📋 この方の記録・経過を見る</button>' +
+      uiIcon('chart') + ' この方の記録・経過を見る</button>' +
       '</div>' + tabBarHtml('') + '</div></div>';
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
@@ -1316,7 +1334,7 @@ function renderVitals(app, renderId) {
 
     function cell(key, label, unit, prevValue) {
       return (
-        '<label class="vital-cell"><span class="card-label">' + label +
+        '<label class="vital-cell" data-vital-field="' + key + '"><span class="card-label">' + label +
         ' <span class="unit">' + unit + '</span>' +
         (prevValue != null ? '<span class="vital-prev">(前回 ' + prevValue + ')</span>' : '') +
         '</span><input inputmode="decimal" placeholder="--" value="' + esc(d[key]) + '"' +
@@ -1325,28 +1343,30 @@ function renderVitals(app, renderId) {
     }
 
     app.innerHTML =
-      '<div class="phone-wrap"><div class="phone">' +
+      '<div class="phone-wrap"><div class="phone vital-form-screen">' +
       '<header class="phone-header compact">' +
       '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
       '<div><div class="h-sub">バイタル記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:12px;">' +
-      '<div class="screen-intro compact-intro"><span class="eyebrow">バイタル</span><h1>バイタルを記録</h1><p>血圧・脈拍・体温は必須です(SpO2・体重は任意)。</p></div>' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">バイタル</span><h1>測定した値を入力</h1><p>血圧・脈拍・体温を入力すると保存できます。</p></div>' +
       (prev ? '<button class="btn-outline copy-previous" onclick="Actions.vCopyPrevious()">↻ 前回 ' + esc(dayLabel(prev.date)) + ' の値と特記事項をコピー</button>' : '') +
       precautionHtml(user, true) +
+      '<div class="form-section-label">必須の測定値 <span class="required-tag">必須</span></div>' +
       '<div class="card"><div class="bp-head"><span class="bp-title">血圧</span><span class="bp-unit">mmHg</span>' +
       '<span class="bp-prev">' + (prev ? '前回 ' + prev.systolic + ' / ' + prev.diastolic : '前回記録なし') + '</span></div>' +
       '<div class="bp-inputs">' +
-      '<label class="num-box"><span class="nb-label">収縮期(上)</span>' +
+      '<label class="num-box" data-vital-field="systolic"><span class="nb-label">収縮期(上)</span>' +
       '<input inputmode="decimal" placeholder="---" value="' + esc(d.systolic) + '" oninput="Actions.vInput(\'systolic\', this.value)" aria-label="収縮期血圧"></label>' +
       '<span class="bp-slash">/</span>' +
-      '<label class="num-box"><span class="nb-label">拡張期(下)</span>' +
+      '<label class="num-box" data-vital-field="diastolic"><span class="nb-label">拡張期(下)</span>' +
       '<input inputmode="decimal" placeholder="---" value="' + esc(d.diastolic) + '" oninput="Actions.vInput(\'diastolic\', this.value)" aria-label="拡張期血圧"></label>' +
       '</div></div>' +
       '<div class="vitals-grid">' +
       cell('pulse', '脈拍', 'bpm', prev ? String(prev.pulse) : null) +
       cell('temp', '体温', '℃', prev ? prev.temp.toFixed(1) : null) +
+      '</div><div class="form-section-label">その他の測定値 <span>任意</span></div><div class="vitals-grid">' +
       cell('spo2', 'SpO2(任意)', '%', prev && prev.spo2 != null ? String(prev.spo2) : null) +
       cell('weight', '体重(任意)', 'kg', prev && prev.weight != null ? prev.weight.toFixed(1) : null) +
       '</div>' +
@@ -1356,9 +1376,9 @@ function renderVitals(app, renderId) {
       '<textarea class="note-area" maxlength="300" placeholder="自由記載(例: 食欲・睡眠・痛み・ふらつきなど)" oninput="Actions.vCondition(this.value)">' + esc(d.conditionNote || '') + '</textarea></div>' +
       '<div id="v-alerts"></div>' +
       '<div id="save-error"></div>' +
-      '<div class="save-hint" id="v-hint"></div>' +
-      '<div class="btn-row">' +
-      '<button class="btn-outline" onclick="Actions.vReset()">入力し直す</button>' +
+      '</div><div class="form-actions">' +
+      '<div class="save-hint" id="v-hint" role="status" aria-live="polite"></div>' +
+      '<div class="btn-row"><button class="link-plain" onclick="Actions.vReset()">クリア</button>' +
       '<button class="btn-primary" id="v-save" onclick="Actions.vSave()">バイタルを保存</button>' +
       '</div></div>' + tabBarHtml('') + '</div></div>';
 
@@ -1728,6 +1748,14 @@ function applyUserAlerts(alerts) {
   Actions.applyUserFilters();
 }
 
+function normalizeUserSearch(value) {
+  var text = String(value || '');
+  if (text.normalize) text = text.normalize('NFKC');
+  return text.replace(/\s/g, '').replace(/[ァ-ヶ]/g, function (c) {
+    return String.fromCharCode(c.charCodeAt(0) - 0x60);
+  }).toLowerCase();
+}
+
 function renderUserList(app, renderId) {
     // 一覧そのものは起動時に取得済みの利用者情報で即時表示する。
     // 当日アラートは画面をブロックせず、取得後に該当行だけを更新する。
@@ -1767,15 +1795,16 @@ function renderUserList(app, renderId) {
       '</header>' +
       '<div class="phone-body" style="gap:12px;">' +
       '<div class="list-controls">' +
-      '<label class="search-box"><span aria-hidden="true">⌕</span>' +
-      '<input type="search" placeholder="氏名・ふりがなで検索" oninput="Actions.filterUsers(this.value)"></label>' +
+      '<div class="search-box">' + uiIcon('search') +
+      '<input id="user-search" type="search" aria-label="利用者を検索" placeholder="氏名・ふりがなで検索" value="' + esc(S.userQueryRaw || S.userQuery || '') + '" oninput="Actions.filterUsers(this.value)">' +
+      '<button class="search-clear" id="user-search-clear" aria-label="検索をクリア" onclick="Actions.clearUserSearch()">' + uiIcon('close') + '</button></div>' +
       '<div class="filter-chips">' +
       '<button class="chip selected" data-filter="all" onclick="Actions.userFilter(\'all\')">すべて</button>' +
       '<button class="chip" data-filter="today" onclick="Actions.userFilter(\'today\')">本日来所</button>' +
-      '<button class="chip chip-alert" data-filter="alert" onclick="Actions.userFilter(\'alert\')">⚑ アラート</button>' +
-      '</div></div>' +
+      '<button class="chip chip-alert" data-filter="alert" onclick="Actions.userFilter(\'alert\')">要確認</button>' +
+      '</div><div class="list-results"><span id="user-result-count" role="status" aria-live="polite"></span><span>五十音順</span></div></div>' +
       listHtml +
-      '<div class="empty-note" id="user-empty" hidden>該当する利用者がいません</div>' +
+      '<div class="empty-state" id="user-empty" hidden><strong>該当する利用者がいません</strong><p>名前や表示条件を変えてお試しください。</p><button class="btn-outline" onclick="Actions.clearUserSearch(true)">検索条件をリセット</button></div>' +
       '</div>' + tabBarHtml('users') + '</div></div>';
 
     Actions.applyUserFilters();
@@ -2016,23 +2045,34 @@ var ADMIN_MENU_ITEMS = [
  * 大きなボタンの一覧から各機能へ入る方式にする。
  */
 function renderAdminMenu(app) {
-  var rows = ADMIN_MENU_ITEMS.map(function (it) {
-    return (
+  var icons = { admin: 'chart', 'admin/today': 'check', 'admin/handoffs': 'handoff', 'admin/notebook': 'notebook',
+    'admin/users': 'users', 'admin/staff': 'settings', 'admin/master': 'qr', 'admin/monthly': 'calendar' };
+  var buttons = {};
+  ADMIN_MENU_ITEMS.forEach(function (it) {
+    buttons[it[0]] = (
       '<button class="menu-action" onclick="go(\'' + it[0] + '\')">' +
-      '<span class="menu-icon">' + it[1] + '</span>' +
+      '<span class="menu-icon">' + uiIcon(icons[it[0]]) + '</span>' +
       '<span class="menu-text"><strong>' + it[2] + '</strong>' +
       '<small>' + it[3] + '</small></span>' +
       '<span class="chev">›</span></button>'
     );
+  });
+  var rows = [
+    ['今日の業務', 'まずは記録漏れと連絡事項を確認', ['admin/today', 'admin/handoffs', 'admin/notebook']],
+    ['記録とレポート', '利用者ごとの変化を振り返る', ['admin', 'admin/monthly']],
+    ['登録・設定', '利用者・職員・メニューを管理', ['admin/users', 'admin/staff', 'admin/master']]
+  ].map(function (group) {
+    return '<section class="menu-group"><div class="section-head"><h2>' + group[0] + '</h2></div><p>' + group[1] + '</p>' +
+      '<div class="admin-menu-grid">' + group[2].map(function (route) { return buttons[route]; }).join('') + '</div></section>';
   }).join('');
 
   app.innerHTML =
-    '<div class="phone-wrap"><div class="phone">' +
+    '<div class="phone-wrap"><div class="phone admin-hub">' +
     '<header class="phone-header">' +
     '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ">' +
     '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">管理メニュー</div></div>' +
     '</header>' +
-    '<div class="phone-body" style="gap:10px;">' +
+    '<div class="phone-body">' +
     rows +
     '<div class="signed-in-bar">' +
     '<span class="signed-in-name">' + esc(S.me ? S.me.name : '') + ' さん <span class="role-badge admin">管理者</span></span>' +
@@ -2601,10 +2641,12 @@ function renderAdminToday(app, renderId) {
         ? '<div class="dashboard-alert">⚑ ' + vital.alerts.map(esc).join('<br>⚑ ') + '</div>' : '';
       var handoffHtml = row.handoffs.length
         ? '<div class="dashboard-handoff">📣 ' + row.handoffs.map(function (h) { return esc(h.text); }).join('<br>') + '</div>' : '';
-      return '<article class="progress-person-card" data-complete="' + (row.recordComplete && st.notebookDone ? '1' : '0') + '">' +
+      return '<article class="progress-person-card" data-dashboard-name="' + esc(normalizeUserSearch(u.name + u.kana)) + '"' +
+        ' data-review="' + ((vital && vital.flagged) || row.handoffs.length ? '1' : '0') + '"' +
+        ' data-complete="' + (row.recordComplete && st.notebookDone ? '1' : '0') + '">' +
         '<div class="progress-person-head">' + avatarHtml(u, 'avatar-sm') + '<div><strong>' + esc(u.name) + '</strong><small>' + esc(c.time) + ' 来所 · ' + esc(u.careLevel) + '</small></div>' +
         '<button class="link-plain" onclick="go(\'users/' + u.id + '\')">詳細 ›</button></div>' +
-        '<div class="missing-list">' + missing + '</div>' + alertHtml + handoffHtml +
+        '<div class="missing-list">' + (row.missing.length ? '<span class="missing-label">未完了</span>' : '') + missing + '</div>' + alertHtml + handoffHtml +
         '<div class="care-checks">' +
         '<label><input type="checkbox"' + (st.bathed ? ' checked' : '') + ' onchange="Actions.dailyStatus(\'' + u.id + '\',\'bathed\',this.checked)">入浴</label>' +
         '<label><input type="checkbox"' + (st.mealDone ? ' checked' : '') + ' onchange="Actions.dailyStatus(\'' + u.id + '\',\'mealDone\',this.checked)">食事</label>' +
@@ -2619,9 +2661,17 @@ function renderAdminToday(app, renderId) {
       ' <span class="attrs">帰宅前の記録漏れを確認</span></div></div>' +
       '<div class="admin-actions"><button class="btn-csv" onclick="Actions.refreshDashboard()">↻ 最新に更新</button></div></div>' +
       '<div class="progress-tiles">' + tiles + '</div>' +
+      '<div class="dashboard-toolbar"><div class="search-box">' + uiIcon('search') +
+      '<input type="search" aria-label="進捗の利用者を検索" placeholder="氏名・ふりがなで検索" value="' + esc(S.dashboardQuery || '') + '" oninput="Actions.dashboardSearch(this.value)"></div>' +
+      '<div class="filter-chips" aria-label="進捗の表示条件">' +
+      [['all', '全員'], ['missing', '未完了'], ['review', '要確認・申し送り']].map(function (f) {
+        return '<button class="chip" data-dashboard-filter="' + f[0] + '" onclick="Actions.dashboardFilter(\'' + f[0] + '\')">' + f[1] + '</button>';
+      }).join('') + '</div><div class="list-results" id="dashboard-result-count" role="status" aria-live="polite"></div></div>' +
+      '<div class="empty-state" id="dashboard-empty" hidden><strong>該当する利用者はいません</strong><p>名前や表示条件を変えると、ほかの利用者を確認できます。</p><button class="btn-outline" onclick="Actions.resetDashboardFilters()">全員を表示</button></div>' +
       '<div class="progress-person-grid">' + (rows || '<div class="panel empty-note">本日のチェックインはまだありません</div>') + '</div>';
 
     app.innerHTML = adminShell('admin/today', content);
+    Actions.applyDashboardFilters();
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
     app.innerHTML = adminShell('admin/today', renderErrorHtml('本日の記録を読み込めませんでした', 'admin/today'));
@@ -3204,8 +3254,14 @@ var Actions = {
         ? 'あと入力: ' + missing.map(function (k) { return requiredLabels[k]; }).join('・')
         : (precautionPending
           ? '運動の禁止事項・注意点を確認してください'
-          : (alerts.length && !S.vitalConfirmed ? '「職員による確認済み」にチェックすると保存できます' : ''));
+          : (errors.length ? '入力値を確認してください' : (alerts.length && !S.vitalConfirmed ? '「職員による確認済み」にチェックすると保存できます' : '入力完了 · 保存できます')));
     }
+    document.querySelectorAll('[data-vital-field]').forEach(function (field) {
+      var input = field.querySelector('input');
+      var filled = String(S.vDraft[field.getAttribute('data-vital-field')] || '').trim() !== '';
+      field.classList.toggle('has-value', filled);
+      if (input) input.setAttribute('aria-required', Object.prototype.hasOwnProperty.call(requiredLabels, field.getAttribute('data-vital-field')) ? 'true' : 'false');
+    });
     var btn = document.getElementById('v-save');
     if (btn) btn.disabled = missing.length > 0 || errors.length > 0 || precautionPending || (alerts.length > 0 && !S.vitalConfirmed);
   },
@@ -3351,14 +3407,20 @@ var Actions = {
 
   // --- 利用者一覧 ---
   filterUsers: function (query) {
-    S.userQuery = (query || '').replace(/\s/g, '');
+    S.userQueryRaw = query || '';
+    S.userQuery = normalizeUserSearch(query);
     Actions.applyUserFilters();
+  },
+  clearUserSearch: function (resetFilter) {
+    S.userQuery = S.userQueryRaw = '';
+    var input = document.getElementById('user-search');
+    if (input) input.value = '';
+    if (resetFilter) S.userFilterMode = 'all';
+    Actions.applyUserFilters();
+    if (input) input.focus();
   },
   userFilter: function (mode) {
     S.userFilterMode = mode;
-    document.querySelectorAll('.filter-chips .chip').forEach(function (el) {
-      el.classList.toggle('selected', el.getAttribute('data-filter') === mode);
-    });
     Actions.applyUserFilters();
   },
   applyUserFilters: function () {
@@ -3366,7 +3428,7 @@ var Actions = {
     var mode = S.userFilterMode || 'all';
     var visible = 0;
     document.querySelectorAll('.person-row.tappable[data-state]').forEach(function (el) {
-      var name = el.getAttribute('data-name') || '';
+      var name = normalizeUserSearch(el.getAttribute('data-name'));
       var state = el.getAttribute('data-state');
       var hasAlert = el.getAttribute('data-alert') === '1';
       var show = (!q || name.indexOf(q) >= 0) &&
@@ -3382,6 +3444,15 @@ var Actions = {
     });
     var empty = document.getElementById('user-empty');
     if (empty) empty.hidden = visible > 0;
+    document.querySelectorAll('[data-filter]').forEach(function (el) {
+      var selected = el.getAttribute('data-filter') === mode;
+      el.classList.toggle('selected', selected);
+      el.setAttribute('aria-pressed', String(selected));
+    });
+    var count = document.getElementById('user-result-count');
+    if (count) count.textContent = visible + '名を表示 / 全' + S.users.length + '名';
+    var clear = document.getElementById('user-search-clear');
+    if (clear) clear.hidden = !q;
   },
 
   // --- 脳トレ記録 ---
@@ -3762,6 +3833,43 @@ var Actions = {
     clearRpcCache();
     render();
   },
+  dashboardSearch: function (value) {
+    S.dashboardQuery = value;
+    Actions.applyDashboardFilters();
+  },
+  dashboardFilter: function (mode) {
+    S.dashboardFilterMode = mode;
+    Actions.applyDashboardFilters();
+  },
+  resetDashboardFilters: function () {
+    S.dashboardQuery = '';
+    S.dashboardFilterMode = 'all';
+    var input = document.querySelector('.dashboard-toolbar input');
+    if (input) input.value = '';
+    Actions.applyDashboardFilters();
+  },
+  applyDashboardFilters: function () {
+    var q = normalizeUserSearch(S.dashboardQuery);
+    var mode = S.dashboardFilterMode || 'all';
+    var visible = 0;
+    var cards = document.querySelectorAll('[data-dashboard-name]');
+    cards.forEach(function (card) {
+      var matches = (!q || card.getAttribute('data-dashboard-name').indexOf(q) >= 0) &&
+        (mode === 'all' || (mode === 'missing' && card.getAttribute('data-complete') !== '1') ||
+          (mode === 'review' && card.getAttribute('data-review') === '1'));
+      card.hidden = !matches;
+      if (matches) visible++;
+    });
+    document.querySelectorAll('[data-dashboard-filter]').forEach(function (button) {
+      var selected = button.getAttribute('data-dashboard-filter') === mode;
+      button.classList.toggle('selected', selected);
+      button.setAttribute('aria-pressed', String(selected));
+    });
+    var count = document.getElementById('dashboard-result-count');
+    if (count) count.textContent = visible + '名を表示 / 来所 ' + cards.length + '名';
+    var empty = document.getElementById('dashboard-empty');
+    if (empty) empty.hidden = visible > 0 || !cards.length;
+  },
   dailyStatus: function (userId, field, checked) {
     var row = null;
     ((S.dashboard && S.dashboard.rows) || []).forEach(function (r) { if (r.user.id === userId) row = r; });
@@ -3928,6 +4036,7 @@ var Actions = {
 
   // --- 接続設定(ホスティング版) ---
   openSettings: function () {
+    if (window.APP_MOCK) return;
     document.getElementById('picker').innerHTML =
       '<div class="modal-backdrop" onclick="Actions.closePicker()">' +
       '<div class="modal-sheet" onclick="event.stopPropagation()">' +
@@ -3959,6 +4068,7 @@ var Actions = {
     });
   },
   saveSettings: function () {
+    if (window.APP_MOCK) return;
     var url = document.getElementById('set-url').value.trim();
     var token = document.getElementById('set-token').value.trim();
     var errBox = document.getElementById('set-error');
