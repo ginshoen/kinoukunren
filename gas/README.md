@@ -1,8 +1,10 @@
 # 銀松苑 機能訓練記録アプリ(GAS + スプレッドシート版)
 
-- **データベース**: Google スプレッドシート(8シート)
-- **Webアプリ**: Google Apps Script(HtmlService)
-- 画面・デザインは `design_handoff_kinoukunren_app` のハンドオフを再現
+- **データベース**: Google スプレッドシート(14シート。正本は `Code.gs` の `SHEETS` / `HEADERS`)
+- **API サーバー**: Google Apps Script(`doPost` の JSON API。HtmlService 版も同じコードから動く)
+- **本番画面**: `build_hosted.py` で生成した単一 HTML を GitHub Pages(`ginshoen/kinoukunren`)で配信
+  (iOS でライブカメラを使うため。詳細は `../kinoukunren-hosted/README.md`)
+- 画面・デザインは `design_handoff_kinoukunren_app` のハンドオフを起点に、現場要望で改修を重ねている
 
 ## ファイル構成
 
