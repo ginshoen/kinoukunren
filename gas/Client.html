@@ -2712,19 +2712,22 @@ function renderAdminHandoffs(app, renderId) {
 // ---------------------------------------------------------------- 管理: 種目マスタ / QR発行
 
 function renderAdminMaster(app, renderId) {
-  // 利用者カードは 氏名・利用曜日・介護度 を券面に印字する(現場で本人確認しやすくするため)
+  // 利用者カードは 氏名・利用曜日 を券面に印字する(介護度は載せない。QRの中身は GSU:<ID> のみ)
   var userCards = S.users.map(function (u) {
     var meta = '';
     if (u.scheduleLabel) meta += '<div class="qr-meta"><span class="qr-meta-key">利用曜日</span>' +
       '<span class="qr-meta-val">' + esc(u.scheduleLabel) + '</span></div>';
-    if (u.careLevel) meta += '<div class="qr-meta"><span class="qr-meta-key">介護度</span>' +
-      '<span class="qr-meta-val">' + esc(u.careLevel) + '</span></div>';
     return (
       '<div class="qr-card qr-card-user"><div class="qr-code" id="qr-' + u.id + '"></div>' +
       '<div class="qr-card-copy"><div class="qr-name">' + esc(u.name) + ' 様</div>' +
       meta + '</div></div>'
     );
-  }).join('');
+  });
+  // A4縦1枚に名刺サイズ(91×55mm)を2列×5段=10枚。印刷時に用紙ごとに区切るため10枚ずつまとめる
+  var qrSheets = '';
+  for (var qi = 0; qi < userCards.length; qi += 10) {
+    qrSheets += '<div class="qr-grid qr-sheet">' + userCards.slice(qi, qi + 10).join('') + '</div>';
+  }
 
   // 種目は一覧のみ(機器QRは廃止。記録時は画面から機器を選ぶ)
   var exRows = S.exercises.map(function (ex) {
@@ -2757,8 +2760,8 @@ function renderAdminMaster(app, renderId) {
     '<div class="admin-h1">利用者QRカード発行 <span class="attrs">印刷して来所受付カードに使用</span></div></div>' +
     '<div class="admin-actions"><button class="btn-csv" onclick="Actions.printQrCards(\'users\')">利用者カードを印刷</button></div></div>' +
     '<div class="panel qr-user-panel"><div class="panel-title">利用者QRカード ' +
-    '<span class="sub">名刺サイズ・氏名/利用曜日/介護度を印字</span></div>' +
-    '<div class="qr-grid">' + userCards + '</div></div>' +
+    '<span class="sub">名刺サイズ(91×55mm)・A4縦に10枚・氏名/利用曜日を印字</span></div>' +
+    (qrSheets || '<div class="empty-note">利用者が登録されていません</div>') + '</div>' +
     '<div class="panel qr-exercise-list"><div class="panel-title">訓練種目一覧 ' +
     '<span class="sub">記録画面で選択します(機器QRは不要)</span></div>' +
     '<div class="row-list">' + exRows + '</div></div>' +
@@ -4022,12 +4025,17 @@ var Actions = {
     } else printNow();
   },
   printQrCards: function (mode) {
+    // 用紙の余白は各シート内で取る(名刺サイズを崩さないよう、ブラウザ側の余白は0にする)
+    var style = document.createElement('style');
+    style.textContent = '@page{size:A4 portrait;margin:0;}';
+    document.head.appendChild(style);
     document.body.classList.toggle('qr-print-users', mode === 'users');
     var oldTitle = document.title;
     document.title = mode === 'users' ? '利用者QRカード_名刺サイズ' : 'QRカード_名刺サイズ';
     var cleanup = function () {
       document.body.classList.remove('qr-print-users');
       document.title = oldTitle;
+      if (style.parentNode) style.parentNode.removeChild(style);
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
