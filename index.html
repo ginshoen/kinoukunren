@@ -1220,7 +1220,7 @@ select {
   font-size: 12px;
   color: var(--text-aux);
 }
-/* 券面の補足情報(利用曜日・介護度)。名前の下に小さく並べる */
+/* 券面の補足情報(利用曜日)。名前の下に小さく並べる */
 .qr-card .qr-card-copy {
   min-width: 0;
   text-align: left;
@@ -1639,7 +1639,7 @@ textarea {
 }
 
 .qr-grid {
-  /* 券面に利用曜日・介護度も入るため、1枚あたりの最小幅を広めに取る */
+  /* 券面に利用曜日も入るため、1枚あたりの最小幅を広めに取る */
   grid-template-columns: repeat(auto-fit, minmax(min(268px, 100%), 1fr));
 }
 
@@ -2126,8 +2126,32 @@ textarea {
   .gen-table .checkout-controls .btn-csv { flex: 1 1 110px; }
 }
 
-/* QRカード印刷: 日本標準の名刺サイズ 91mm × 55mm */
+/* 画面表示: 10枚ごとのまとまり(=印刷1ページ分)の間を少し空ける */
+.qr-sheet + .qr-sheet { margin-top: 14px; }
+
+/* QRカード印刷: 日本標準の名刺サイズ 91mm × 55mm を A4縦に 2列×5段(10枚)。
+   余白は上下11mm・左右14mm(市販の名刺用紙10面と同じ配置)。カード間の隙間は0で、枠線がそのまま切り取り線になる */
 @media print {
+  body.qr-print-users,
+  body.qr-print-users .admin-wrap,
+  body.qr-print-users .admin-frame,
+  body.qr-print-users .admin-content,
+  body.qr-print-users .qr-print-page {
+    display: block !important;
+    width: auto !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+  body.qr-print-users .admin-mobile-head,
+  body.qr-print-users .admin-sidebar,
+  body.qr-print-users .tab-bar,
+  body.qr-print-users .admin-content > :not(.qr-print-page),
+  body.qr-print-users .qr-print-page > :not(.qr-user-panel) { display: none !important; }
   .qr-print-page .admin-page-head,
   .qr-print-page .panel-title { display: none !important; }
   .qr-print-page .panel {
@@ -2141,14 +2165,21 @@ textarea {
   }
   /* 印刷は利用者カードのみ。種目一覧は紙に出さない */
   .qr-print-page .qr-exercise-list { display: none !important; }
-  .qr-print-page .qr-grid {
+  .qr-print-page .qr-sheet {
     display: grid !important;
-    grid-template-columns: repeat(3, 91mm) !important;
-    grid-auto-rows: 55mm;
-    gap: 3mm 2mm !important;
-    align-items: start;
+    grid-template-columns: repeat(2, 91mm) !important;
+    grid-auto-rows: 55mm !important;
+    gap: 0 !important;
+    width: 210mm !important;
+    margin: 0 !important;
+    padding: 11mm 14mm 0 !important;
+    box-sizing: border-box !important;
+    align-content: start;
     justify-content: start;
+    break-after: page;
+    page-break-after: always;
   }
+  .qr-print-page .qr-sheet:last-child { break-after: auto; page-break-after: auto; }
   .qr-print-page .qr-card {
     width: 91mm !important;
     height: 55mm !important;
@@ -2157,11 +2188,14 @@ textarea {
     padding: 4mm !important;
     grid-template-columns: 40mm minmax(0, 1fr) !important;
     gap: 4mm !important;
-    border: .25mm solid #aeb8b1 !important;
-    border-radius: 2mm !important;
+    border: .2mm solid #aeb8b1 !important;
+    border-radius: 0 !important;
     box-shadow: none !important;
+    background: #fff !important;
     break-inside: avoid;
     page-break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .qr-print-page .qr-code {
     width: 40mm !important;
@@ -3217,7 +3251,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261003-1958';window.APP_MOCK=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261012-1344';window.APP_MOCK=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -5937,19 +5971,22 @@ function renderAdminHandoffs(app, renderId) {
 // ---------------------------------------------------------------- 管理: 種目マスタ / QR発行
 
 function renderAdminMaster(app, renderId) {
-  // 利用者カードは 氏名・利用曜日・介護度 を券面に印字する(現場で本人確認しやすくするため)
+  // 利用者カードは 氏名・利用曜日 を券面に印字する(介護度は載せない。QRの中身は GSU:<ID> のみ)
   var userCards = S.users.map(function (u) {
     var meta = '';
     if (u.scheduleLabel) meta += '<div class="qr-meta"><span class="qr-meta-key">利用曜日</span>' +
       '<span class="qr-meta-val">' + esc(u.scheduleLabel) + '</span></div>';
-    if (u.careLevel) meta += '<div class="qr-meta"><span class="qr-meta-key">介護度</span>' +
-      '<span class="qr-meta-val">' + esc(u.careLevel) + '</span></div>';
     return (
       '<div class="qr-card qr-card-user"><div class="qr-code" id="qr-' + u.id + '"></div>' +
       '<div class="qr-card-copy"><div class="qr-name">' + esc(u.name) + ' 様</div>' +
       meta + '</div></div>'
     );
-  }).join('');
+  });
+  // A4縦1枚に名刺サイズ(91×55mm)を2列×5段=10枚。印刷時に用紙ごとに区切るため10枚ずつまとめる
+  var qrSheets = '';
+  for (var qi = 0; qi < userCards.length; qi += 10) {
+    qrSheets += '<div class="qr-grid qr-sheet">' + userCards.slice(qi, qi + 10).join('') + '</div>';
+  }
 
   // 種目は一覧のみ(機器QRは廃止。記録時は画面から機器を選ぶ)
   var exRows = S.exercises.map(function (ex) {
@@ -5982,8 +6019,8 @@ function renderAdminMaster(app, renderId) {
     '<div class="admin-h1">利用者QRカード発行 <span class="attrs">印刷して来所受付カードに使用</span></div></div>' +
     '<div class="admin-actions"><button class="btn-csv" onclick="Actions.printQrCards(\'users\')">利用者カードを印刷</button></div></div>' +
     '<div class="panel qr-user-panel"><div class="panel-title">利用者QRカード ' +
-    '<span class="sub">名刺サイズ・氏名/利用曜日/介護度を印字</span></div>' +
-    '<div class="qr-grid">' + userCards + '</div></div>' +
+    '<span class="sub">名刺サイズ(91×55mm)・A4縦に10枚・氏名/利用曜日を印字</span></div>' +
+    (qrSheets || '<div class="empty-note">利用者が登録されていません</div>') + '</div>' +
     '<div class="panel qr-exercise-list"><div class="panel-title">訓練種目一覧 ' +
     '<span class="sub">記録画面で選択します(機器QRは不要)</span></div>' +
     '<div class="row-list">' + exRows + '</div></div>' +
@@ -7247,12 +7284,17 @@ var Actions = {
     } else printNow();
   },
   printQrCards: function (mode) {
+    // 用紙の余白は各シート内で取る(名刺サイズを崩さないよう、ブラウザ側の余白は0にする)
+    var style = document.createElement('style');
+    style.textContent = '@page{size:A4 portrait;margin:0;}';
+    document.head.appendChild(style);
     document.body.classList.toggle('qr-print-users', mode === 'users');
     var oldTitle = document.title;
     document.title = mode === 'users' ? '利用者QRカード_名刺サイズ' : 'QRカード_名刺サイズ';
     var cleanup = function () {
       document.body.classList.remove('qr-print-users');
       document.title = oldTitle;
+      if (style.parentNode) style.parentNode.removeChild(style);
       window.removeEventListener('afterprint', cleanup);
     };
     window.addEventListener('afterprint', cleanup);
