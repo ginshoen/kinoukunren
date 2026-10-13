@@ -4066,6 +4066,13 @@ var Actions = {
   pairDevice: function () {
     var pin = (document.getElementById('pair-pin') || {}).value || '';
     var err = document.getElementById('pair-error');
+    var facilityEl = document.getElementById('pair-facility');
+    if (facilityEl) {
+      var code = facilityEl.value.trim();
+      if (!code) { if (err) err.textContent = '施設コードを入力してください'; return; }
+      FACILITY_CODE = code;
+      localStorage.setItem('facilityCode', code);
+    }
     if (err) err.textContent = '確認中…';
     pairDeviceRpc(pin).then(function (res) {
       window.GAS_API_TOKEN = res.token;
@@ -4849,7 +4856,12 @@ function showBootError(message) {
       '<div class="phone-wrap"><div class="phone"><header class="phone-header">' +
       '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ"><div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">端末の初回認証</div></div></header>' +
       '<div class="phone-body"><div class="screen-intro"><span class="eyebrow">SECURE SETUP</span><h1>この端末を接続</h1><p>管理者PINを一度入力すると、以後この端末で安全に記録できます。</p></div>' +
-      '<div class="card" style="display:grid;gap:12px;"><input type="password" inputmode="numeric" class="note-area" id="pair-pin" placeholder="管理者PIN" aria-label="管理者PIN" autocomplete="current-password">' +
+      '<div class="card" style="display:grid;gap:12px;">' +
+      // 配布リンク以外(?c= なし)で開いた端末でも接続できるよう、施設コードもここで入力できるようにする
+      '<label class="card-label" for="pair-facility">施設コード(英字)</label>' +
+      '<input type="text" class="note-area" id="pair-facility" placeholder="施設コード" aria-label="施設コード" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" value="' + esc(FACILITY_CODE) + '">' +
+      '<label class="card-label" for="pair-pin">管理者PIN(数字)</label>' +
+      '<input type="password" inputmode="numeric" class="note-area" id="pair-pin" placeholder="管理者PIN" aria-label="管理者PIN" autocomplete="current-password">' +
       '<div id="pair-error" class="section-note" role="alert"></div><button class="btn-primary" onclick="Actions.pairDevice()">この端末を接続する</button></div>' +
       '<div class="section-note">端末内には接続情報のみを保存します。PINは保存しません。</div></div></div></div>';
     return;
