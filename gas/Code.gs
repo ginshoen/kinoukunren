@@ -22,6 +22,7 @@ var SHEETS = {
   templates: '定型文マスタ',
   goals: '個別目標進捗',
   voids: '取消記録',
+  notebooks: '連絡帳',
 };
 
 var HEADERS = {
@@ -39,6 +40,9 @@ var HEADERS = {
   templates: ['ID', '種別', '内容', '有効'],
   goals: ['ID', '利用者ID', '目標', '開始日', '期限', '状態', '達成度', '最新評価', '更新日', '記録者'],
   voids: ['対象ID', '種別', '取消日時', '取消者'],
+  // 職員が手分けして入力した連絡帳の本文・写真(利用者×日付で1行)。写真本体は重いので必ず最終列に置き、
+  // 一覧の読み込みでは読まない(写真ありフラグで判定する)
+  notebooks: ['ID', '日付', '利用者ID', '本文', '写真あり', '記録者', '更新時刻', '写真'],
 };
 
 // 旧版から名称だけ変更した列。順序が一致する場合に限り安全に移行する。
@@ -116,6 +120,11 @@ var API_REGISTRY = {
   apiSaveHandoff: { fn: apiSaveHandoff_, auth: 'staff' },
   apiCompleteHandoff: { fn: apiCompleteHandoff_, auth: 'staff' },
   apiSaveGoalProgress: { fn: apiSaveGoalProgress_, auth: 'staff' },
+  // 連絡帳: 現場職員が手分けして本文・写真を入力し、来所者分をまとめて印刷する
+  apiGetCommunicationBook: { fn: apiGetCommunicationBook_, auth: 'staff' },
+  apiGetCommunicationBooks: { fn: apiGetCommunicationBooks_, auth: 'staff' },
+  apiSaveNotebookEntry: { fn: apiSaveNotebookEntry_, auth: 'staff' },
+  apiMarkNotebooksDone: { fn: apiMarkNotebooksDone_, auth: 'staff' },
 
   // 管理者(admin)のみ: マスタ編集・帳票
   apiAdminSaveUser: { fn: apiAdminSaveUser_, auth: 'admin' },
@@ -129,7 +138,6 @@ var API_REGISTRY = {
   apiAdminDeleteTemplate: { fn: apiAdminDeleteTemplate_, auth: 'admin' },
   apiGetMonthly: { fn: apiGetMonthly_, auth: 'admin' },
   apiGetMonthlyIndividual: { fn: apiGetMonthlyIndividual_, auth: 'admin' },
-  apiGetCommunicationBook: { fn: apiGetCommunicationBook_, auth: 'admin' },
   apiVerifyAdmin: { fn: apiVerifyAdmin_, auth: 'admin' },
 };
 
@@ -225,10 +233,10 @@ function sheet_(key) {
  */
 function ensureSchema_() {
   var props = PropertiesService.getScriptProperties();
-  if (props.getProperty('SCHEMA_VERSION') === '9') return;
+  if (props.getProperty('SCHEMA_VERSION') === '10') return;
   var cache = CacheService.getScriptCache();
-  if (cache.get('schema-v9')) {
-    props.setProperty('SCHEMA_VERSION', '9');
+  if (cache.get('schema-v10')) {
+    props.setProperty('SCHEMA_VERSION', '10');
     return;
   }
   var lock = LockService.getScriptLock();
@@ -288,8 +296,8 @@ function ensureSchema_() {
         }
       }
     });
-    props.setProperty('SCHEMA_VERSION', '9');
-    cache.put('schema-v9', '1', 21600);
+    props.setProperty('SCHEMA_VERSION', '10');
+    cache.put('schema-v10', '1', 21600);
   } finally {
     lock.releaseLock();
   }
@@ -546,9 +554,12 @@ function timeKey_(t) {
 /** 起動時データ: マスタ+本日のチェックイン */
 function apiGetBootstrap_() {
   ensureSchema_();
+  var me = CURRENT_STAFF_;
   return {
-    apiVersion: 7,
-    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual'],
+    apiVersion: 8,
+    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint'],
+    // 起動時の往復を1回にするため、ログイン中の職員情報も一緒に返す(apiGetSession を別に呼ばない)
+    me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null,
     users: allUsers_(),
     exercises: allExercises_(),
     cognitiveMenu: allCognitiveMenu_(),
@@ -828,6 +839,18 @@ function seedFirstAdmin_() {
  * ロック配下で読み書きするため並列リクエストによる総当たりを防ぐ。
  */
 function apiLogin_(staffId, pin) {
+  var result = apiLoginCore_(staffId, pin);
+  // ログイン直後の初期データも同じ応答で返し、通信の往復を1回減らす(読み込み待ちの短縮)。
+  // 共有ロックの外で読むので、他の職員の保存を待たせない
+  try {
+    result.bootstrap = apiGetBootstrap_();
+  } catch (e) {
+    result.bootstrap = null; // 失敗しても画面側が従来どおり apiGetBootstrap を呼び直す
+  }
+  return result;
+}
+
+function apiLoginCore_(staffId, pin) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -853,6 +876,7 @@ function apiLogin_(staffId, pin) {
       throw new Error(staff && staff.active ? 'PINが正しくありません' : 'この職員アカウントは利用できません');
     }
     props.deleteProperty(key);
+    CURRENT_STAFF_ = staff; // 直後の初期データ取得(apiGetBootstrap_)で記録者名・権限に使う
     return {
       session: makeSession_(staff),
       staff: { id: staff.id, name: staff.name, role: staff.role, jobTitle: staff.jobTitle },
@@ -1283,9 +1307,11 @@ function apiSaveExercise_(payload) {
 }
 
 /**
- * 15分×4コマ形式の訓練記録を一括保存する。
- * 1コマ目の準備運動は自動追加し、プルダウンで選んだ3種目だけを保存する。
+ * 15分コマ形式の訓練記録を一括保存する。
+ * 1コマ目の準備運動は自動追加し、プルダウンで選んだ最大4種目を保存する(準備運動＋15分×4枠)。
  */
+var EXERCISE_SLOT_COUNT = 4;
+
 function apiSaveExerciseBatch_(payload) {
   var userExists = allUsers_().some(function (u) { return u.id === payload.userId; });
   if (!userExists) throw new Error('利用者が見つかりません。');
@@ -1297,7 +1323,8 @@ function apiSaveExerciseBatch_(payload) {
   var ids = prepRecorded ? [] : ['prep'];
   requested.forEach(function (id) {
     id = String(id || '').trim();
-    if (id && id !== 'prep' && ids.indexOf(id) < 0 && ids.length < 4) ids.push(id);
+    var selected = ids.filter(function (x) { return x !== 'prep'; }).length;
+    if (id && id !== 'prep' && ids.indexOf(id) < 0 && selected < EXERCISE_SLOT_COUNT) ids.push(id);
   });
   var byId = {};
   allExercises_().forEach(function (e) { byId[e.id] = e; });
@@ -1463,6 +1490,13 @@ function apiGetCommunicationBook_(userId, date) {
   var user = allUsers_().filter(function (u) { return u.id === userId; })[0];
   if (!user) throw new Error('利用者が見つかりません。');
   var target = validDateStr_(date || todayStr_());
+  var book = apiGetCommunicationBookCore_(user, target);
+  book.entry = notebookEntry_(userId, target, true);
+  return book;
+}
+
+function apiGetCommunicationBookCore_(user, target) {
+  var userId = user.id;
   var checkin = null;
   allCheckins_().forEach(function (c) {
     if (c.userId === userId && c.date === target) checkin = c;
@@ -1481,6 +1515,140 @@ function apiGetCommunicationBook_(userId, date) {
     user: { id: user.id, name: user.name, plan: user.plan }, date: target, checkin: checkin, vital: vital,
     exercises: exercises, cognitiveRecords: cognitive,
   };
+}
+
+// ---------------------------------------------------------------- 連絡帳の本文・写真
+
+var NOTEBOOK_PHOTO_MAX_CHARS = 48000;  // セル上限(5万文字)未満に収める。端末側で縮小してから送る
+var NOTEBOOK_PHOTO_KEEP_DAYS = 31;     // 印刷後の写真は1か月で消し、スプレッドシートの肥大化を防ぐ
+
+/** 連絡帳シートの日付・利用者ID列だけを読み、[{row, date, userId}] を返す(写真列は読まない) */
+function notebookIndex_() {
+  var sh = sheet_('notebooks');
+  var last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 2, last - 1, 2).getDisplayValues().map(function (r, i) {
+    return { row: i + 2, date: String(r[0]), userId: String(r[1]) };
+  });
+}
+
+function toNotebookEntry_(r) {
+  return {
+    id: String(r[0]), date: dateStr_(r[1]), userId: String(r[2]), comment: String(r[3] || ''),
+    hasPhoto: String(r[4]) === 'true', updatedBy: String(r[5] || ''), updatedAt: String(r[6] || ''),
+  };
+}
+
+/** 利用者×日付の入力内容。withPhoto=true のときだけ写真本体を読む */
+function notebookEntries_(date, userIds, withPhoto) {
+  var want = {};
+  (userIds || []).forEach(function (id) { want[String(id)] = true; });
+  var sh = sheet_('notebooks');
+  var found = {};
+  notebookIndex_().forEach(function (x) {
+    if (x.date === date && (!userIds || want[x.userId])) found[x.userId] = x.row; // 同じ組は後の行を優先
+  });
+  var result = {};
+  Object.keys(found).forEach(function (userId) {
+    var row = found[userId];
+    var values = sh.getRange(row, 1, 1, HEADERS.notebooks.length).getValues()[0];
+    var entry = toNotebookEntry_(values);
+    entry.photo = withPhoto && entry.hasPhoto ? String(values[7] || '') : '';
+    result[userId] = entry;
+  });
+  return result;
+}
+
+function notebookEntry_(userId, date, withPhoto) {
+  return notebookEntries_(date, [userId], withPhoto)[userId] || null;
+}
+
+/**
+ * 連絡帳の本文・写真を保存する(利用者×日付で上書き)。
+ * payload: { userId, date, comment, photo?(dataURL), removePhoto? }
+ * photo を省略した場合は既存の写真を維持する。
+ */
+function apiSaveNotebookEntry_(payload) {
+  payload = payload || {};
+  var userId = String(payload.userId || '');
+  if (!allUsers_().some(function (u) { return u.id === userId; })) throw new Error('利用者が見つかりません。');
+  var date = validDateStr_(payload.date || todayStr_());
+  var comment = safeText_(payload.comment, 600);
+  var photo = null;
+  if (payload.photo) {
+    photo = String(payload.photo);
+    if (!/^data:image\/jpeg;base64,[A-Za-z0-9+\/=]+$/.test(photo)) throw new Error('写真の形式が正しくありません。');
+    if (photo.length > NOTEBOOK_PHOTO_MAX_CHARS) throw new Error('写真が大きすぎます。別の写真でお試しください。');
+  }
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = sheet_('notebooks');
+    var row = 0;
+    notebookIndex_().forEach(function (x) { if (x.date === date && x.userId === userId) row = x.row; });
+    var id = 'nb-' + date.replace(/-/g, '') + '-' + userId;
+    var keepPhoto = '';
+    if (row && photo === null && !payload.removePhoto) keepPhoto = String(sh.getRange(row, 8).getValue() || '');
+    var finalPhoto = payload.removePhoto ? '' : (photo !== null ? photo : keepPhoto);
+    var values = [id, date, userId, comment, finalPhoto ? 'true' : '', currentStaffName_(),
+      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd H:mm:ss'), finalPhoto];
+    if (!row) row = sh.getLastRow() + 1;
+    sh.getRange(row, 1, 1, values.length).setNumberFormat('@').setValues([values.map(String)]);
+    invalidateRequestRows_('notebooks');
+    purgeOldNotebookPhotos_(sh);
+  } finally {
+    lock.releaseLock();
+  }
+  return notebookEntry_(userId, date, false);
+}
+
+/** 古い連絡帳写真を1日1回だけ消す(本文は残す)。呼び出し側でロック取得済み */
+function purgeOldNotebookPhotos_(sh) {
+  var cache = CacheService.getScriptCache();
+  var flag = 'notebook-purge-' + todayStr_();
+  if (cache.get(flag)) return;
+  cache.put(flag, '1', 21600);
+  var last = sh.getLastRow();
+  if (last < 2) return;
+  var cutoff = Utilities.formatDate(new Date(Date.now() - NOTEBOOK_PHOTO_KEEP_DAYS * 86400000),
+    Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  var rows = sh.getRange(2, 2, last - 1, 4).getDisplayValues(); // 日付〜写真あり
+  rows.forEach(function (r, i) {
+    if (String(r[3]) === 'true' && String(r[0]) < cutoff) {
+      sh.getRange(i + 2, 5).setValue('');
+      sh.getRange(i + 2, 8).setValue('');
+    }
+  });
+}
+
+/**
+ * 指定日に来所した全員分の連絡帳データ(写真つき)を返す。まとめて印刷する画面で使う。
+ * 並び順は利用者マスタのふりがな順。
+ */
+function apiGetCommunicationBooks_(date) {
+  var target = validDateStr_(date || todayStr_());
+  var visited = {};
+  allCheckins_().forEach(function (c) { if (c.date === target) visited[c.userId] = true; });
+  var users = allUsers_().filter(function (u) { return visited[u.id]; })
+    .sort(function (a, b) { return (a.kana || a.name) < (b.kana || b.name) ? -1 : 1; });
+  var entries = notebookEntries_(target, users.map(function (u) { return u.id; }), true);
+  return {
+    date: target,
+    books: users.map(function (u) {
+      var book = apiGetCommunicationBookCore_(u, target);
+      book.entry = entries[u.id] || null;
+      return book;
+    }),
+  };
+}
+
+/** 印刷した連絡帳を「連絡帳完了」にする(本日の進捗画面の記録漏れ確認と連動) */
+function apiMarkNotebooksDone_(date, userIds) {
+  var target = validDateStr_(date || todayStr_());
+  (userIds || []).slice(0, 80).forEach(function (id) {
+    apiSaveDailyStatus_({ userId: String(id), date: target, notebookDone: true });
+  });
+  return { ok: true };
 }
 
 /** 利用者別実績(管理画面 1d) */
