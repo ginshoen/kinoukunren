@@ -1963,8 +1963,8 @@ textarea {
 .notebook-comment:focus { background: #fff9e8; box-shadow: 0 0 0 3px rgba(231,187,72,.25); border-radius: 6px; }
 .family-lines { display: grid; gap: 22px; padding-top: 12px; }
 .family-lines span { display: block; border-bottom: 1px solid #b9c7bc; }
-#notebook-photo { width: 100%; height: 100%; min-height: 420px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #eef6f7; }
-#notebook-photo img { width: 100%; height: 100%; max-height: 450px; object-fit: cover; border-radius: 8px; }
+.notebook-photo-frame { width: 100%; height: 100%; min-height: 420px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #eef6f7; }
+.notebook-photo-frame img { width: 100%; height: 100%; max-height: 450px; object-fit: cover; border-radius: 8px; }
 .notebook-photo-empty { display: grid; place-items: center; gap: 5px; color: #55808a; text-align: center; }
 .notebook-photo-empty span { font-size: 44px; font-weight: 900; opacity: .25; }
 .notebook-photo-empty small { max-width: 180px; }
@@ -1977,68 +1977,133 @@ textarea {
   .notebook-meta div { min-width: 0; }
   .notebook-layout { grid-template-columns: 1fr; }
   .notebook-box.photo { min-height: 360px; }
-  #notebook-photo { min-height: 310px; }
+  .notebook-photo-frame { min-height: 310px; }
 }
 
-/* 連絡帳は横A5・1枚に収める(現場要望) */
-@page { size: A5 landscape; margin: 5mm; }
+/* 連絡帳は横A5・1枚に収める(現場要望)。
+   用紙サイズ(@page)は印刷する画面ごとに Client.html の withPrintPage / syncDefaultPrintPage が差し込む */
 @media print {
   html, body { width: auto; height: auto; background: #fff !important; }
   .admin-wrap, .admin-frame, .admin-content { display: block !important; width: 100% !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }
   .admin-mobile-head, .admin-sidebar, .no-print { display: none !important; }
+  /* A5横(210×148mm)から余白5mmを除いた 200×138mm に1枚を収める。
+     現場から「字が小さく余白が多い」との声があったため、読みやすい大きさまで文字を上げている */
   .communication-sheet {
-    display: block !important;
+    display: flex !important;
+    flex-direction: column;
     width: 100% !important;
     max-width: none !important;
-    height: 136mm;
-    min-height: 136mm;
+    height: 137mm;
+    min-height: 0;
     margin: 0 !important;
-    padding: 3mm 4mm 2mm !important;
+    padding: 2mm 2.5mm 1.5mm !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: hidden;
+    box-sizing: border-box;
     page-break-inside: avoid;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  .notebook-brand h1 { font-size: 16px; }
-  .notebook-brand small { font-size: 8px; }
-  .notebook-brand img { width: 26px; height: 26px; }
-  .notebook-head { padding-bottom: 3px; border-bottom-width: 1.5px; flex-direction: row !important; align-items: flex-end !important; gap: 8px; }
-  .notebook-meta { width: auto !important; flex-direction: row !important; gap: 6px !important; }
-  .notebook-meta div { min-width: 32mm; padding: 2px 6px; }
-  .notebook-meta small { font-size: 8px; }
-  .notebook-meta strong { font-size: 11px; margin-top: 0; }
-  .notebook-thanks { margin: 3px 0 6px; font-size: 10px; }
-  .notebook-layout { grid-template-columns: 1.15fr .85fr; gap: 6px; height: 101mm; }
-  .notebook-left { gap: 6px; }
-  .notebook-box { padding: 11px 8px 6px; border-radius: 6px; border-width: 1.5px; }
-  .notebook-box h2 { top: -8px; left: 12px; font-size: 9px; padding: 2px 8px; border-radius: 5px; }
-  .notebook-box.program ol { gap: 1px; }
-  .notebook-box.program li { min-height: 13px; grid-template-columns: 16px 1fr auto; gap: 5px; }
-  .notebook-box.program li > span { width: 13px; height: 13px; font-size: 9px; }
-  .notebook-box.program li b { font-size: 9px; }
-  .notebook-box.program li small { font-size: 8px; }
-  .notebook-vitals { margin-top: 3px; padding-top: 3px; font-size: 8px; }
-  .notebook-vital-grid { margin-top: 3px; padding-top: 3px; gap: 3px; }
-  .nv-cell { padding: 2px 3px; border-radius: 4px; }
-  .nv-label { font-size: 7px; }
-  .nv-value { font-size: 10px; min-height: 12px; }
-  .nv-unit { font-size: 6px; }
-  .notebook-box.facility { min-height: 20mm; }
-  .notebook-box.family { min-height: 14mm; }
-  .notebook-box.photo { min-height: 0; height: 101mm; padding: 12px 6px 6px; }
-  #notebook-photo { min-height: 0; height: 100%; border-radius: 5px; }
-  #notebook-photo img { max-height: none; border-radius: 5px; }
-  .notebook-photo-empty span { font-size: 22px; }
-  .notebook-photo-empty small { font-size: 7px; max-width: 120px; }
-  .notebook-comment { min-height: 14mm; font-size: 8.5px; line-height: 1.5; }
-  .communication-sheet.compact-print .notebook-comment { font-size: 7.5px; line-height: 1.35; }
-  .communication-sheet.compact-print .notebook-box.program li { min-height: 11px; }
+  .notebook-brand h1 { font-size: 21px; }
+  .notebook-brand small { font-size: 10px; }
+  .notebook-brand img { width: 34px; height: 34px; }
+  .notebook-head { padding-bottom: 1.5mm; border-bottom-width: 1.5px; flex-direction: row !important; align-items: flex-end !important; gap: 8px; }
+  .notebook-meta { width: auto !important; flex-direction: row !important; gap: 8px !important; }
+  .notebook-meta div { min-width: 40mm; padding: 1mm 2mm; }
+  .notebook-meta small { font-size: 10px; }
+  .notebook-meta strong { font-size: 16px; margin-top: 0; }
+  .notebook-thanks { margin: 1.5mm 0 3mm; font-size: 13.5px; }
+  .notebook-layout { flex: 1 1 auto; min-height: 0; grid-template-columns: 1.12fr .88fr; gap: 2.5mm; height: auto; }
+  /* 左列は縦並び。「弐番館より」欄が残りの高さをちょうど使い、長文でも下の欄へはみ出さない */
+  .notebook-left { display: flex !important; flex-direction: column; gap: 3mm; min-height: 0; }
+  .notebook-left > .notebook-box { flex: none; }
+  .notebook-left > .notebook-box.facility { flex: 1 1 0; min-height: 0; }
+  .notebook-box { padding: 4mm 3mm 2mm; border-radius: 6px; border-width: 1.5px; }
+  .notebook-box h2 { top: -9px; left: 12px; font-size: 12px; padding: 2px 9px; border-radius: 5px; }
+  /* 準備運動＋4コマ=5種目でも記入欄を狭めないよう、種目は2列に並べる */
+  .notebook-box.program ol { grid-template-columns: 1fr 1fr; gap: 1px 4mm; }
+  .notebook-box.program li { min-height: 19px; grid-template-columns: 19px 1fr auto; gap: 5px; }
+  .notebook-box.program li.planned { grid-column: 1 / -1; }
+  .notebook-box.program li > span { width: 17px; height: 17px; font-size: 11px; }
+  .notebook-box.program li b { font-size: 13.5px; }
+  .notebook-box.program li small { font-size: 11.5px; }
+  .notebook-vitals { margin-top: 1.5mm; padding-top: 1.5mm; font-size: 11.5px; }
+  .notebook-vital-grid { margin-top: 1.5mm; padding-top: 0; gap: 1.5mm; }
+  /* 未測定でも手書きできる高さ(約9mm)を残しつつ、項目名・値・単位を詰めて並べる */
+  .nv-cell { grid-template-columns: 1fr auto; grid-template-areas: 'label unit' 'value value'; align-items: baseline; gap: 0 1mm; padding: 1mm 2mm; border-radius: 4px; min-height: 10.5mm; box-sizing: border-box; text-align: left; }
+  .nv-label { grid-area: label; font-size: 10px; white-space: nowrap; }
+  .nv-unit { grid-area: unit; font-size: 8.5px; white-space: nowrap; }
+  .nv-value { grid-area: value; font-size: 15px; min-height: 0; text-align: center; white-space: nowrap; }
+  .notebook-box.facility { display: flex; flex-direction: column; }
+  .notebook-box.family { min-height: 17mm; }
+  .notebook-box.photo { min-height: 0; height: auto; padding: 4.5mm 2mm 2mm; display: flex; flex-direction: column; }
+  .notebook-photo-frame { flex: 1 1 auto; min-height: 0; height: 100%; border-radius: 5px; }
+  .notebook-photo-frame img { max-height: none; border-radius: 5px; }
+  .notebook-photo-empty span { font-size: 26px; }
+  .notebook-photo-empty small { font-size: 9px; max-width: 140px; }
+  /* 文章は欄からはみ出さないよう、長さに応じて段階的に文字を小さくする(Client.html の notebookDensity) */
+  .notebook-comment { flex: 1 1 0; min-height: 0; overflow: hidden; font-size: 13.5px; line-height: 1.55; }
+  .communication-sheet.dense-1 .notebook-comment { font-size: 12px; line-height: 1.5; }
+  .communication-sheet.dense-2 .notebook-comment { font-size: 10.5px; line-height: 1.45; }
+  .communication-sheet.dense-3 .notebook-comment { font-size: 9.5px; line-height: 1.4; }
+  .communication-sheet.dense-4 .notebook-comment { font-size: 8.5px; line-height: 1.35; }
+  .communication-sheet.compact-print .notebook-box.program li { min-height: 16px; }
   .communication-sheet.compact-print .notebook-box.program li b,
-  .communication-sheet.compact-print .notebook-box.program li small { font-size: 8px; }
-  .family-lines { gap: 8px; padding-top: 6px; }
-  .notebook-footer { margin-top: 2px; font-size: 7px; }
+  .communication-sheet.compact-print .notebook-box.program li small { font-size: 11.5px; }
+  .family-lines { gap: 4.5mm; padding-top: 3mm; }
+  .notebook-footer { margin-top: 1mm; font-size: 9px; }
+  /* まとめて印刷: 1人1ページ */
+  .notebook-batch, .notebook-batch-sheets { display: block !important; padding: 0 !important; margin: 0 !important; background: #fff !important; }
+  .notebook-batch-sheets .communication-sheet { break-after: page; page-break-after: always; }
+  .notebook-batch-sheets .communication-sheet:last-child { break-after: auto; page-break-after: auto; }
 }
+
+/* ---------- 連絡帳: 職員の入力画面・まとめて印刷 ---------- */
+.notebook-entry-summary { display: grid; gap: 6px; font-size: 14px; }
+.notebook-entry-summary > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.notebook-entry-summary b { color: var(--text-aux); font-size: 12px; }
+.notebook-photo-actions { margin-top: 10px; align-items: center; }
+.notebook-photo-actions .btn-outline { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 48px; white-space: nowrap; writing-mode: horizontal-tb; }
+.notebook-entry-summary .muted { color: var(--text-aux); }
+.notebook-photo-frame.entry-photo { min-height: 200px; height: 240px; margin-top: 8px; }
+.notebook-batch { min-height: 100vh; padding: 0 16px 48px; background: var(--bg, #f5f7f6); }
+.notebook-batch-bar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 -16px 16px; padding: 12px 16px;
+  background: #fff; border-bottom: 1px solid var(--border);
+}
+.notebook-batch-tools {
+  display: grid; gap: 10px; max-width: 760px; margin: 0 auto 20px;
+  padding: 16px; background: #fff; border: 1px solid var(--border); border-radius: 16px;
+}
+.notebook-batch-summary { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 15px; }
+.notebook-batch-summary span { color: var(--text-aux); font-size: 13px; }
+.notebook-batch-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow: auto; }
+.notebook-batch-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #f3f6f4; font-size: 14px; }
+.notebook-batch-list li small { color: var(--text-aux); text-align: right; }
+.notebook-batch-list li.missing { background: #fff6e0; }
+.notebook-batch-sheets { display: grid; gap: 18px; max-width: 1080px; margin: 0 auto; }
+.notebook-batch-sheets .communication-sheet { overflow-x: auto; }
+@media screen and (max-width: 720px) {
+  .notebook-batch-sheets .communication-sheet { min-width: 640px; }
+  .notebook-batch-sheets { overflow-x: auto; }
+}
+
+/* ---------- 受付: 本日の来所予定 ---------- */
+.checkin-group-label { margin: 6px 2px 2px; font-size: 12px; font-weight: 800; color: var(--text-aux); letter-spacing: .02em; }
+.person-row.pending.tappable { cursor: pointer; border-style: dashed; }
+.person-row.pending.tappable[disabled] { opacity: .6; }
+.pending-action {
+  flex: none; margin-left: auto; padding: 6px 12px; border-radius: 999px;
+  background: var(--green, #176b52); color: #fff; font-size: 13px; font-weight: 800; white-space: nowrap;
+}
+.reception-secondary { flex: none; width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.modal-sheet .picker-item { display: flex; align-items: center; gap: 10px; }
+.modal-sheet .picker-item .person-care { margin-left: auto; }
 
 /* ---------- 安全情報・管理者ゲート ---------- */
 .precaution-banner {
@@ -2539,7 +2604,6 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 }
 
 @media print {
-  @page { size: A4 portrait; margin: 10mm; }
   body.monthly-report-print-mode .admin-mobile-head,
   body.monthly-report-print-mode .admin-sidebar,
   body.monthly-report-print-mode .admin-page-head,
