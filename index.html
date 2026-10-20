@@ -1973,8 +1973,8 @@ textarea {
 .notebook-comment:focus { background: #fff9e8; box-shadow: 0 0 0 3px rgba(231,187,72,.25); border-radius: 6px; }
 .family-lines { display: grid; gap: 22px; padding-top: 12px; }
 .family-lines span { display: block; border-bottom: 1px solid #b9c7bc; }
-#notebook-photo { width: 100%; height: 100%; min-height: 420px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #eef6f7; }
-#notebook-photo img { width: 100%; height: 100%; max-height: 450px; object-fit: cover; border-radius: 8px; }
+.notebook-photo-frame { width: 100%; height: 100%; min-height: 420px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: #eef6f7; }
+.notebook-photo-frame img { width: 100%; height: 100%; max-height: 450px; object-fit: cover; border-radius: 8px; }
 .notebook-photo-empty { display: grid; place-items: center; gap: 5px; color: #55808a; text-align: center; }
 .notebook-photo-empty span { font-size: 44px; font-weight: 900; opacity: .25; }
 .notebook-photo-empty small { max-width: 180px; }
@@ -1987,68 +1987,133 @@ textarea {
   .notebook-meta div { min-width: 0; }
   .notebook-layout { grid-template-columns: 1fr; }
   .notebook-box.photo { min-height: 360px; }
-  #notebook-photo { min-height: 310px; }
+  .notebook-photo-frame { min-height: 310px; }
 }
 
-/* 連絡帳は横A5・1枚に収める(現場要望) */
-@page { size: A5 landscape; margin: 5mm; }
+/* 連絡帳は横A5・1枚に収める(現場要望)。
+   用紙サイズ(@page)は印刷する画面ごとに Client.html の withPrintPage / syncDefaultPrintPage が差し込む */
 @media print {
   html, body { width: auto; height: auto; background: #fff !important; }
   .admin-wrap, .admin-frame, .admin-content { display: block !important; width: 100% !important; max-width: none !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }
   .admin-mobile-head, .admin-sidebar, .no-print { display: none !important; }
+  /* A5横(210×148mm)から余白5mmを除いた 200×138mm に1枚を収める。
+     現場から「字が小さく余白が多い」との声があったため、読みやすい大きさまで文字を上げている */
   .communication-sheet {
-    display: block !important;
+    display: flex !important;
+    flex-direction: column;
     width: 100% !important;
     max-width: none !important;
-    height: 136mm;
-    min-height: 136mm;
+    height: 137mm;
+    min-height: 0;
     margin: 0 !important;
-    padding: 3mm 4mm 2mm !important;
+    padding: 2mm 2.5mm 1.5mm !important;
     border: 0 !important;
     border-radius: 0 !important;
     box-shadow: none !important;
     overflow: hidden;
+    box-sizing: border-box;
     page-break-inside: avoid;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  .notebook-brand h1 { font-size: 16px; }
-  .notebook-brand small { font-size: 8px; }
-  .notebook-brand img { width: 26px; height: 26px; }
-  .notebook-head { padding-bottom: 3px; border-bottom-width: 1.5px; flex-direction: row !important; align-items: flex-end !important; gap: 8px; }
-  .notebook-meta { width: auto !important; flex-direction: row !important; gap: 6px !important; }
-  .notebook-meta div { min-width: 32mm; padding: 2px 6px; }
-  .notebook-meta small { font-size: 8px; }
-  .notebook-meta strong { font-size: 11px; margin-top: 0; }
-  .notebook-thanks { margin: 3px 0 6px; font-size: 10px; }
-  .notebook-layout { grid-template-columns: 1.15fr .85fr; gap: 6px; height: 101mm; }
-  .notebook-left { gap: 6px; }
-  .notebook-box { padding: 11px 8px 6px; border-radius: 6px; border-width: 1.5px; }
-  .notebook-box h2 { top: -8px; left: 12px; font-size: 9px; padding: 2px 8px; border-radius: 5px; }
-  .notebook-box.program ol { gap: 1px; }
-  .notebook-box.program li { min-height: 13px; grid-template-columns: 16px 1fr auto; gap: 5px; }
-  .notebook-box.program li > span { width: 13px; height: 13px; font-size: 9px; }
-  .notebook-box.program li b { font-size: 9px; }
-  .notebook-box.program li small { font-size: 8px; }
-  .notebook-vitals { margin-top: 3px; padding-top: 3px; font-size: 8px; }
-  .notebook-vital-grid { margin-top: 3px; padding-top: 3px; gap: 3px; }
-  .nv-cell { padding: 2px 3px; border-radius: 4px; }
-  .nv-label { font-size: 7px; }
-  .nv-value { font-size: 10px; min-height: 12px; }
-  .nv-unit { font-size: 6px; }
-  .notebook-box.facility { min-height: 20mm; }
-  .notebook-box.family { min-height: 14mm; }
-  .notebook-box.photo { min-height: 0; height: 101mm; padding: 12px 6px 6px; }
-  #notebook-photo { min-height: 0; height: 100%; border-radius: 5px; }
-  #notebook-photo img { max-height: none; border-radius: 5px; }
-  .notebook-photo-empty span { font-size: 22px; }
-  .notebook-photo-empty small { font-size: 7px; max-width: 120px; }
-  .notebook-comment { min-height: 14mm; font-size: 8.5px; line-height: 1.5; }
-  .communication-sheet.compact-print .notebook-comment { font-size: 7.5px; line-height: 1.35; }
-  .communication-sheet.compact-print .notebook-box.program li { min-height: 11px; }
+  .notebook-brand h1 { font-size: 21px; }
+  .notebook-brand small { font-size: 10px; }
+  .notebook-brand img { width: 34px; height: 34px; }
+  .notebook-head { padding-bottom: 1.5mm; border-bottom-width: 1.5px; flex-direction: row !important; align-items: flex-end !important; gap: 8px; }
+  .notebook-meta { width: auto !important; flex-direction: row !important; gap: 8px !important; }
+  .notebook-meta div { min-width: 40mm; padding: 1mm 2mm; }
+  .notebook-meta small { font-size: 10px; }
+  .notebook-meta strong { font-size: 16px; margin-top: 0; }
+  .notebook-thanks { margin: 1.5mm 0 3mm; font-size: 13.5px; }
+  .notebook-layout { flex: 1 1 auto; min-height: 0; grid-template-columns: 1.12fr .88fr; gap: 2.5mm; height: auto; }
+  /* 左列は縦並び。「弐番館より」欄が残りの高さをちょうど使い、長文でも下の欄へはみ出さない */
+  .notebook-left { display: flex !important; flex-direction: column; gap: 3mm; min-height: 0; }
+  .notebook-left > .notebook-box { flex: none; }
+  .notebook-left > .notebook-box.facility { flex: 1 1 0; min-height: 0; }
+  .notebook-box { padding: 4mm 3mm 2mm; border-radius: 6px; border-width: 1.5px; }
+  .notebook-box h2 { top: -9px; left: 12px; font-size: 12px; padding: 2px 9px; border-radius: 5px; }
+  /* 準備運動＋4コマ=5種目でも記入欄を狭めないよう、種目は2列に並べる */
+  .notebook-box.program ol { grid-template-columns: 1fr 1fr; gap: 1px 4mm; }
+  .notebook-box.program li { min-height: 19px; grid-template-columns: 19px 1fr auto; gap: 5px; }
+  .notebook-box.program li.planned { grid-column: 1 / -1; }
+  .notebook-box.program li > span { width: 17px; height: 17px; font-size: 11px; }
+  .notebook-box.program li b { font-size: 13.5px; }
+  .notebook-box.program li small { font-size: 11.5px; }
+  .notebook-vitals { margin-top: 1.5mm; padding-top: 1.5mm; font-size: 11.5px; }
+  .notebook-vital-grid { margin-top: 1.5mm; padding-top: 0; gap: 1.5mm; }
+  /* 未測定でも手書きできる高さ(約9mm)を残しつつ、項目名・値・単位を詰めて並べる */
+  .nv-cell { grid-template-columns: 1fr auto; grid-template-areas: 'label unit' 'value value'; align-items: baseline; gap: 0 1mm; padding: 1mm 2mm; border-radius: 4px; min-height: 10.5mm; box-sizing: border-box; text-align: left; }
+  .nv-label { grid-area: label; font-size: 10px; white-space: nowrap; }
+  .nv-unit { grid-area: unit; font-size: 8.5px; white-space: nowrap; }
+  .nv-value { grid-area: value; font-size: 15px; min-height: 0; text-align: center; white-space: nowrap; }
+  .notebook-box.facility { display: flex; flex-direction: column; }
+  .notebook-box.family { min-height: 17mm; }
+  .notebook-box.photo { min-height: 0; height: auto; padding: 4.5mm 2mm 2mm; display: flex; flex-direction: column; }
+  .notebook-photo-frame { flex: 1 1 auto; min-height: 0; height: 100%; border-radius: 5px; }
+  .notebook-photo-frame img { max-height: none; border-radius: 5px; }
+  .notebook-photo-empty span { font-size: 26px; }
+  .notebook-photo-empty small { font-size: 9px; max-width: 140px; }
+  /* 文章は欄からはみ出さないよう、長さに応じて段階的に文字を小さくする(Client.html の notebookDensity) */
+  .notebook-comment { flex: 1 1 0; min-height: 0; overflow: hidden; font-size: 13.5px; line-height: 1.55; }
+  .communication-sheet.dense-1 .notebook-comment { font-size: 12px; line-height: 1.5; }
+  .communication-sheet.dense-2 .notebook-comment { font-size: 10.5px; line-height: 1.45; }
+  .communication-sheet.dense-3 .notebook-comment { font-size: 9.5px; line-height: 1.4; }
+  .communication-sheet.dense-4 .notebook-comment { font-size: 8.5px; line-height: 1.35; }
+  .communication-sheet.compact-print .notebook-box.program li { min-height: 16px; }
   .communication-sheet.compact-print .notebook-box.program li b,
-  .communication-sheet.compact-print .notebook-box.program li small { font-size: 8px; }
-  .family-lines { gap: 8px; padding-top: 6px; }
-  .notebook-footer { margin-top: 2px; font-size: 7px; }
+  .communication-sheet.compact-print .notebook-box.program li small { font-size: 11.5px; }
+  .family-lines { gap: 4.5mm; padding-top: 3mm; }
+  .notebook-footer { margin-top: 1mm; font-size: 9px; }
+  /* まとめて印刷: 1人1ページ */
+  .notebook-batch, .notebook-batch-sheets { display: block !important; padding: 0 !important; margin: 0 !important; background: #fff !important; }
+  .notebook-batch-sheets .communication-sheet { break-after: page; page-break-after: always; }
+  .notebook-batch-sheets .communication-sheet:last-child { break-after: auto; page-break-after: auto; }
 }
+
+/* ---------- 連絡帳: 職員の入力画面・まとめて印刷 ---------- */
+.notebook-entry-summary { display: grid; gap: 6px; font-size: 14px; }
+.notebook-entry-summary > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 8px; align-items: baseline; }
+.notebook-entry-summary b { color: var(--text-aux); font-size: 12px; }
+.notebook-photo-actions { margin-top: 10px; align-items: center; }
+.notebook-photo-actions .btn-outline { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 48px; white-space: nowrap; writing-mode: horizontal-tb; }
+.notebook-entry-summary .muted { color: var(--text-aux); }
+.notebook-photo-frame.entry-photo { min-height: 200px; height: 240px; margin-top: 8px; }
+.notebook-batch { min-height: 100vh; padding: 0 16px 48px; background: var(--bg, #f5f7f6); }
+.notebook-batch-bar {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 12px;
+  margin: 0 -16px 16px; padding: 12px 16px;
+  background: #fff; border-bottom: 1px solid var(--border);
+}
+.notebook-batch-tools {
+  display: grid; gap: 10px; max-width: 760px; margin: 0 auto 20px;
+  padding: 16px; background: #fff; border: 1px solid var(--border); border-radius: 16px;
+}
+.notebook-batch-summary { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; font-size: 15px; }
+.notebook-batch-summary span { color: var(--text-aux); font-size: 13px; }
+.notebook-batch-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow: auto; }
+.notebook-batch-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #f3f6f4; font-size: 14px; }
+.notebook-batch-list li small { color: var(--text-aux); text-align: right; }
+.notebook-batch-list li.missing { background: #fff6e0; }
+.notebook-batch-sheets { display: grid; gap: 18px; max-width: 1080px; margin: 0 auto; }
+.notebook-batch-sheets .communication-sheet { overflow-x: auto; }
+@media screen and (max-width: 720px) {
+  .notebook-batch-sheets .communication-sheet { min-width: 640px; }
+  .notebook-batch-sheets { overflow-x: auto; }
+}
+
+/* ---------- 受付: 本日の来所予定 ---------- */
+.checkin-group-label { margin: 6px 2px 2px; font-size: 12px; font-weight: 800; color: var(--text-aux); letter-spacing: .02em; }
+.person-row.pending.tappable { cursor: pointer; border-style: dashed; }
+.person-row.pending.tappable[disabled] { opacity: .6; }
+.pending-action {
+  flex: none; margin-left: auto; padding: 6px 12px; border-radius: 999px;
+  background: var(--green, #176b52); color: #fff; font-size: 13px; font-weight: 800; white-space: nowrap;
+}
+.reception-secondary { flex: none; width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.modal-sheet .picker-item { display: flex; align-items: center; gap: 10px; }
+.modal-sheet .picker-item .person-care { margin-left: auto; }
 
 /* ---------- 安全情報・管理者ゲート ---------- */
 .precaution-banner {
@@ -2549,7 +2614,6 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 }
 
 @media print {
-  @page { size: A4 portrait; margin: 10mm; }
   body.monthly-report-print-mode .admin-mobile-head,
   body.monthly-report-print-mode .admin-sidebar,
   body.monthly-report-print-mode .admin-page-head,
@@ -3251,7 +3315,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261013-1259';window.APP_MOCK=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261020-1121';window.APP_MOCK=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -3490,7 +3554,7 @@ var S = {
   prevVital: null,
   vitalConfirmed: false,
   precautionConfirmed: false,
-  exDraft: null,        // 訓練一括入力 {slots:['','',''], note:''}
+  exDraft: null,        // 訓練一括入力 {slots:['','','',''], note:''}(準備運動＋15分×4枠)
   cognitiveMenu: [],    // 脳トレメニュー(記録画面の選択肢。管理画面で編集)
   templates: [],        // 種別ごとの定型文
   cogDraft: null,       // 脳トレ記録下書き {activity, free, durationMinutes, metricValue, metricUnit, note}
@@ -3504,7 +3568,9 @@ var S = {
   adminVerifying: false,
   adminVerifyPromise: null,
   adminUnlockPromise: null,
-  notebook: { data: null, photo: '', comment: '', variant: 0 },
+  notebook: { data: null, entry: null, photo: '', comment: '', variant: 0, loaded: false, dirty: false, photoChanged: false },
+  notebookBatch: null,
+  notebookBatchDate: '',
 };
 
 function currentUser() {
@@ -4019,6 +4085,13 @@ function tabBarHtml(active) {
 
 /** 直前保存の取り消しスナックバー */
 function snackbarHtml() {
+  if (!S.lastSaved && S.snackbarNote) {
+    // 取り消しのない完了メッセージ(連絡帳の保存など)。1回表示したら消す
+    var note = S.snackbarNote;
+    S.snackbarNote = '';
+    return '<div class="snackbar" id="snackbar" role="status"><span class="snack-text">✓ ' + esc(note) + '</span>' +
+      '<button class="snack-close" onclick="Actions.dismissSnackbar()" aria-label="閉じる">✕</button></div>';
+  }
   if (!S.lastSaved) return '';
   return (
     '<div class="snackbar" id="snackbar" role="status">' +
@@ -4226,6 +4299,40 @@ function labelGenTables() {
   });
 }
 
+/**
+ * 印刷の用紙サイズ。@page は画面ごとに切り替えられないため、印刷する直前に差し込んで終わったら戻す。
+ * (以前はCSSに A5横 と A4縦 の @page が両方あり、後の A4 が勝って連絡帳が A4 に縮小印刷されていた)
+ */
+function withPrintPage(size, margin, printFn) {
+  var style = document.createElement('style');
+  style.setAttribute('data-print-page', '1');
+  style.textContent = '@page{size:' + size + ';margin:' + margin + ';}';
+  document.head.appendChild(style);
+  var cleaned = false;
+  var cleanup = function () {
+    if (cleaned) return;
+    cleaned = true;
+    if (style.parentNode) style.parentNode.removeChild(style);
+    window.removeEventListener('afterprint', cleanup);
+  };
+  window.addEventListener('afterprint', cleanup);
+  try { printFn(); } finally { setTimeout(cleanup, 1500); }
+}
+
+/** 画面にあわせた既定の用紙(ブラウザのメニューから直接印刷した場合にも効く) */
+function syncDefaultPrintPage(route) {
+  var el = document.getElementById('default-print-page');
+  if (!el) {
+    el = document.createElement('style');
+    el.id = 'default-print-page';
+    document.head.appendChild(el);
+  }
+  var notebook = route === 'admin/notebook' || route === 'notebook-print';
+  var css = notebook ? '@page{size:A5 landscape;margin:5mm;}' : '@page{size:A4 portrait;margin:10mm;}';
+  if (el.textContent !== css) el.textContent = css;
+  document.body.classList.toggle('notebook-print-mode', notebook);
+}
+
 function render() {
   var renderId = (S.renderId || 0) + 1;
   S.renderId = renderId;
@@ -4246,6 +4353,9 @@ function render() {
   if (!S.me) return renderLogin(app);
   if (!S.ready) return;
   var h = location.hash.replace(/^#\/?/, '');
+  syncDefaultPrintPage(h);
+  // 受付の「取り消す」は受付直後の記録メニューでだけ出す(記録を始めた後に受付を消さないため)
+  if (S.lastSaved && S.lastSaved.kind === 'checkins' && h !== 'menu') S.lastSaved = null;
   // 管理画面は管理者のみ。現場職員には権限がない旨だけ表示する
   if (h.indexOf('admin') === 0 && !isAdmin()) return renderNoPermission(app);
   if (h === 'admin/menu') return renderAdminMenu(app);
@@ -4258,6 +4368,8 @@ function render() {
   if (h === 'exercise') return renderExerciseScan(app, renderId);
   if (h === 'cognitive') return renderCognitive(app, renderId);
   if (h === 'assessment') return renderAssessment(app, renderId);
+  if (h === 'notebook-entry') return renderNotebookEntry(app, renderId);
+  if (h === 'notebook-print') return renderNotebookBatch(app, renderId);
   if (h.indexOf('exercise/') === 0) return go('exercise'); // 旧: 種目別入力フォーム(ワンタップ記録化で廃止)
   if (h === 'admin') return renderAdminResults(app, renderId);
   if (h === 'admin/users') return renderAdminUsers(app, renderId);
@@ -4299,16 +4411,27 @@ function checkinStatusView() {
       '<span class="person-time">' + esc(c.time) + '</span>' +
       '<span class="chev" aria-hidden="true">›</span></button>'
     );
-  }).join('') + pending.map(function (u) {
+  }).join('');
+  // 来所予定でまだ受付していない方。名前をタップすると受付して、そのまま記録メニューを開く
+  var pendingRows = pending.map(function (u) {
+    var busy = S.checkinPending === u.id;
     return (
-      '<div class="person-row pending">' + avatarHtml(u, 'avatar-sm') +
-      '<span class="person-name">' + esc(u.name) + '</span>' +
-      '<span class="person-care">' + esc(u.careLevel) + '</span>' +
-      '<span class="person-time">未着</span></div>'
+      '<button class="person-row pending tappable" onclick="Actions.checkinAndOpen(\'' + u.id + '\')"' + (busy ? ' disabled' : '') + '>' +
+      avatarHtml(u, 'avatar-sm') +
+      '<span class="person-main"><span class="person-name">' + esc(u.name) + '</span>' +
+      '<span class="person-care">' + esc(u.careLevel) + '</span></span>' +
+      '<span class="pending-action">' + (busy ? '受付中…' : '受付する') + '</span></button>'
     );
   }).join('');
+  var empty = !rows && !pendingRows
+    ? '<div class="empty-state"><strong>本日の来所予定の方はいません</strong><p>「名前から選んで受付」から、予定外の方も受付できます。</p></div>'
+    : '';
   // 予定外の来所(振替など)も分母に含める
-  return { rows: rows || '<div class="empty-state"><strong>まだ来所された方はいません</strong><p>名前を選ぶか、QRカードから受付できます。</p></div>', scheduledCount: pending.length + S.todayCheckins.length };
+  return {
+    rows: (pendingRows ? '<div class="checkin-group-label">来所予定(未受付) ' + pending.length + '名</div>' + pendingRows : '') +
+      (rows ? '<div class="checkin-group-label">受付済み ' + S.todayCheckins.length + '名</div>' + rows : '') + empty,
+    scheduledCount: pending.length + S.todayCheckins.length,
+  };
 }
 
 function updateCheckinStatusDom() {
@@ -4348,14 +4471,15 @@ function renderCheckin(app) {
     '</header>' +
     '<div class="phone-body">' +
     '<div class="screen-intro"><span class="eyebrow">今日の受付</span><h1>来所受付をはじめる</h1>' +
-    '<p>名前を選ぶか、QRカードで受付できます。</p></div>' +
-    '<button class="btn-primary reception-primary" onclick="Actions.openPicker()">' + uiIcon('users') + '名前から選んで受付</button>' +
-    cameraHtml('利用者のQRカードをかざしてください') +
+    '<p>本日来所予定の方の名前をタップすると受付され、そのまま記録を始められます。</p></div>' +
     toastHtml +
     '<div><div class="section-head"><span class="section-title">本日の来所状況</span>' +
     '<span class="section-note" id="checkin-count">' + S.todayCheckins.length + '名 / 予定' + statusView.scheduledCount + '名</span></div>' +
-    '<p class="section-note">受付済みの方を選ぶと、記録を始められます。</p>' +
     '<div class="row-list" id="checkin-list">' + statusView.rows + '</div></div>' +
+    '<button class="btn-outline reception-secondary" onclick="Actions.openPicker()">' + uiIcon('users') + '予定外の方・名前から探して受付</button>' +
+    '<button class="btn-outline reception-secondary" onclick="go(\'notebook-print\')">' + uiIcon('notebook') + '本日の連絡帳をまとめて印刷</button>' +
+    '<div class="section-head"><span class="section-title">QRカードで受付</span></div>' +
+    cameraHtml('利用者のQRカードをかざしてください') +
     (isStandalone() && !window.GAS_API_URL
       ? '<div class="preview-notice" role="note"><strong>デザイン確認用プレビュー</strong>' +
         '<span>デモデータで操作できます。本番の記録には影響しません。</span></div>'
@@ -4526,7 +4650,7 @@ function renderUserMenu(app, renderId) {
         '<span class="record-open">' + (done ? (icon === 'vital' ? '再測定する' : '追加で記録') : '記録する') + ' <span aria-hidden="true">→</span></span></button>';
     }
     var recordActions = recordAction('Actions.goVitals()', 'vital', 'バイタル', '血圧・脈拍・体温', vitalDone ? '記録済み' : '未記録', vitalDone) +
-      recordAction('Actions.goExercise()', 'exercise', '機能訓練', '準備運動＋15分×3枠', exDone ? doneCount + '種目済み' : '未記録', exDone) +
+      recordAction('Actions.goExercise()', 'exercise', '機能訓練', '準備運動＋15分×' + EXERCISE_SLOT_COUNT + '枠', exDone ? doneCount + '種目済み' : '未記録', exDone) +
       recordAction("Actions.goRecord('cognitive')", 'cognitive', '脳トレ', '実施内容・時間・成果', cogCount ? cogCount + '件済み' : '未記録', cogCount > 0) +
       recordAction("Actions.goRecord('assessment')", 'assessment', '体力測定・評価', '種目別一括・HDS-R等', '測定時に', false);
 
@@ -4561,6 +4685,8 @@ function renderUserMenu(app, renderId) {
       snackbarHtml() +
       statusHtml +
       '<div class="record-action-grid" aria-label="記録する内容">' + recordActions + '</div>' +
+      '<button class="menu-action compact-action" onclick="go(\'notebook-entry\')"><span class="menu-icon">' + uiIcon('notebook') + '</span>' +
+      '<span class="menu-text"><strong>連絡帳の写真・ひとこと</strong><small>入力しておくと、まとめて印刷できます</small></span><span class="chev">›</span></button>' +
       '<button class="menu-action compact-action" onclick="Actions.quickHandoff(\'' + user.id + '\')"><span class="menu-icon">' + uiIcon('handoff') + '</span>' +
       '<span class="menu-text"><strong>申し送りを追加</strong><small>次回確認・看護師・ご家族への共有</small></span><span class="chev">›</span></button>' +
       '<button class="btn-outline" style="flex:none;width:100%;" onclick="go(\'users/' + user.id + '\')">' +
@@ -4689,16 +4815,27 @@ function progressHtml(records, pickable) {
 function getTodayExerciseRecords(userId) {
   var cached = S.exerciseCache[userId];
   if (cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
-  return rpc('apiGetTodayExercises', userId).then(function (records) {
+  // 当日分の全記録(起動時に先読み済み)から絞り込み、利用者ごとの通信を省く
+  return getTodayStatus().then(function (today) {
+    var records = (today.records || []).filter(function (r) { return r.userId === userId; })
+      .sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : 1; });
     S.exerciseCache[userId] = { data: records, expires: Date.now() + 45000 };
     return records;
   });
 }
 
+/** 準備運動のあとに選ぶ15分コマの数(現場要望で4枠。サーバー側 EXERCISE_SLOT_COUNT と合わせる) */
+var EXERCISE_SLOT_COUNT = 4;
+function emptyExerciseSlots() {
+  var slots = [];
+  for (var i = 0; i < EXERCISE_SLOT_COUNT; i++) slots.push('');
+  return slots;
+}
+
 function renderExerciseScan(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
-  if (!S.exDraft) S.exDraft = { slots: ['', '', ''], note: '' };
+  if (!S.exDraft) S.exDraft = { slots: emptyExerciseSlots(), note: '' };
   showLoading(app, hasExerciseCache(user.id));
 
   getTodayExerciseRecords(user.id).then(function (records) {
@@ -4709,7 +4846,8 @@ function renderExerciseScan(app, renderId) {
     var selectable = S.exercises.filter(function (ex) {
       return ex.id !== PREPARATION_EXERCISE_ID && !doneIds[ex.id];
     });
-    var slotHtml = [0, 1, 2].map(function (i) {
+    while (d.slots.length < EXERCISE_SLOT_COUNT) d.slots.push('');
+    var slotHtml = emptyExerciseSlots().map(function (_, i) {
       var selectedElsewhere = {};
       d.slots.forEach(function (id, j) { if (j !== i && id) selectedElsewhere[id] = true; });
       var options = selectable.map(function (ex) {
@@ -4741,7 +4879,7 @@ function renderExerciseScan(app, renderId) {
       '<header class="phone-header training">' +
       '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
       '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
-      '<div class="h-title">15分×4コマを入力</div></div>' +
+      '<div class="h-title">準備運動＋15分×' + EXERCISE_SLOT_COUNT + 'コマを入力</div></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
       '<div class="screen-intro compact-intro training-intro"><span class="eyebrow">機能訓練</span><h1>実施した運動を選択</h1>' +
@@ -4750,7 +4888,7 @@ function renderExerciseScan(app, renderId) {
       snackbarHtml() +
       (d.message ? '<div class="toast-success" role="status"><span class="check-circle">✓</span><span>' + esc(d.message) + '</span></div>' : '') +
       errHtml +
-      '<button class="btn-outline copy-previous" onclick="Actions.exCopyPrevious()">↻ 前回の運動3コマと特記事項をコピー</button>' +
+      '<button class="btn-outline copy-previous" onclick="Actions.exCopyPrevious()">↻ 前回の運動と特記事項をコピー</button>' +
       '<div class="card exercise-slots"><div class="exercise-slot fixed"><span class="slot-number">1</span>' +
       '<span class="slot-main"><b>準備運動</b><small>15分 · ' + (doneIds[PREPARATION_EXERCISE_ID] ? '記録済み' : 'デフォルト') + '</small></span>' +
       '<span class="menu-done">✓</span></div>' + slotHtml + '</div>' +
@@ -6191,73 +6329,228 @@ function defaultNotebookComment(data, variant) {
   return parts.join('');
 }
 
+/**
+ * 連絡帳1枚分(A5横)のHTML。管理者の編集画面・まとめて印刷の両方で使う。
+ * opts.editable=true のときだけ本文とバイタル欄を直接編集でき、要素に id を付ける(画面内に1枚だけのとき)。
+ */
+/** 連絡文の上限。A5横の「弐番館より」欄に最小の文字で収まる文字数(サーバーは600字まで受け付ける) */
+var NOTEBOOK_COMMENT_MAX = 450;
+
+/** 連絡文の長さからA5横の文字サイズ段階を決める(欄からはみ出さない目安の文字数) */
+function notebookDensity(comment, exerciseCount) {
+  var n = String(comment || '').length + (String(comment || '').split('\n').length - 1) * 12; // 改行は1行分の余白を使う
+  var cls = n <= 120 ? '' : n <= 170 ? ' dense-1' : n <= 240 ? ' dense-2' : n <= 320 ? ' dense-3' : ' dense-4';
+  return cls + (exerciseCount > 8 ? ' compact-print' : '');
+}
+
+function notebookSheetHtml(data, comment, photo, opts) {
+  opts = opts || {};
+  var editable = !!opts.editable;
+  var programs = data.exercises.map(function (r, i) {
+    var ex = exerciseById(r.exerciseId);
+    // ワンタップ記録(実績のみ)は実施量を持たないため「実施」とだけ添える
+    var amount = r.amount && r.amount !== '実施' ? r.amount : '実施';
+    return '<li><span>' + (i + 1) + '</span><b>' + esc(ex ? ex.name : r.exerciseId) + '</b><small>' + esc(amount) + '</small></li>';
+  }).join('');
+  if (!programs) programs = '<li class="planned"><b>本日の訓練記録はまだありません</b></li>';
+  var attendance = data.checkin
+    ? '来苑 ' + esc(data.checkin.time) + (data.checkin.checkoutTime ? ' ／ 帰苑 ' + esc(data.checkin.checkoutTime) : '') +
+      (data.checkin.transport ? ' ／ ' + esc(data.checkin.transport) : '')
+    : '来苑記録なし';
+  // バイタルは専用欄に表示する(記録がない項目は空欄のまま印刷され、手書きでも記入できる)
+  var v = data.vital;
+  function vitalCell(label, value, unit) {
+    return '<div class="nv-cell"><span class="nv-label">' + label + '</span>' +
+      '<span class="nv-value"' + (editable ? ' contenteditable="true"' : '') + '>' + esc(value) + '</span>' +
+      '<span class="nv-unit">' + unit + '</span></div>';
+  }
+  var vitalGrid =
+    '<div class="notebook-vital-grid">' +
+    vitalCell('血圧', v ? v.systolic + '/' + v.diastolic : '', 'mmHg') +
+    vitalCell('脈拍', v ? String(v.pulse) : '', '回/分') +
+    vitalCell('体温', v ? Number(v.temp).toFixed(1) : '', '℃') +
+    vitalCell('SpO2', v && v.spo2 != null && v.spo2 !== '' ? String(v.spo2) : '', '%') +
+    '</div>';
+  var photoHtml = photo
+    ? '<img src="' + esc(photo) + '" alt="本日のご様子">'
+    : '<div class="notebook-photo-empty"><span>写真</span>' + (editable ? '<small>下の「写真を選ぶ」から追加できます</small>' : '') + '</div>';
+  comment = String(comment || '');
+
+  var commentHtml = editable
+    ? '<div id="notebook-comment" class="notebook-comment" contenteditable="true" role="textbox" aria-label="施設からの連絡" oninput="Actions.notebookComment(this.innerText)">' + esc(comment) + '</div>'
+    : '<div class="notebook-comment">' + esc(comment) + '</div>';
+  return (
+    '<section class="communication-sheet' + notebookDensity(comment, data.exercises.length) + '" aria-label="弐番館デイサービス連絡帳 ' + esc(data.user.name) + ' 様">' +
+    '<header class="notebook-head"><div class="notebook-brand"><img src="' + LOGO + '" alt=""><div><small>機能訓練デイサービス</small><h1>弐番館 連絡帳</h1></div></div>' +
+    '<div class="notebook-meta"><div><small>お名前</small><strong>' + esc(data.user.name) + ' 様</strong></div><div><small>ご利用日</small><strong>' + esc(notebookDateLabel(data.date)) + '</strong></div></div></header>' +
+    '<p class="notebook-thanks">本日もご利用いただきありがとうございます。</p>' +
+    '<div class="notebook-layout"><div class="notebook-left">' +
+    '<section class="notebook-box program"><h2>本日のプログラム</h2><ol>' + programs + '</ol>' +
+    '<div class="notebook-vitals"><b>' + attendance + '</b></div>' + vitalGrid + '</section>' +
+    '<section class="notebook-box facility"><h2>デイサービスセンター弐番館より</h2>' + commentHtml + '</section>' +
+    '<section class="notebook-box family"><h2>ご家族より</h2><div class="family-lines"><span></span><span></span><span></span></div></section>' +
+    '</div><section class="notebook-box photo"><h2>本日のご様子</h2><div class="notebook-photo-frame"' + (editable ? ' id="notebook-photo"' : '') + '>' + photoHtml + '</div></section></div>' +
+    '<footer class="notebook-footer">機能訓練デイサービス 弐番館' + (opts.staffName ? '　担当: ' + esc(opts.staffName) : '') + '</footer></section>'
+  );
+}
+
+/** 連絡帳の保存内容(職員が入力した本文・写真)を画面の作業状態へ取り込む */
+function loadNotebookEntry(data) {
+  var entry = data.entry || null;
+  S.notebook.data = data;
+  S.notebook.entry = entry;
+  if (!S.notebook.loaded) {
+    S.notebook.comment = (entry && entry.comment ? entry.comment : defaultNotebookComment(data, S.notebook.variant || 0)).slice(0, NOTEBOOK_COMMENT_MAX);
+    S.notebook.photo = entry && entry.photo ? entry.photo : '';
+    S.notebook.photoChanged = false;
+    S.notebook.dirty = false;
+    S.notebook.loaded = true;
+  }
+}
+
+function resetNotebookState() {
+  S.notebook = { data: null, entry: null, photo: '', comment: '', variant: 0, loaded: false, dirty: false, photoChanged: false };
+}
+
+function notebookSavedLabel(entry) {
+  if (!entry || !entry.updatedAt) return '未保存(まだ誰も入力していません)';
+  return '保存済み ' + esc(String(entry.updatedAt).replace(/^\d{4}-/, '').replace(/:\d{2}$/, '')) + (entry.updatedBy ? '(' + esc(entry.updatedBy) + ')' : '');
+}
+
 function renderCommunicationBook(app, renderId) {
   if (!S.admin.notebookUserId) S.admin.notebookUserId = S.users.length ? S.users[0].id : '';
   if (!S.admin.notebookDate) S.admin.notebookDate = S.today;
-  showLoading(app, isRpcFresh('apiGetCommunicationBook', [S.admin.notebookUserId, S.admin.notebookDate]),
+  if (S.notebook.key !== S.admin.notebookUserId + '|' + S.admin.notebookDate) {
+    resetNotebookState();
+    S.notebook.key = S.admin.notebookUserId + '|' + S.admin.notebookDate;
+  }
+  showLoading(app, S.notebook.loaded && isRpcFresh('apiGetCommunicationBook', [S.admin.notebookUserId, S.admin.notebookDate]),
     function (h) { return adminShell('admin/notebook', h); });
   rpc('apiGetCommunicationBook', S.admin.notebookUserId, S.admin.notebookDate).then(function (data) {
     if (!isCurrentRender(renderId)) return;
-    S.notebook.data = data;
-    if (!S.notebook.comment) S.notebook.comment = defaultNotebookComment(data, S.notebook.variant || 0);
+    loadNotebookEntry(data);
     var userSel = S.users.map(function (u) {
       return '<option value="' + u.id + '"' + (u.id === S.admin.notebookUserId ? ' selected' : '') + '>' + esc(u.name) + '</option>';
     }).join('');
-    var programs = data.exercises.map(function (r, i) {
-      var ex = exerciseById(r.exerciseId);
-      // ワンタップ記録(実績のみ)は実施量を持たないため「実施」とだけ添える
-      var amount = r.amount && r.amount !== '実施' ? r.amount : '実施';
-      return '<li><span>' + (i + 1) + '</span><b>' + esc(ex ? ex.name : r.exerciseId) + '</b><small>' + esc(amount) + '</small></li>';
-    }).join('');
-    if (!programs) programs = '<li class="planned"><b>本日の訓練記録はまだありません</b></li>';
-    var attendance = data.checkin
-      ? '来苑 ' + esc(data.checkin.time) + (data.checkin.checkoutTime ? ' ／ 帰苑 ' + esc(data.checkin.checkoutTime) : '') +
-        (data.checkin.transport ? ' ／ ' + esc(data.checkin.transport) : '')
-      : '来苑記録なし';
-    // バイタルは専用欄に表示する(記録がない項目は空欄のまま印刷され、手書きでも記入できる)
-    var v = data.vital;
-    function vitalCell(label, value, unit) {
-      return '<div class="nv-cell"><span class="nv-label">' + label + '</span>' +
-        '<span class="nv-value" contenteditable="true">' + esc(value) + '</span>' +
-        '<span class="nv-unit">' + unit + '</span></div>';
-    }
-    var vitalGrid =
-      '<div class="notebook-vital-grid">' +
-      vitalCell('血圧', v ? v.systolic + '/' + v.diastolic : '', 'mmHg') +
-      vitalCell('脈拍', v ? String(v.pulse) : '', '回/分') +
-      vitalCell('体温', v ? v.temp.toFixed(1) : '', '℃') +
-      vitalCell('SpO2', v && v.spo2 != null ? String(v.spo2) : '', '%') +
-      '</div>';
-    var photoHtml = S.notebook.photo
-      ? '<img src="' + S.notebook.photo + '" alt="本日のご様子">'
-      : '<div class="notebook-photo-empty"><span>写真</span><small>下の「写真を選ぶ」から追加できます</small></div>';
-    var densePrint = S.notebook.comment.length > 220 || data.exercises.length > 5; // A5横は紙面が小さい
     var content =
       '<div class="admin-page-head no-print"><div><div class="breadcrumb">連絡帳 作成・印刷</div>' +
       '<div class="admin-h1">利用者へお渡しする連絡帳</div></div>' +
       '<div class="admin-actions"><select class="select-plain" onchange="Actions.notebookUser(this.value)">' + userSel + '</select>' +
       '<input class="select-plain" type="date" value="' + esc(S.admin.notebookDate) + '" onchange="Actions.notebookDate(this.value)">' +
-      '<button class="btn-csv" onclick="Actions.printNotebook()">🖨 印刷</button></div></div>' +
+      '<button class="btn-csv" id="notebook-save" onclick="Actions.saveNotebook()">保存</button>' +
+      '<button class="btn-csv" onclick="Actions.printNotebook()">🖨 この方を印刷(A5横)</button>' +
+      '<button class="btn-csv" onclick="Actions.openNotebookBatch(S.admin.notebookDate)">🖨 来所者全員分をまとめて印刷</button></div></div>' +
       '<div class="notebook-tools no-print"><label class="btn-outline" id="notebook-photo-label">📷 端末ライブラリから写真を選ぶ<input type="file" accept="image/*" onchange="Actions.notebookPhoto(this.files[0],this)" hidden></label>' +
+      (S.notebook.photo ? '<button class="btn-csv" onclick="Actions.notebookRemovePhoto()">写真を外す</button>' : '') +
       '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
-      '<span id="notebook-photo-status" role="status">黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 420 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / 600文字</span></div>' +
-      '<section class="communication-sheet' + (densePrint ? ' compact-print' : '') + '" aria-label="弐番館デイサービス連絡帳">' +
-      '<header class="notebook-head"><div class="notebook-brand"><img src="' + LOGO + '" alt=""><div><small>機能訓練デイサービス</small><h1>弐番館 連絡帳</h1></div></div>' +
-      '<div class="notebook-meta"><div><small>お名前</small><strong>' + esc(data.user.name) + ' 様</strong></div><div><small>ご利用日</small><strong>' + esc(notebookDateLabel(data.date)) + '</strong></div></div></header>' +
-      '<p class="notebook-thanks">本日もご利用いただきありがとうございます。</p>' +
-      '<div class="notebook-layout"><div class="notebook-left">' +
-      '<section class="notebook-box program"><h2>本日のプログラム</h2><ol>' + programs + '</ol>' +
-      '<div class="notebook-vitals"><b>' + attendance + '</b></div>' + vitalGrid + '</section>' +
-      '<section class="notebook-box facility"><h2>デイサービスセンター弐番館より</h2>' +
-      '<div id="notebook-comment" class="notebook-comment" contenteditable="true" role="textbox" aria-label="施設からの連絡" oninput="Actions.notebookComment(this.innerText)">' + esc(S.notebook.comment) + '</div></section>' +
-      '<section class="notebook-box family"><h2>ご家族より</h2><div class="family-lines"><span></span><span></span><span></span></div></section>' +
-      '</div><section class="notebook-box photo"><h2>本日のご様子</h2><div id="notebook-photo">' + photoHtml + '</div></section></div>' +
-      '<footer class="notebook-footer">機能訓練デイサービス 弐番館　担当: ' + esc(S.staff) + '</footer></section>';
+      '<span id="notebook-photo-status" role="status">' + notebookSavedLabel(S.notebook.entry) + '。黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 240 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div>' +
+      notebookSheetHtml(data, S.notebook.comment, S.notebook.photo, { editable: true, staffName: S.staff });
     app.innerHTML = adminShell('admin/notebook', content);
   }).catch(function (e) {
     if (!isCurrentRender(renderId)) return;
     app.innerHTML = adminShell('admin/notebook', '<div class="toast-error"><span class="x-circle">✕</span><span>' + esc((e && e.message) || '連絡帳を作成できませんでした') + '</span></div>');
+  });
+}
+
+/**
+ * 現場職員の入力画面(スマホ・タブレット)。記録メニューから開き、写真とひとことを保存する。
+ * 全員分そろったら「まとめて印刷」でA5横に一括印刷する。
+ */
+function renderNotebookEntry(app, renderId) {
+  var user = currentUser();
+  if (!user) return go('');
+  var key = user.id + '|' + S.today;
+  if (S.notebook.key !== key) {
+    resetNotebookState();
+    S.notebook.key = key;
+  }
+  showLoading(app, S.notebook.loaded && isRpcFresh('apiGetCommunicationBook', [user.id, S.today]));
+  rpc('apiGetCommunicationBook', user.id, S.today).then(function (data) {
+    if (!isCurrentRender(renderId)) return;
+    loadNotebookEntry(data);
+    var exNames = data.exercises.map(function (r) {
+      var ex = exerciseById(r.exerciseId);
+      return esc(ex ? ex.name : r.exerciseId);
+    }).join('・');
+    var v = data.vital;
+    var photoHtml = S.notebook.photo
+      ? '<img src="' + esc(S.notebook.photo) + '" alt="本日のご様子">'
+      : '<div class="notebook-photo-empty"><span>写真</span><small>まだ選ばれていません</small></div>';
+    app.innerHTML =
+      '<div class="phone-wrap"><div class="phone">' +
+      '<header class="phone-header compact">' +
+      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="記録メニューへ戻る">‹</button>' +
+      '<div class="patient-heading">' + avatarHtml(user, 'avatar-md') +
+      '<div><div class="h-sub">連絡帳の入力</div><div class="h-title">' + esc(user.name) + ' さま</div></div></div>' +
+      '</header>' +
+      '<div class="phone-body" style="gap:14px;">' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">' + esc(dayLabel(S.today)) + ' の連絡帳</span>' +
+      '<h1>写真とひとことを入力</h1>' +
+      '<p>運動・バイタルは記録から自動で入ります。全員分そろったら、受付画面の「まとめて印刷」で印刷します。</p></div>' +
+      '<div class="card notebook-entry-summary"><span class="card-label">自動で入る内容</span>' +
+      '<div><b>運動</b><span>' + (exNames || '<span class="muted">未記録</span>') + '</span></div>' +
+      '<div><b>バイタル</b><span>' + (v ? esc(v.systolic + '/' + v.diastolic) + ' · 脈拍' + esc(v.pulse) + ' · ' + esc(Number(v.temp).toFixed(1)) + '℃' : '<span class="muted">未測定(印刷すると空欄・手書き可)</span>') + '</span></div></div>' +
+      '<div class="card"><span class="card-label">本日のご様子(写真)</span>' +
+      '<div class="notebook-photo-frame entry-photo" id="notebook-photo">' + photoHtml + '</div>' +
+      '<div class="btn-row notebook-photo-actions"><label class="btn-outline" id="notebook-photo-label">📷 写真を選ぶ<input type="file" accept="image/*" onchange="Actions.notebookPhoto(this.files[0],this)" hidden></label>' +
+      (S.notebook.photo ? '<button class="link-plain" onclick="Actions.notebookRemovePhoto()">写真を外す</button>' : '') + '</div>' +
+      '<div class="section-note" id="notebook-photo-status" role="status"></div></div>' +
+      '<div class="card"><span class="card-label">デイサービスセンター弐番館より(ひとこと)</span>' +
+      templateChipsHtml('notebook', 'notebookUseTemplate') +
+      '<textarea class="note-area" id="notebook-comment-input" maxlength="' + NOTEBOOK_COMMENT_MAX + '" rows="6" oninput="Actions.notebookComment(this.value)">' + esc(S.notebook.comment) + '</textarea>' +
+      '<div class="btn-row" style="justify-content:space-between;"><button class="link-plain" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
+      '<span id="notebook-count" class="notebook-count">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div></div>' +
+      '<div class="section-note" id="notebook-saved">' + notebookSavedLabel(S.notebook.entry) + '</div>' +
+      '<div id="notebook-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
+      '<button class="btn-primary" id="notebook-save" style="flex:none;width:100%;" onclick="Actions.saveNotebook(true)">連絡帳を保存する</button>' +
+      '<button class="btn-outline" style="flex:none;width:100%;" onclick="Actions.backToMenu()">‹ 記録メニューへ戻る</button>' +
+      '</div>' + tabBarHtml('') + '</div></div>';
+  }).catch(function (e) {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = renderErrorHtml((e && e.message) || '連絡帳を読み込めませんでした', 'notebook-entry');
+  });
+}
+
+/** 来所者全員分の連絡帳をA5横で続けて印刷する画面(現場職員も使える) */
+function renderNotebookBatch(app, renderId) {
+  if (!S.notebookBatchDate) S.notebookBatchDate = S.today;
+  var date = S.notebookBatchDate;
+  var wrap = function (h) {
+    return '<div class="notebook-batch"><div class="notebook-batch-bar no-print">' +
+      '<button class="back-btn" onclick="history.length > 1 ? history.back() : go(\'\')" aria-label="戻る">‹</button>' +
+      '<div><div class="h-sub">連絡帳</div><div class="h-title">まとめて印刷(A5横)</div></div></div>' + h + '</div>';
+  };
+  showLoading(app, isRpcFresh('apiGetCommunicationBooks', [date]), wrap);
+  rpc('apiGetCommunicationBooks', date).then(function (res) {
+    if (!isCurrentRender(renderId)) return;
+    var books = res.books || [];
+    S.notebookBatch = books;
+    var missing = books.filter(function (b) { return !b.entry || !b.entry.updatedAt; });
+    var noPhoto = books.filter(function (b) { return !(b.entry && b.entry.hasPhoto); });
+    var sheets = books.map(function (b) {
+      var comment = (b.entry && b.entry.comment ? b.entry.comment : defaultNotebookComment(b, 0)).slice(0, NOTEBOOK_COMMENT_MAX);
+      return notebookSheetHtml(b, comment, b.entry ? b.entry.photo : '', { staffName: b.entry && b.entry.updatedBy });
+    }).join('');
+    var listHtml = books.map(function (b) {
+      var done = b.entry && b.entry.updatedAt;
+      return '<li class="' + (done ? 'done' : 'missing') + '"><span>' + esc(b.user.name) + ' 様</span>' +
+        '<small>' + (done ? '入力済み' : '未入力(自動作成の文章で印刷)') + (b.entry && b.entry.hasPhoto ? ' · 写真あり' : ' · 写真なし') + '</small></li>';
+    }).join('');
+    var tools =
+      '<div class="notebook-batch-tools no-print">' +
+      '<label class="card-label" for="batch-date">印刷する日</label>' +
+      '<input class="select-plain" id="batch-date" type="date" value="' + esc(date) + '" onchange="Actions.openNotebookBatch(this.value)">' +
+      '<div class="notebook-batch-summary"><b>' + books.length + '名分</b>' +
+      (books.length ? '<span>未入力 ' + missing.length + '名 · 写真なし ' + noPhoto.length + '名</span>' : '') + '</div>' +
+      (books.length ? '<ul class="notebook-batch-list">' + listHtml + '</ul>' : '<div class="empty-note">この日の来所記録がありません</div>') +
+      (books.length ? '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + books.length + '名分をA5横で印刷</button>' +
+        '<p class="section-note">印刷画面で用紙サイズが「A5」・向きが「横」になっているか確認してください。倍率は「100%」がおすすめです。</p>' : '') +
+      '</div>';
+    app.innerHTML = wrap(tools + '<div class="notebook-batch-sheets">' + sheets + '</div>');
+  }).catch(function (e) {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = wrap('<div class="toast-error"><span class="x-circle">✕</span><span>' + esc((e && e.message) || '連絡帳を読み込めませんでした') + '</span></div>');
   });
 }
 
@@ -6356,29 +6649,57 @@ var Actions = {
       render();
     });
   },
+  /** 名前を選んで受付し、そのまま記録メニューへ(バイタル測定時の受付を想定。本人確認画面は挟まない) */
+  checkinAndOpen: function (userId) {
+    if (S.checkinPending) return;
+    var already = S.todayCheckins.some(function (c) { return c.userId === userId; });
+    if (already) return Actions.startSession(userId);
+    S.checkinPending = userId;
+    updateCheckinStatusDom();
+    rpc('apiCheckin', userId).then(function (res) {
+      S.todayCheckins = res.todayCheckins;
+      S.checkinPending = '';
+      S.todayStatusCache = null;
+      if (navigator.vibrate) navigator.vibrate(60);
+      var u = userById(userId);
+      Actions.startSession(userId);
+      // 押し間違えたときにすぐ取り消せるよう、記録メニューに「取り消す」付きで表示する
+      if (!res.already) S.lastSaved = { kind: 'checkins', id: res.record.id, label: (u ? u.name + ' さま ' : '') + res.record.time + ' 受付しました' };
+    }).catch(function () {
+      S.checkinPending = '';
+      S.toast = { type: 'error', title: '通信エラー', sub: '受付を記録できませんでした。もう一度お試しください' };
+      render();
+    });
+  },
   openPicker: function () {
     var checkedIds = {};
     S.todayCheckins.forEach(function (c) { checkedIds[c.userId] = true; });
     var weekday = WEEKDAYS[new Date().getDay()];
-    var pending = S.users.filter(function (u) { return String(u.scheduleLabel || '').indexOf(weekday) >= 0 && !checkedIds[u.id]; });
-    var rows = pending.length
-      ? pending.map(function (u) {
-          return (
-            '<button class="modal-row picker-item" data-name="' + esc(u.name.replace(/\s/g, '')) + '" onclick="Actions.closePicker();Actions.checkin(\'' + u.id + '\')">' +
-            '<span class="person-name">' + esc(u.name) + '</span>' +
-            '<span class="person-care">' + esc(u.careLevel) + '</span></button>'
-          );
-        }).join('')
-      : '<div class="empty-note">全員チェックイン済みです</div>';
+    var notChecked = S.users.filter(function (u) { return !checkedIds[u.id]; });
+    var scheduled = notChecked.filter(function (u) { return String(u.scheduleLabel || '').indexOf(weekday) >= 0; });
+    var others = notChecked.filter(function (u) { return String(u.scheduleLabel || '').indexOf(weekday) < 0; });
+    function pickerRow(u) {
+      return (
+        '<button class="modal-row picker-item" data-name="' + esc(normalizeUserSearch(u.name + (u.kana || ''))) + '" onclick="Actions.closePicker();Actions.checkinAndOpen(\'' + u.id + '\')">' +
+        avatarHtml(u, 'avatar-sm') +
+        '<span class="person-name">' + esc(u.name) + '</span>' +
+        '<span class="person-care">' + esc(u.scheduleLabel || '') + '</span></button>'
+      );
+    }
+    // 振替など予定外の来所も受付できるよう、予定外の方も下にまとめて表示する
+    var rows = notChecked.length
+      ? (scheduled.length ? '<div class="checkin-group-label">本日来所予定</div>' + scheduled.map(pickerRow).join('') : '') +
+        (others.length ? '<div class="checkin-group-label">予定外(振替など)</div>' + others.map(pickerRow).join('') : '')
+      : '<div class="empty-note">全員受付済みです</div>';
     document.getElementById('picker').innerHTML =
       '<div class="modal-backdrop" onclick="Actions.closePicker()">' +
       '<div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="picker-title" onclick="event.stopPropagation()">' +
-      '<div class="modal-head"><div><div class="eyebrow">手動受付</div><div class="modal-title" id="picker-title">利用者を選択</div></div>' +
+      '<div class="modal-head"><div><div class="eyebrow">名前から受付</div><div class="modal-title" id="picker-title">利用者を選択</div></div>' +
       '<button class="modal-close" onclick="Actions.closePicker()" aria-label="閉じる">×</button></div>' +
       '<label class="search-box"><span aria-hidden="true">⌕</span><input type="search" placeholder="氏名で検索" oninput="Actions.filterPicker(this.value)"></label>' + rows + '</div></div>';
   },
   filterPicker: function (query) {
-    var normalized = String(query || '').replace(/\s/g, '');
+    var normalized = normalizeUserSearch(query);
     document.querySelectorAll('.picker-item').forEach(function (el) {
       var name = el.getAttribute('data-name') || '';
       el.style.display = !normalized || name.indexOf(normalized) >= 0 ? '' : 'none';
@@ -6397,6 +6718,8 @@ var Actions = {
     S.exDraft = null;
     S.precautionConfirmed = false;
     Scanner.autoMode = '';
+    // 次に開くことが多いバイタル入力のデータを裏で先に取りに行く(画面を開いたときの待ちを減らす)
+    rpc('apiGetVitalContext', userId).catch(function () {});
     go('menu');
   },
   /** メニューからバイタルへ(順序の制約なし) */
@@ -6563,20 +6886,20 @@ var Actions = {
     });
   },
 
-  // --- 訓練(15分×4コマ。準備運動+選択3種目) ---
+  // --- 訓練(準備運動＋選択式の15分×4コマ) ---
   exSlot: function (index, exerciseId) {
-    if (!S.exDraft) S.exDraft = { slots: ['', '', ''], note: '' };
+    if (!S.exDraft) S.exDraft = { slots: emptyExerciseSlots(), note: '' };
     S.exDraft.slots[index] = exerciseId;
     S.exDraft.message = '';
     render();
   },
   exNote: function (value) {
-    if (!S.exDraft) S.exDraft = { slots: ['', '', ''], note: '' };
+    if (!S.exDraft) S.exDraft = { slots: emptyExerciseSlots(), note: '' };
     S.exDraft.note = value.slice(0, 300);
     S.exDraft.message = '';
   },
   exUseTemplate: function (text) {
-    if (!S.exDraft) S.exDraft = { slots: ['', '', ''], note: '' };
+    if (!S.exDraft) S.exDraft = { slots: emptyExerciseSlots(), note: '' };
     S.exDraft.note = ((S.exDraft.note || '').trim() ? S.exDraft.note.trim() + '。' : '') + text;
     S.exDraft.note = S.exDraft.note.slice(0, 300);
     render();
@@ -6584,8 +6907,8 @@ var Actions = {
   exCopyPrevious: function () {
     rpc('apiGetPreviousRecordSet', S.currentUserId).then(function (res) {
       var ids = (res.exercises || []).map(function (r) { return r.exerciseId; })
-        .filter(function (id) { return id && id !== PREPARATION_EXERCISE_ID; }).slice(0, 3);
-      while (ids.length < 3) ids.push('');
+        .filter(function (id) { return id && id !== PREPARATION_EXERCISE_ID; }).slice(0, EXERCISE_SLOT_COUNT);
+      while (ids.length < EXERCISE_SLOT_COUNT) ids.push('');
       var notes = (res.exercises || []).map(function (r) { return r.note; }).filter(String);
       S.exDraft = { slots: ids, note: notes.join('。').slice(0, 300), message: res.exerciseDate ? dayLabel(res.exerciseDate) + 'の内容をコピーしました' : '前回記録はありません' };
       render();
@@ -6611,7 +6934,7 @@ var Actions = {
         (res.records || []).forEach(function (r) { next.push(r); });
         S.exerciseCache[S.currentUserId] = { data: next, expires: Date.now() + 45000 };
         S.todayStatusCache = null;
-        S.exDraft = { slots: ['', '', ''], note: '', message: (res.records || []).length + '項目を記録しました' };
+        S.exDraft = { slots: emptyExerciseSlots(), note: '', message: (res.records || []).length + '項目を記録しました' };
         render();
       })
       .catch(function (e) {
@@ -6655,6 +6978,11 @@ var Actions = {
     rpc('apiVoidRecord', last.kind, last.id).then(function () {
       delete S.exerciseCache[S.currentUserId];
       S.todayStatusCache = null;
+      if (last.kind === 'checkins') {
+        // 受付の取り消しは受付画面へ戻す(来所予定の一覧に「受付する」が再表示される)
+        S.todayCheckins = S.todayCheckins.filter(function (c) { return c.id !== last.id; });
+        return go('');
+      }
       render();
     }).catch(function () {
       S.lastSaved = last;
@@ -6894,10 +7222,13 @@ var Actions = {
     if (btn) { btn.disabled = true; btn.textContent = 'ログイン中…'; }
     rpc('apiLogin', S.loginStaffId, S.loginPin).then(function (res) {
       saveSession(res.session, res.staff);
+      var loginBoot = res.bootstrap;
       S.loginPin = '';
       S.loginError = '';
       S.loginStaffId = '';
       clearRpcCache();
+      // ログイン応答に初期データが含まれていれば、そのまま使って通信を1回省く
+      if (loginBoot) RPC_CACHE[rpcCacheKey('apiGetBootstrap', [])] = { data: loginBoot, expires: Date.now() + RPC_READ_TTL.apiGetBootstrap };
       return bootAfterLogin();
     }).catch(function (e) {
       S.loginPin = '';
@@ -7204,42 +7535,49 @@ var Actions = {
 
   notebookUser: function (id) {
     S.admin.notebookUserId = id;
-    S.notebook = { data: null, photo: '', comment: '', variant: 0 };
+    resetNotebookState();
     render();
   },
   notebookDate: function (date) {
     S.admin.notebookDate = date;
-    S.notebook = { data: null, photo: '', comment: '', variant: 0 };
+    resetNotebookState();
     render();
   },
   notebookComment: function (value) {
-    S.notebook.comment = String(value || '').slice(0, 600);
+    S.notebook.comment = String(value || '').slice(0, NOTEBOOK_COMMENT_MAX);
+    S.notebook.dirty = true;
     var count = document.getElementById('notebook-count');
     if (count) {
-      count.textContent = S.notebook.comment.length + ' / 600文字';
-      count.classList.toggle('warn', S.notebook.comment.length > 420);
+      count.textContent = S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字';
+      count.classList.toggle('warn', S.notebook.comment.length > 240);
     }
+  },
+  /** 画面上の文章欄(管理者=編集できる紙面 / 職員=入力欄)へ現在の文章を反映する */
+  syncNotebookCommentBox: function (flash) {
+    var box = document.getElementById('notebook-comment');
+    if (box) {
+      box.textContent = S.notebook.comment;
+      if (flash) {
+        box.classList.remove('flash');
+        void box.offsetWidth; // アニメーションを再発火させる
+        box.classList.add('flash');
+      }
+    }
+    var input = document.getElementById('notebook-comment-input');
+    if (input) input.value = S.notebook.comment;
+    Actions.notebookComment(S.notebook.comment); // 文字数カウンターも更新
   },
   notebookUseTemplate: function (text) {
     S.notebook.comment = ((S.notebook.comment || '').trim() ? S.notebook.comment.trim() + '。' : '') + text;
-    S.notebook.comment = S.notebook.comment.slice(0, 600);
-    var box = document.getElementById('notebook-comment');
-    if (box) box.textContent = S.notebook.comment;
-    Actions.notebookComment(S.notebook.comment);
+    S.notebook.comment = S.notebook.comment.slice(0, NOTEBOOK_COMMENT_MAX);
+    Actions.syncNotebookCommentBox(false);
   },
   resetNotebookComment: function () {
     if (!S.notebook.data) return;
     // 押すたびに言い回しを変えて作り直す(編集した文章は破棄される)
     S.notebook.variant = (S.notebook.variant || 0) + 1;
-    S.notebook.comment = defaultNotebookComment(S.notebook.data, S.notebook.variant);
-    var box = document.getElementById('notebook-comment');
-    if (box) {
-      box.textContent = S.notebook.comment;
-      box.classList.remove('flash');
-      void box.offsetWidth; // アニメーションを再発火させる
-      box.classList.add('flash');
-    }
-    Actions.notebookComment(S.notebook.comment); // 文字数カウンターも更新
+    S.notebook.comment = defaultNotebookComment(S.notebook.data, S.notebook.variant).slice(0, NOTEBOOK_COMMENT_MAX);
+    Actions.syncNotebookCommentBox(true);
   },
   notebookPhoto: function (file, input) {
     if (!file) return;
@@ -7248,11 +7586,14 @@ var Actions = {
     if (status) status.textContent = '写真を読み込み・縮小しています…';
     if (label) label.classList.add('is-processing');
     if (input) input.disabled = true;
-    resizeSelectedImage(file, { maxDimension: 1280, quality: 0.78 }).then(function (data) {
+    // スプレッドシートの1セル(5万文字)に収まるよう縮小する。A5の写真欄には十分な画質
+    resizeSelectedImage(file, { maxDimension: 1000, quality: 0.78, maxChars: 47000 }).then(function (data) {
       S.notebook.photo = data;
+      S.notebook.photoChanged = true;
+      S.notebook.dirty = true;
       var box = document.getElementById('notebook-photo');
       if (box) box.innerHTML = '<img src="' + S.notebook.photo + '" alt="本日のご様子">';
-      if (status) status.textContent = '写真を追加しました。印刷プレビューで確認できます。';
+      if (status) status.textContent = '写真を選びました。「保存」を押すと、ほかの端末からも印刷できます。';
     }).catch(function (e) {
       if (status) status.textContent = '写真を追加できませんでした';
       alert((e && e.message) || '写真を読み込めませんでした');
@@ -7261,27 +7602,93 @@ var Actions = {
       if (input) { input.disabled = false; input.value = ''; }
     });
   },
-  printNotebook: function () {
+  notebookRemovePhoto: function () {
+    S.notebook.photo = '';
+    S.notebook.photoChanged = true;
+    S.notebook.dirty = true;
+    var box = document.getElementById('notebook-photo');
+    if (box) box.innerHTML = '<div class="notebook-photo-empty"><span>写真</span><small>写真を外しました(保存すると反映されます)</small></div>';
+  },
+  /** 管理者の紙面で直接編集した文章を取り込む(contenteditable は oninput が漏れることがあるため保存直前にも読む) */
+  readNotebookCommentBox: function () {
     var commentBox = document.getElementById('notebook-comment');
     if (commentBox) {
-      S.notebook.comment = String(commentBox.innerText || '').slice(0, 600);
-      if (commentBox.innerText.length > 600) commentBox.textContent = S.notebook.comment;
+      var text = String(commentBox.innerText || '');
+      if (text !== S.notebook.comment) S.notebook.dirty = true;
+      S.notebook.comment = text.slice(0, NOTEBOOK_COMMENT_MAX);
+      if (text.length > NOTEBOOK_COMMENT_MAX) commentBox.textContent = S.notebook.comment;
     }
-    if (S.notebook.comment.length > 400 && !window.confirm('連絡文が長いため文字が小さくなります。このまま印刷しますか？')) return;
+  },
+  /** 連絡帳の本文・写真を保存する。backToMenu=true は職員の入力画面(保存後に記録メニューへ戻る) */
+  saveNotebook: function (backToMenu) {
+    Actions.readNotebookCommentBox();
+    var data = S.notebook.data;
+    if (!data) return Promise.resolve();
+    var btn = document.getElementById('notebook-save');
+    var err = document.getElementById('notebook-error');
+    if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
+    var payload = { userId: data.user.id, date: data.date, comment: S.notebook.comment.trim() };
+    if (S.notebook.photoChanged) {
+      if (S.notebook.photo) payload.photo = S.notebook.photo;
+      else payload.removePhoto = true;
+    }
+    return rpc('apiSaveNotebookEntry', payload).then(function (entry) {
+      S.notebook.entry = entry;
+      S.notebook.dirty = false;
+      S.notebook.photoChanged = false;
+      if (data.entry !== undefined) data.entry = Object.assign({}, entry, { photo: S.notebook.photo });
+      if (backToMenu) {
+        S.snackbarNote = '連絡帳を保存しました';
+        return Actions.backToMenu();
+      }
+      var status = document.getElementById('notebook-photo-status');
+      if (status) status.textContent = notebookSavedLabel(entry) + '。';
+      if (btn) { btn.disabled = false; btn.textContent = '保存'; }
+    }).catch(function (e) {
+      var message = (e && e.message) || '保存できませんでした';
+      if (err) err.textContent = message; else alert(message);
+      if (btn) { btn.disabled = false; btn.textContent = backToMenu ? '連絡帳を保存する' : '保存'; }
+      throw e;
+    });
+  },
+  printNotebook: function () {
+    Actions.readNotebookCommentBox();
+    if (S.notebook.comment.length > 320 && !window.confirm('連絡文が長いため文字が小さくなります。このまま印刷しますか？')) return;
     var sheet = document.querySelector('.communication-sheet');
-    if (sheet) sheet.classList.toggle('compact-print', S.notebook.comment.length > 220 || (S.notebook.data && S.notebook.data.exercises.length > 5));
+    if (sheet) {
+      sheet.className = 'communication-sheet' + notebookDensity(S.notebook.comment, S.notebook.data ? S.notebook.data.exercises.length : 0);
+    }
     var oldTitle = document.title;
     var user = S.notebook.data && S.notebook.data.user;
     document.title = '連絡帳_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.notebookDate;
     var printNow = function () {
-      window.print();
+      withPrintPage('A5 landscape', '5mm', function () { window.print(); });
       setTimeout(function () { document.title = oldTitle; }, 500);
     };
-    if (user) {
-      rpc('apiSaveDailyStatus', { userId: user.id, date: S.admin.notebookDate, notebookDone: true })
-        .then(function () { clearRpcCache(); printNow(); })
-        .catch(function () { printNow(); });
-    } else printNow();
+    if (!user) return printNow();
+    // 編集中の内容は保存してから印刷する(ほかの端末のまとめて印刷にも反映される)
+    var saving = S.notebook.dirty ? Actions.saveNotebook(false).catch(function () {}) : Promise.resolve();
+    saving.then(function () {
+      return rpc('apiSaveDailyStatus', { userId: user.id, date: S.admin.notebookDate, notebookDone: true });
+    }).then(function () { clearRpcCache(); printNow(); })
+      .catch(function () { printNow(); });
+  },
+  openNotebookBatch: function (date) {
+    S.notebookBatchDate = date || S.today;
+    if (location.hash.replace(/^#\/?/, '') === 'notebook-print') render();
+    else go('notebook-print');
+  },
+  printNotebookBatch: function () {
+    var books = S.notebookBatch || [];
+    if (!books.length) return;
+    var oldTitle = document.title;
+    document.title = '連絡帳_まとめて印刷_' + (S.notebookBatchDate || S.today);
+    withPrintPage('A5 landscape', '5mm', function () { window.print(); });
+    setTimeout(function () { document.title = oldTitle; }, 500);
+    // 印刷した方を「連絡帳完了」にする(本日の進捗画面に反映)
+    rpc('apiMarkNotebooksDone', S.notebookBatchDate || S.today, books.map(function (b) { return b.user.id; }))
+      .then(function () { S.todayStatusCache = null; })
+      .catch(function () {});
   },
   printQrCards: function (mode) {
     // 用紙の余白は各シート内で取る(名刺サイズを崩さないよう、ブラウザ側の余白は0にする)
@@ -7696,7 +8103,7 @@ var Mock = (function () {
       var me = mockMe();
       var photos = db.photos || {};
       db.users.forEach(function (x) { x.hasPhoto = !!photos[x.id]; });
-      return { apiVersion: 7, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), templates: (db.templates || []).filter(function (t) { return t.active !== false; }), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+      return { apiVersion: 8, me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), templates: (db.templates || []).filter(function (t) { return t.active !== false; }), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
     },
     apiAdminSaveCognitiveMenu: function (p) {
       var db = load();
@@ -7929,7 +8336,10 @@ var Mock = (function () {
       var t = todayStr();
       var prepRecorded = db.records.some(function (r) { return r.userId === p.userId && r.date === t && r.exerciseId === 'prep'; });
       var ids = prepRecorded ? [] : ['prep'];
-      (p.exerciseIds || []).forEach(function (id) { if (id && id !== 'prep' && ids.indexOf(id) < 0 && ids.length < 4) ids.push(id); });
+      (p.exerciseIds || []).forEach(function (id) {
+        var selected = ids.filter(function (x) { return x !== 'prep'; }).length;
+        if (id && id !== 'prep' && ids.indexOf(id) < 0 && selected < EXERCISE_SLOT_COUNT) ids.push(id);
+      });
       var records = ids.map(function (id, i) {
         db.seq += 1;
         return { id: 'm' + db.seq, date: t, time: nowTime(), userId: p.userId, exerciseId: id, amount: '15分', load: '', note: i === 0 ? p.note || '' : '' };
@@ -7979,7 +8389,37 @@ var Mock = (function () {
         user: user, date: date, checkin: checkin, vital: vital,
         exercises: db.records.filter(function (e) { return e.userId === userId && e.date === date; }).sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : 1; }),
         cognitiveRecords: db.cognitive.filter(function (e) { return e.userId === userId && e.date === date; }),
+        entry: ((db.notebooks || {})[date + '|' + userId]) || null,
       };
+    },
+    apiGetCommunicationBooks: function (date) {
+      var db = load();
+      var visited = {};
+      db.checkins.forEach(function (c) { if (c.date === date) visited[c.userId] = true; });
+      return {
+        date: date,
+        books: sortUsersKana(db.users.filter(function (u) { return visited[u.id]; })).map(function (u) {
+          return fns.apiGetCommunicationBook(u.id, date);
+        }),
+      };
+    },
+    apiSaveNotebookEntry: function (p) {
+      var db = load();
+      if (!db.notebooks) db.notebooks = {};
+      var key = (p.date || todayStr()) + '|' + p.userId;
+      var prev = db.notebooks[key] || {};
+      var photo = p.removePhoto ? '' : (p.photo || prev.photo || '');
+      var me = mockMe();
+      db.notebooks[key] = { userId: p.userId, date: p.date || todayStr(), comment: String(p.comment || '').slice(0, 600), hasPhoto: !!photo, photo: photo,
+        updatedBy: me ? me.name : 'プレビュー', updatedAt: todayStr() + ' ' + nowTime() + ':00' };
+      save(db);
+      var out = Object.assign({}, db.notebooks[key]);
+      out.photo = '';
+      return out;
+    },
+    apiMarkNotebooksDone: function (date, userIds) {
+      (userIds || []).forEach(function (id) { fns.apiSaveDailyStatus({ userId: id, date: date, notebookDone: true }); });
+      return { ok: true };
     },
     apiGetUserResults: function (userId, month) {
       var db = load();
@@ -8176,6 +8616,7 @@ function bootAfterLogin() {
     if (!boot.apiVersion || boot.apiVersion < 7) {
       throw new Error('GASが旧バージョンです。Apps Scriptを最新版として再デプロイしてください');
     }
+    if (boot.me) S.me = boot.me;
     S.users = sortUsersKana(boot.users);
     S.exercises = boot.exercises;
     S.cognitiveMenu = boot.cognitiveMenu || [];
@@ -8198,9 +8639,13 @@ function bootAfterLogin() {
 
 // ---- 起動: セッションがあれば復帰、無ければログイン画面 ----
 if (S.session) {
-  rpc('apiGetSession').then(function (res) {
-    S.me = res.staff;
-    return bootAfterLogin();
+  // 初期データに職員情報も含まれるので1回の通信で復帰する(旧サーバーなら apiGetSession で補う)
+  rpc('apiGetBootstrap').then(function (boot) {
+    if (boot && boot.me) return bootAfterLogin();
+    return rpc('apiGetSession').then(function (res) {
+      S.me = res.staff;
+      return bootAfterLogin();
+    });
   }).catch(function (e) {
     var message = String((e && e.message) || e || '');
     if (message.indexOf('ログイン') >= 0 || message.indexOf('職員アカウント') >= 0) {
