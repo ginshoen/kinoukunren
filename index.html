@@ -3315,7 +3315,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261020-1121';window.APP_MOCK=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261021-1529';window.APP_MOCK=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -7661,17 +7661,17 @@ var Actions = {
     var oldTitle = document.title;
     var user = S.notebook.data && S.notebook.data.user;
     document.title = '連絡帳_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.notebookDate;
-    var printNow = function () {
-      withPrintPage('A5 landscape', '5mm', function () { window.print(); });
-      setTimeout(function () { document.title = oldTitle; }, 500);
-    };
-    if (!user) return printNow();
-    // 編集中の内容は保存してから印刷する(ほかの端末のまとめて印刷にも反映される)
-    var saving = S.notebook.dirty ? Actions.saveNotebook(false).catch(function () {}) : Promise.resolve();
+    // 印刷はボタンを押したその場で開く。通信を待ってから開くと、iPad/iPhone の Safari では
+    // 印刷画面が出ない・数秒反応がない(固まって見える)ことがあるため、保存は印刷の後に行う
+    withPrintPage('A5 landscape', '5mm', function () { window.print(); });
+    setTimeout(function () { document.title = oldTitle; }, 500);
+    if (!user) return;
+    // 編集中の内容を保存する(ほかの端末のまとめて印刷にも反映される)
+    var saving = S.notebook.dirty ? Actions.saveNotebook(false) : Promise.resolve();
     saving.then(function () {
       return rpc('apiSaveDailyStatus', { userId: user.id, date: S.admin.notebookDate, notebookDone: true });
-    }).then(function () { clearRpcCache(); printNow(); })
-      .catch(function () { printNow(); });
+    }).then(function () { clearRpcCache(); })
+      .catch(function () { /* 保存失敗は saveNotebook が画面に表示する */ });
   },
   openNotebookBatch: function (date) {
     S.notebookBatchDate = date || S.today;
