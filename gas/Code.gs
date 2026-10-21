@@ -61,6 +61,9 @@ function resetRequestCache_() {
 }
 function invalidateRequestRows_(key) {
   delete REQUEST_ROWS_[key];
+  Object.keys(REQUEST_ROWS_).forEach(function (k) {
+    if (k.indexOf(key + '@') === 0) delete REQUEST_ROWS_[k];
+  });
   if (key === 'voids') REQUEST_VOIDED_ = null;
 }
 
@@ -352,7 +355,14 @@ function rows_(key) {
     REQUEST_ROWS_[key] = [];
     return REQUEST_ROWS_[key];
   }
-  // マスタ編集ミス(列の挿入・並べ替え)を早期検知する
+  checkHeader_(sh, key);
+  REQUEST_ROWS_[key] = sh.getRange(2, 1, last - 1, HEADERS[key].length).getValues()
+    .filter(function (r) { return String(r[0]) !== ''; });
+  return REQUEST_ROWS_[key];
+}
+
+/** マスタ編集ミス(列の挿入・並べ替え)を早期検知する */
+function checkHeader_(sh, key) {
   var head = sh.getRange(1, 1, 1, HEADERS[key].length).getValues()[0];
   for (var i = 0; i < HEADERS[key].length; i++) {
     if (String(head[i]) !== HEADERS[key][i]) {
@@ -360,9 +370,6 @@ function rows_(key) {
         (i + 1) + '列目が「' + head[i] + '」)。列は並べ替えず、ヘッダーを元に戻してください。');
     }
   }
-  REQUEST_ROWS_[key] = sh.getRange(2, 1, last - 1, HEADERS[key].length).getValues()
-    .filter(function (r) { return String(r[0]) !== ''; });
-  return REQUEST_ROWS_[key];
 }
 
 /**
@@ -534,6 +541,53 @@ function notVoided_(list) {
   return list.filter(function (x) { return !voided[x.id]; });
 }
 
+/**
+ * 指定日の行だけを読む(B列=日付の1列だけを読んで該当行を探し、その範囲だけ全列を getValues する)。
+ * 記録シートは日々増えていくため、当日分しか使わない画面で全行・全列を読むと、運用が長くなるほど遅くなる。
+ * 行の並び順には依存しない(手で並べ替えられていても正しく拾える)。
+ * TextFinder は表示形式で照合するため、手入力で日付型になったセルを取りこぼす。そのため値で比較する。
+ */
+function rowsOnDate_(key, date) {
+  var cacheKey = key + '@' + date;
+  if (REQUEST_ROWS_[cacheKey]) return REQUEST_ROWS_[cacheKey];
+  if (REQUEST_ROWS_[key]) {
+    // 同じリクエストで全行を読み済みなら、それを絞り込むだけにする
+    REQUEST_ROWS_[cacheKey] = REQUEST_ROWS_[key].filter(function (r) { return dateStr_(r[1]) === date; });
+    return REQUEST_ROWS_[cacheKey];
+  }
+  var sh = sheet_(key);
+  var last = sh.getLastRow();
+  var result = [];
+  if (last >= 2) {
+    checkHeader_(sh, key);
+    var found = [];
+    sh.getRange(2, 2, last - 1, 1).getValues().forEach(function (r, i) {
+      if (dateStr_(r[0]) === date) found.push(i + 2);
+    });
+    var width = HEADERS[key].length;
+    // 近い行はまとめて1回で読む(当日分は通常シート末尾に連続している)
+    var start = 0;
+    for (var i = 1; i <= found.length; i++) {
+      if (i === found.length || found[i] - found[i - 1] > 30) {
+        var from = found[start], to = found[i - 1];
+        sh.getRange(from, 1, to - from + 1, width).getValues().forEach(function (r) {
+          if (String(r[0]) !== '' && dateStr_(r[1]) === date) result.push(r);
+        });
+        start = i;
+      }
+    }
+  }
+  REQUEST_ROWS_[cacheKey] = result;
+  return result;
+}
+
+function checkinsOn_(date) { return notVoided_(rowsOnDate_('checkins', date).map(toCheckin_)); }
+function vitalsOn_(date) { return notVoided_(rowsOnDate_('vitals', date).map(toVital_)); }
+function recordsOn_(date) { return notVoided_(rowsOnDate_('records', date).map(toRecord_)); }
+function cognitiveOn_(date) { return notVoided_(rowsOnDate_('cognitive', date).map(toCognitive_)); }
+function assessmentsOn_(date) { return notVoided_(rowsOnDate_('assessments', date).map(toAssessment_)); }
+function dailyStatusOn_(date) { return rowsOnDate_('dailyStatus', date).map(toDailyStatus_); }
+
 function allCheckins_() { return notVoided_(rows_('checkins').map(toCheckin_)); }
 function allVitals_() { return notVoided_(rows_('vitals').map(toVital_)); }
 function allRecords_() { return notVoided_(rows_('records').map(toRecord_)); }
@@ -573,8 +627,7 @@ function apiGetBootstrap_() {
 
 function apiGetTodayCheckins_() {
   var today = todayStr_();
-  return allCheckins_()
-    .filter(function (c) { return c.date === today; })
+  return checkinsOn_(today)
     .sort(function (a, b) { return timeKey_(b.time) < timeKey_(a.time) ? -1 : 1; });
 }
 
@@ -585,7 +638,7 @@ function apiCheckin_(userId) {
   lock.waitLock(10000);
   try {
     var today = todayStr_();
-    var allCheckins = allCheckins_();
+    var allCheckins = checkinsOn_(today);
     var existing = allCheckins.filter(function (c) {
       return c.date === today && c.userId === userId;
     });
@@ -614,8 +667,8 @@ function apiCheckout_(userId, transport) {
   if (allowed.indexOf(String(transport)) < 0) throw new Error('送迎区分を選択してください。');
   var today = todayStr_();
   var rec = null;
-  allCheckins_().forEach(function (c) {
-    if (c.userId === userId && c.date === today) rec = c;
+  checkinsOn_(today).forEach(function (c) {
+    if (c.userId === userId) rec = c;
   });
   if (!rec) throw new Error('本日の来苑記録がありません。');
   var sh = sheet_('checkins');
@@ -636,8 +689,8 @@ function apiRefreshToday_() {
 function apiGetTodayAlerts_() {
   var today = todayStr_();
   var map = {};
-  allVitals_().forEach(function (v) {
-    if (v.date === today && v.flagged) map[v.userId] = true;
+  vitalsOn_(today).forEach(function (v) {
+    if (v.flagged) map[v.userId] = true;
   });
   return map;
 }
@@ -1317,8 +1370,8 @@ function apiSaveExerciseBatch_(payload) {
   if (!userExists) throw new Error('利用者が見つかりません。');
   var requested = Array.isArray(payload.exerciseIds) ? payload.exerciseIds : [];
   var date = todayStr_();
-  var prepRecorded = allRecords_().some(function (r) {
-    return r.userId === String(payload.userId) && r.date === date && r.exerciseId === 'prep';
+  var prepRecorded = recordsOn_(date).some(function (r) {
+    return r.userId === String(payload.userId) && r.exerciseId === 'prep';
   });
   var ids = prepRecorded ? [] : ['prep'];
   requested.forEach(function (id) {
@@ -1357,8 +1410,8 @@ function apiSaveExerciseBatch_(payload) {
 /** 当日の実施済み種目(時刻昇順) */
 function apiGetTodayExercises_(userId) {
   var today = todayStr_();
-  return allRecords_()
-    .filter(function (e) { return e.userId === userId && e.date === today; })
+  return recordsOn_(today)
+    .filter(function (e) { return e.userId === userId; })
     .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; });
 }
 
@@ -1498,18 +1551,18 @@ function apiGetCommunicationBook_(userId, date) {
 function apiGetCommunicationBookCore_(user, target) {
   var userId = user.id;
   var checkin = null;
-  allCheckins_().forEach(function (c) {
-    if (c.userId === userId && c.date === target) checkin = c;
+  checkinsOn_(target).forEach(function (c) {
+    if (c.userId === userId) checkin = c;
   });
   var vital = null;
-  allVitals_().forEach(function (v) {
-    if (v.userId === userId && v.date === target && (!vital || timeKey_(v.time) >= timeKey_(vital.time))) vital = v;
+  vitalsOn_(target).forEach(function (v) {
+    if (v.userId === userId && (!vital || timeKey_(v.time) >= timeKey_(vital.time))) vital = v;
   });
-  var exercises = allRecords_()
-    .filter(function (e) { return e.userId === userId && e.date === target; })
+  var exercises = recordsOn_(target)
+    .filter(function (e) { return e.userId === userId; })
     .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; });
-  var cognitive = allCognitive_()
-    .filter(function (e) { return e.userId === userId && e.date === target; })
+  var cognitive = cognitiveOn_(target)
+    .filter(function (e) { return e.userId === userId; })
     .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; });
   return {
     user: { id: user.id, name: user.name, plan: user.plan }, date: target, checkin: checkin, vital: vital,
@@ -1549,9 +1602,21 @@ function notebookEntries_(date, userIds, withPhoto) {
     if (x.date === date && (!userIds || want[x.userId])) found[x.userId] = x.row; // 同じ組は後の行を優先
   });
   var result = {};
+  var rows = Object.keys(found).map(function (userId) { return found[userId]; }).sort(function (a, b) { return a - b; });
+  if (!rows.length) return result;
+  // 1行ずつ読むと人数分の往復になるため、近い行はまとめて読む(写真列を含めても当日分だけ)
+  var width = withPhoto ? HEADERS.notebooks.length : HEADERS.notebooks.length - 1;
+  var byRow = {};
+  var start = 0;
+  for (var i = 1; i <= rows.length; i++) {
+    if (i === rows.length || rows[i] - rows[i - 1] > 30) {
+      var from = rows[start], to = rows[i - 1];
+      sh.getRange(from, 1, to - from + 1, width).getValues().forEach(function (values, k) { byRow[from + k] = values; });
+      start = i;
+    }
+  }
   Object.keys(found).forEach(function (userId) {
-    var row = found[userId];
-    var values = sh.getRange(row, 1, 1, HEADERS.notebooks.length).getValues()[0];
+    var values = byRow[found[userId]];
     var entry = toNotebookEntry_(values);
     entry.photo = withPhoto && entry.hasPhoto ? String(values[7] || '') : '';
     result[userId] = entry;
@@ -1628,7 +1693,7 @@ function purgeOldNotebookPhotos_(sh) {
 function apiGetCommunicationBooks_(date) {
   var target = validDateStr_(date || todayStr_());
   var visited = {};
-  allCheckins_().forEach(function (c) { if (c.date === target) visited[c.userId] = true; });
+  checkinsOn_(target).forEach(function (c) { visited[c.userId] = true; });
   var users = allUsers_().filter(function (u) { return visited[u.id]; })
     .sort(function (a, b) { return (a.kana || a.name) < (b.kana || b.name) ? -1 : 1; });
   var entries = notebookEntries_(target, users.map(function (u) { return u.id; }), true);
@@ -1645,9 +1710,41 @@ function apiGetCommunicationBooks_(date) {
 /** 印刷した連絡帳を「連絡帳完了」にする(本日の進捗画面の記録漏れ確認と連動) */
 function apiMarkNotebooksDone_(date, userIds) {
   var target = validDateStr_(date || todayStr_());
-  (userIds || []).slice(0, 80).forEach(function (id) {
-    apiSaveDailyStatus_({ userId: String(id), date: target, notebookDone: true });
-  });
+  var valid = {};
+  allUsers_().forEach(function (u) { valid[u.id] = true; });
+  var ids = (userIds || []).map(String).filter(function (id) { return valid[id]; }).slice(0, 80);
+  if (!ids.length) return { ok: true };
+  var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd H:mm:ss');
+  // 全員分を1回のロック・最小限の書き込みで更新する(1人ずつ保存すると他の職員の保存を長く待たせる)
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    // 入浴・食事の値を上書きで消さないよう、ほかの端末の保存を待ってから読み直す
+    invalidateRequestRows_('dailyStatus');
+    var existing = {};
+    dailyStatusOn_(target).forEach(function (st) { existing[st.id] = st; });
+    var sh = sheet_('dailyStatus');
+    var last = sh.getLastRow();
+    var rowById = {};
+    if (last >= 2) {
+      sh.getRange(2, 1, last - 1, 1).getValues().forEach(function (r, i) { rowById[String(r[0])] = i + 2; });
+    }
+    var appends = [];
+    ids.forEach(function (userId) {
+      var id = 'ds-' + target.replace(/-/g, '') + '-' + userId;
+      var cur = existing[id] || {};
+      if (cur.notebookDone) return;
+      var row = [id, target, userId, !!cur.bathed, !!cur.mealDone, true, currentStaffName_(), stamp].map(String);
+      if (rowById[id]) sh.getRange(rowById[id], 1, 1, row.length).setNumberFormat('@').setValues([row]);
+      else appends.push(row);
+    });
+    if (appends.length) {
+      sh.getRange(sh.getLastRow() + 1, 1, appends.length, appends[0].length).setNumberFormat('@').setValues(appends);
+    }
+    invalidateRequestRows_('dailyStatus');
+  } finally {
+    lock.releaseLock();
+  }
   return { ok: true };
 }
 
@@ -1687,10 +1784,10 @@ function apiGetTodayRecords_() {
   var today = todayStr_();
   return {
     checkins: apiGetTodayCheckins_(),
-    vitals: allVitals_().filter(function (v) { return v.date === today; }),
-    records: allRecords_().filter(function (e) { return e.date === today; }),
-    cognitiveRecords: allCognitive_().filter(function (e) { return e.date === today; }),
-    assessments: allAssessments_().filter(function (e) { return e.date === today; }),
+    vitals: vitalsOn_(today),
+    records: recordsOn_(today),
+    cognitiveRecords: cognitiveOn_(today),
+    assessments: assessmentsOn_(today),
   };
 }
 
@@ -1702,12 +1799,12 @@ function apiGetCareDashboard_() {
   var today = todayStr_();
   var users = {};
   allUsers_().forEach(function (u) { users[u.id] = u; });
-  var vitals = allVitals_().filter(function (v) { return v.date === today; });
-  var records = allRecords_().filter(function (r) { return r.date === today; });
-  var cognitive = allCognitive_().filter(function (r) { return r.date === today; });
-  var assessments = allAssessments_().filter(function (r) { return r.date === today; });
+  var vitals = vitalsOn_(today);
+  var records = recordsOn_(today);
+  var cognitive = cognitiveOn_(today);
+  var assessments = assessmentsOn_(today);
   var statusMap = {};
-  allDailyStatus_().forEach(function (s) { if (s.date === today) statusMap[s.userId] = s; });
+  dailyStatusOn_(today).forEach(function (s) { statusMap[s.userId] = s; });
   var allOpenHandoffs = allHandoffs_().filter(function (h) { return h.status === 'open'; });
   var openHandoffs = allOpenHandoffs.filter(function (h) {
     return h.status === 'open' && (!h.targetDate || h.targetDate <= today);
@@ -1760,7 +1857,7 @@ function apiSaveDailyStatus_(payload) {
   if (!allUsers_().some(function (u) { return u.id === userId; })) throw new Error('利用者が見つかりません。');
   var date = validDateStr_(payload.date || todayStr_());
   var id = 'ds-' + date.replace(/-/g, '') + '-' + userId;
-  var existing = allDailyStatus_().filter(function (s) { return s.id === id; })[0] || {};
+  var existing = dailyStatusOn_(date).filter(function (s) { return s.id === id; })[0] || {};
   function picked(key) { return Object.prototype.hasOwnProperty.call(payload, key) ? !!payload[key] : !!existing[key]; }
   var row = [id, date, userId, picked('bathed'), picked('mealDone'), picked('notebookDone'),
     currentStaffName_(), Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd H:mm:ss')];
