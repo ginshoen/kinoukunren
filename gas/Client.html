@@ -1,4 +1,269 @@
 <script>
+/* @@GIN_PICK BEGIN@@ 共通UI/gin-pick.js の写し。直すときは 共通UI 側を直して node 共通UI/sync.js */
+/* 共通UI: タッチで選ぶ部品 GinPick（2026-10-21）
+ * 文字を打たずに、ボタンを押すだけで入力できるようにする。
+ * 元の入力欄(input/select/textarea)はそのまま残して値を書き込むので、保存処理は変えなくてよい。
+ * 元の入力欄の値をプログラムで書き換えたあとは GinPick.refresh(範囲) で表示を合わせる。 */
+(function (w) {
+  'use strict';
+  var DAYS = ['月', '火', '水', '木', '金', '土', '日'];
+  var SEP = /[、,，・\/／\s]+/;
+
+  function fire(el) {
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function box(cls) {
+    var d = document.createElement('div');
+    d.className = 'gin-chips' + (cls ? ' ' + cls : '');
+    d.setAttribute('role', 'group');
+    return d;
+  }
+  function chip(label, value, cls) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'gin-chip' + (cls ? ' ' + cls : '');
+    b.textContent = label;
+    b.setAttribute('data-value', value);
+    b.setAttribute('aria-pressed', 'false');
+    return b;
+  }
+  function press(b, on) { b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+  // hide: 元の入力欄を隠す。隠さないとき（その他を打てる欄）は、押しボタンを入力欄の上に置く
+  function mount(el, node, sync, hide) {
+    if (el._ginPick) { el._ginPick.node.remove(); }
+    el._ginPick = { node: node, sync: sync };
+    el.setAttribute('data-gin-pick', '1');
+    if (hide) el.classList.add('gin-pick-hidden');
+    el.insertAdjacentElement(hide ? 'afterend' : 'beforebegin', node);
+    sync();
+    return node;
+  }
+  function tokens(text) {
+    return String(text || '').split(SEP).filter(Boolean);
+  }
+
+  /** select を押しボタンに（ひとつだけ選ぶ） */
+  function select(el) {
+    var b = box();
+    Array.prototype.forEach.call(el.options, function (o) {
+      b.appendChild(chip(o.textContent, o.value));
+    });
+    b.addEventListener('click', function (e) {
+      var c = e.target.closest('.gin-chip');
+      if (!c || el.disabled) return;
+      el.value = c.getAttribute('data-value');
+      fire(el);
+      sync();
+    });
+    function sync() {
+      Array.prototype.forEach.call(b.children, function (c) { press(c, c.getAttribute('data-value') === el.value); });
+    }
+    return mount(el, b, sync, true);
+  }
+
+  /** 文字の入力欄に選択肢を付ける。opts.multi: 複数選べる（「、」区切り）。opts.label: 表示の文字（例 v => v + '分'）。入力欄は「その他」用に残す */
+  function choices(el, list, opts) {
+    opts = opts || {};
+    var b = box();
+    list.forEach(function (v) { b.appendChild(chip(opts.label ? opts.label(v) : v, v)); });
+    b.addEventListener('click', function (e) {
+      var c = e.target.closest('.gin-chip');
+      if (!c || el.disabled || el.readOnly) return;
+      var v = c.getAttribute('data-value');
+      if (opts.multi) {
+        var t = tokens(el.value);
+        var i = t.indexOf(v);
+        if (i >= 0) t.splice(i, 1); else t.push(v);
+        el.value = t.join('、');
+      } else {
+        el.value = el.value === v ? '' : v;
+      }
+      fire(el);
+      sync();
+    });
+    function sync() {
+      var t = opts.multi ? tokens(el.value) : [String(el.value || '').trim()];
+      Array.prototype.forEach.call(b.children, function (c) { press(c, t.indexOf(c.getAttribute('data-value')) >= 0); });
+    }
+    if (!el._ginPickBound) {
+      el.addEventListener('input', function () { if (el._ginPick) el._ginPick.sync(); });
+      el._ginPickBound = true;
+    }
+    if (opts.otherHint) el.placeholder = opts.otherHint;
+    el.classList.add('gin-pick-other');
+    return mount(el, b, sync, false);
+  }
+
+  /** 曜日（複数）。opts.format: 'concat'＝「月水金」、'slash'＝「月/水/金」。opts.days で並びを変えられる */
+  function days(el, opts) {
+    opts = opts || {};
+    var order = opts.days || DAYS;
+    var b = box('gin-chips--days');
+    order.forEach(function (d) { b.appendChild(chip(d, d, 'gin-chip--day')); });
+    function read() {
+      var v = String(el.value || '');
+      return order.filter(function (d) { return v.indexOf(d) >= 0; });
+    }
+    b.addEventListener('click', function (e) {
+      var c = e.target.closest('.gin-chip');
+      if (!c || el.disabled) return;
+      var d = c.getAttribute('data-value');
+      var cur = read();
+      var on = cur.indexOf(d) < 0;
+      var next = order.filter(function (x) { return x === d ? on : cur.indexOf(x) >= 0; });
+      el.value = next.join(opts.format === 'slash' ? '/' : '');
+      fire(el);
+      sync();
+    });
+    function sync() {
+      var cur = read();
+      Array.prototype.forEach.call(b.children, function (c) { press(c, cur.indexOf(c.getAttribute('data-value')) >= 0); });
+    }
+    return mount(el, b, sync, true);
+  }
+
+  /** 曜日ごとの区分（例「月:1日,水:午前」）。daysEl で選んだ曜日だけ行を出す。list は区分の候補 */
+  function dayUsage(el, daysEl, list) {
+    var wrap = document.createElement('div');
+    wrap.className = 'gin-day-usage';
+    function parse() {
+      var map = {};
+      String(el.value || '').split(/[,、\/\s]+/).forEach(function (part) {
+        var p = part.split(/[:：]/);
+        if (p.length >= 2) map[p[0].replace(/曜日?/g, '').trim()] = p[1].trim();
+      });
+      return map;
+    }
+    function selectedDays() {
+      var v = String(daysEl.value || '');
+      return DAYS.filter(function (d) { return v.indexOf(d) >= 0; });
+    }
+    function write(map) {
+      el.value = selectedDays().filter(function (d) { return map[d]; }).map(function (d) { return d + ':' + map[d]; }).join(',');
+    }
+    function sync() {
+      var map = parse();
+      var ds = selectedDays();
+      wrap.innerHTML = '';
+      if (!ds.length) {
+        var p = document.createElement('p');
+        p.className = 'gin-pick-note';
+        p.textContent = '先に利用曜日を選んでください';
+        wrap.appendChild(p);
+        return;
+      }
+      ds.forEach(function (d) {
+        var row = document.createElement('div');
+        row.className = 'gin-day-usage-row';
+        var lab = document.createElement('span');
+        lab.className = 'gin-day-usage-day';
+        lab.textContent = d;
+        row.appendChild(lab);
+        var b = box();
+        list.forEach(function (v, i) {
+          var c = chip(v, v);
+          // 設定がない曜日は先頭（1日など）として扱われる
+          press(c, map[d] ? map[d] === v : i === 0);
+          c.setAttribute('data-day', d);
+          b.appendChild(c);
+        });
+        row.appendChild(b);
+        wrap.appendChild(row);
+      });
+    }
+    wrap.addEventListener('click', function (e) {
+      var c = e.target.closest('.gin-chip');
+      if (!c || el.disabled) return;
+      var map = parse();
+      map[c.getAttribute('data-day')] = c.getAttribute('data-value');
+      write(map);
+      fire(el);
+      sync();
+    });
+    daysEl.addEventListener('change', function () {
+      // 外した曜日の区分は消す
+      var map = parse();
+      var before = el.value;
+      write(map);
+      if (el.value !== before) fire(el);
+      sync();
+    });
+    return mount(el, wrap, sync, true);
+  }
+
+  /** 数の入力に －／＋ を付ける。opts.start: 空のときに最初に入る数 */
+  function stepper(el, opts) {
+    opts = opts || {};
+    var step = opts.step || 1;
+    var wrap = document.createElement('div');
+    wrap.className = 'gin-stepper';
+    var minus = chip('－', '-1', 'gin-stepper-btn');
+    var plus = chip('＋', '1', 'gin-stepper-btn');
+    minus.setAttribute('aria-label', '1つ減らす');
+    plus.setAttribute('aria-label', '1つ増やす');
+    wrap.appendChild(minus);
+    el.parentNode.insertBefore(wrap, el);
+    wrap.appendChild(el);
+    wrap.appendChild(plus);
+    wrap.addEventListener('click', function (e) {
+      var c = e.target.closest('.gin-stepper-btn');
+      if (!c || el.disabled || el.readOnly) return;
+      var n = Number(el.value);
+      if (el.value === '' || isNaN(n)) n = opts.start != null ? opts.start : (opts.min || 0);
+      else n += Number(c.getAttribute('data-value')) * step;
+      if (opts.min != null) n = Math.max(opts.min, n);
+      if (opts.max != null) n = Math.min(opts.max, n);
+      el.value = String(n);
+      fire(el);
+    });
+    el._ginPick = { node: wrap, sync: function () {} };
+    el.setAttribute('data-gin-pick', '1');
+    return wrap;
+  }
+
+  /** 文章欄によく使う言葉を付ける。押すと「、」でつないで足す。もう一度押すと消す */
+  function phrases(el, list) {
+    var b = box('gin-chips--phrases');
+    list.forEach(function (v) { b.appendChild(chip(v, v)); });
+    b.addEventListener('click', function (e) {
+      var c = e.target.closest('.gin-chip');
+      if (!c || el.disabled || el.readOnly) return;
+      var v = c.getAttribute('data-value');
+      var text = String(el.value || '');
+      if (text.indexOf(v) >= 0) {
+        text = text.replace(v, '').replace(/^[、\s]+|[、\s]+$/g, '').replace(/、\s*、/g, '、');
+      } else {
+        text = text.replace(/[、\s]+$/, '');
+        text = text ? text + '、' + v : v;
+      }
+      el.value = text;
+      fire(el);
+      sync();
+    });
+    function sync() {
+      var text = String(el.value || '');
+      Array.prototype.forEach.call(b.children, function (c) { press(c, text.indexOf(c.getAttribute('data-value')) >= 0); });
+    }
+    if (!el._ginPickBound) {
+      el.addEventListener('input', function () { if (el._ginPick) el._ginPick.sync(); });
+      el._ginPickBound = true;
+    }
+    return mount(el, b, sync, false);
+  }
+
+  /** 値をプログラムで入れたあと、押しボタンの表示を合わせる */
+  function refresh(root) {
+    Array.prototype.forEach.call((root || document).querySelectorAll('[data-gin-pick]'), function (el) {
+      if (el._ginPick) el._ginPick.sync();
+    });
+  }
+
+  w.GinPick = { select: select, choices: choices, days: days, dayUsage: dayUsage, stepper: stepper, phrases: phrases, refresh: refresh, DAYS: DAYS };
+})(window);
+/* @@GIN_PICK END@@ */
+</script>
+<script>
 /* 銀松苑 機能訓練記録アプリ — クライアント(GAS HtmlService 用 SPA) */
 'use strict';
 
@@ -927,7 +1192,7 @@ function renderNoPermission(app) {
   app.innerHTML =
     '<div class="phone-wrap"><div class="phone">' +
     '<header class="phone-header compact">' +
-    '<button class="back-btn" onclick="go(\'\')" aria-label="受付へ戻る">‹</button>' +
+    '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'\')" aria-label="前の画面に戻る">戻る</button>' +
     '<div><div class="h-sub">アクセス権限</div><div class="h-title">管理者専用の画面です</div></div>' +
     '</header>' +
     '<div class="phone-body">' +
@@ -953,7 +1218,48 @@ function go(hash) {
   return false;
 }
 
+// ---------------------------------------------------------------- 戻る(共通UI)
+// 画面の移動は # で行う。ブラウザの履歴に「何段目か(nib)」と「前の画面(prev)」を記録し、
+// 戻るボタンは固定の画面ではなく一つ前の画面へ戻す(以前は受付=最初のタブに飛ぶことがあった)。
+var NAV_DEPTH = 0;
+var NAV_LAST_HASH = location.hash.replace(/^#\/?/, '');
+function navState_() {
+  var st = window.history && history.state;
+  return st && typeof st.nib === 'number' ? st : null;
+}
+function navTrack_() {
+  var h = location.hash.replace(/^#\/?/, '');
+  if (!navState_()) {
+    try { history.replaceState({ nib: NAV_DEPTH + 1, prev: NAV_LAST_HASH }, '', location.href); } catch (e) {}
+  }
+  var st = navState_();
+  NAV_DEPTH = st ? st.nib : 0;
+  NAV_LAST_HASH = h;
+  document.documentElement.classList.toggle('gin-can-back', NAV_DEPTH > 0);
+}
+try { if (!navState_()) history.replaceState({ nib: 0, prev: null }, '', location.href); } catch (e) {}
+/** 戻るボタン。前の画面がなければ fallback(画面の#、または 'menu' / 'checkin')へ */
+function navBack(fallback) {
+  if (NAV_DEPTH > 0) { history.back(); return false; }
+  if (fallback === 'menu') Actions.backToMenu();
+  else if (fallback === 'checkin') Actions.backToCheckin();
+  else go(fallback || '');
+  return false;
+}
+/** 最初の画面用: 前の画面があるときだけ見える「戻る」 */
+function navBackHtml(fallback) {
+  return '<button class="gin-back" onclick="return navBack(\'' + (fallback || '') + '\')" aria-label="前の画面に戻る">戻る</button>';
+}
+/** 保存の後の移動。直前の画面へ戻るときは履歴を戻し、入力済みの画面に「戻る」で入り直さないようにする */
+function goAfterSave(hash) {
+  var st = navState_();
+  if (st && st.nib > 0 && st.prev === hash) { history.back(); return false; }
+  location.replace(location.href.split('#')[0] + '#' + hash);
+  return false;
+}
+
 window.addEventListener('hashchange', function () {
+  navTrack_();
   window.scrollTo(0, 0);
   render();
 });
@@ -1140,7 +1446,7 @@ function renderCheckin(app) {
 
   app.innerHTML =
     '<div class="phone-wrap"><div class="phone">' +
-    '<header class="phone-header">' +
+    '<header class="phone-header">' + navBackHtml() +
     '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ">' +
     '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">来所受付</div></div>' +
     '<div class="h-right"><div class="h-sub" id="clock-date">' + clock.date + '</div>' +
@@ -1235,7 +1541,7 @@ function renderArrival(app, userId) {
   app.innerHTML =
     '<div class="phone-wrap"><div class="phone">' +
     '<header class="phone-header compact">' +
-    '<button class="back-btn" onclick="go(\'\')" aria-label="受付へ戻る">‹</button>' +
+    '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'\')" aria-label="前の画面に戻る">戻る</button>' +
     '<div><div class="h-sub">来所受付</div><div class="h-title">ご本人の確認</div></div>' +
     '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
     '</header>' +
@@ -1349,7 +1655,7 @@ function renderUserMenu(app, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
-      '<button class="back-btn" onclick="Actions.backToCheckin()" aria-label="受付へ戻る">‹</button>' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'checkin\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div class="patient-heading">' + avatarHtml(user, 'avatar-md') +
       '<div><div class="h-sub">記録する利用者</div><div class="h-title">' + esc(user.name) + ' さま</div></div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
@@ -1407,7 +1713,7 @@ function renderVitals(app, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone vital-form-screen">' +
       '<header class="phone-header compact">' +
-      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'menu\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div><div class="h-sub">バイタル記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
@@ -1554,7 +1860,7 @@ function renderExerciseScan(app, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header training">' +
-      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'menu\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div><div class="h-sub">機能訓練記録 · ' + esc(user.name) + ' さま</div>' +
       '<div class="h-title">準備運動＋15分×' + EXERCISE_SLOT_COUNT + 'コマを入力</div></div>' +
       '</header>' +
@@ -1617,7 +1923,7 @@ function renderCognitive(app, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
-      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'menu\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div><div class="h-sub">脳トレ記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
@@ -1679,7 +1985,7 @@ function renderAssessment(app, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
-      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'menu\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div><div class="h-sub">体力測定・評価記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
@@ -1736,7 +2042,7 @@ function renderFitnessBatch(app, renderId) {
     }).join('');
     app.innerHTML =
       '<div class="phone-wrap assessment-wide-wrap"><div class="phone assessment-wide">' +
-      '<header class="phone-header compact"><button class="back-btn" onclick="Actions.backToMenu()" aria-label="メニューへ戻る">‹</button>' +
+      '<header class="phone-header compact"><button class="back-btn gin-back gin-back--always" onclick="return navBack(\'menu\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div><div class="h-sub">体力測定</div><div class="h-title">種目別 一括入力</div></div>' +
       '<div class="h-right"><span class="pill-badge">' + esc(dayLabel(S.today)) + '</span></div></header>' +
       '<div class="phone-body" style="gap:14px;">' +
@@ -1863,7 +2169,7 @@ function renderUserList(app, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
-      '<button class="back-btn" onclick="go(\'\')" aria-label="受付へ戻る">‹</button>' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">利用者一覧</div></div>' +
       '<div class="h-right"><span class="pill-badge">全' + S.users.length + '名</span></div>' +
       '</header>' +
@@ -2052,7 +2358,7 @@ function renderUserDetail(app, userId, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
-      '<button class="back-btn" onclick="go(\'users\')" aria-label="一覧へ戻る">‹</button>' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'users\')" aria-label="前の画面に戻る">戻る</button>' +
       avatarHtml(user, 'avatar-md') +
       '<div>' +
       (user.kana ? '<div class="h-sub">' + esc(user.kana) + '</div>' : '') +
@@ -2142,7 +2448,7 @@ function renderAdminMenu(app) {
 
   app.innerHTML =
     '<div class="phone-wrap"><div class="phone admin-hub">' +
-    '<header class="phone-header">' +
+    '<header class="phone-header">' + navBackHtml() +
     '<img class="logo" src="' + LOGO + '" alt="銀松苑ロゴ">' +
     '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">管理メニュー</div></div>' +
     '</header>' +
@@ -2210,7 +2516,7 @@ function adminShell(active, contentHtml) {
     '<div class="admin-wrap"><div class="admin-frame">' +
     // スマホ用: 横スクロールタブの代わりに「‹ 管理メニュー」ヘッダーを出す(PCでは非表示)
     '<header class="admin-mobile-head">' +
-    '<button class="back-btn" onclick="return go(\'admin/menu\')" aria-label="管理メニューへ戻る">‹</button>' +
+    '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'admin/menu\')" aria-label="前の画面に戻る">戻る</button>' +
     '<div><div class="h-sub">管理画面</div><div class="h-title">' + esc(activeLabel) + '</div></div>' +
     '</header>' +
     '<nav class="admin-sidebar" aria-label="管理画面メニュー">' +
@@ -2220,7 +2526,7 @@ function adminShell(active, contentHtml) {
     '<div class="admin-staff">' + esc(S.me ? S.me.name : '') +
     (isAdmin() ? ' <span class="role-badge admin">管理者</span>' : '') + '</div>' +
     '<button type="button" class="nav-item" style="font-size:13px;color:#8FA491;" onclick="Actions.logout()">ログアウト</button>' +
-    '</nav><main class="admin-content">' + contentHtml + '</main></div>' +
+    '</nav><main class="admin-content">' + navBackHtml('admin/menu') + contentHtml + '</main></div>' +
     tabBarHtml('admin') + '</div>'
   );
 }
@@ -2613,6 +2919,17 @@ function editingPhotoHtml(u) {
   return '<span class="avatar avatar-lg">' + esc(ch) + '</span>';
 }
 
+// 利用者の登録・編集: 選べる項目は押すだけで入力できるようにする(文字の入力を減らす。保存の形式は今までと同じ)
+function enhanceUserForm() {
+  var form = document.getElementById('user-form');
+  if (!form) return;
+  GinPick.select(document.getElementById('f-care'));
+  GinPick.stepper(document.getElementById('f-age'), { min: 40, max: 110, start: 80 });
+  GinPick.phrases(document.getElementById('f-goal'), ['自宅内を安全に歩く', '転ばない体づくり', '外出を続ける', '入浴を自分で行う', '体力を維持する', '趣味の活動を続ける']);
+  GinPick.phrases(document.getElementById('f-history'), ['高血圧', '糖尿病', '脳梗塞', '心疾患', '骨折', '変形性膝関節症', '腰痛症', '骨粗しょう症', '認知症', 'パーキンソン病']);
+  GinPick.phrases(document.getElementById('f-precautions'), ['転倒注意', '血圧に注意', '息切れに注意', '膝に負担をかけない', '腰をひねらない', '長時間の立位を避ける', '痛みが出たら中止']);
+}
+
 function renderAdminUsers(app, renderId) {
   ensurePhotos();
   var u = S.editingUser;
@@ -2641,7 +2958,7 @@ function renderAdminUsers(app, renderId) {
       '<div class="form-grid">' +
       '<label>氏名 <input class="note-area" id="f-name" value="' + esc(u.name || '') + '" placeholder="例: 田中 花子" style="min-height:44px;"></label>' +
       '<label>ふりがな <input class="note-area" id="f-kana" value="' + esc(u.kana || '') + '" placeholder="例: たなか はなこ" style="min-height:44px;"></label>' +
-      '<label>年齢 <input class="note-area" id="f-age" inputmode="numeric" value="' + (u.age || '') + '" style="min-height:44px;max-width:120px;"></label>' +
+      '<label>年齢 <input class="note-area" id="f-age" inputmode="numeric" value="' + (u.age || '') + '" style="min-height:44px;"></label>' +
       '<label>介護度 <select class="select-plain" id="f-care" style="min-height:44px;">' + careOpts + '</select></label>' +
       '<div>利用曜日<div class="check-row">' + wdChecks + '</div></div>' +
       '<label class="form-wide">個人目標(リハビリ目標)<textarea class="note-area" id="f-goal" maxlength="500" placeholder="生活上の目標と機能訓練の目標">' + esc(u.goal || '') + '</textarea></label>' +
@@ -2679,6 +2996,7 @@ function renderAdminUsers(app, renderId) {
     '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<div class="section-note" style="margin-top:8px;">削除しても過去の記録は残ります。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
     '</div>');
+  enhanceUserForm();
 }
 
 // ---------------------------------------------------------------- 管理: 本日の記録一覧
@@ -3157,7 +3475,7 @@ function renderNotebookEntry(app, renderId) {
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
       '<header class="phone-header compact">' +
-      '<button class="back-btn" onclick="Actions.backToMenu()" aria-label="記録メニューへ戻る">‹</button>' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'menu\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div class="patient-heading">' + avatarHtml(user, 'avatar-md') +
       '<div><div class="h-sub">連絡帳の入力</div><div class="h-title">' + esc(user.name) + ' さま</div></div></div>' +
       '</header>' +
@@ -3195,7 +3513,7 @@ function renderNotebookBatch(app, renderId) {
   var date = S.notebookBatchDate;
   var wrap = function (h) {
     return '<div class="notebook-batch"><div class="notebook-batch-bar no-print">' +
-      '<button class="back-btn" onclick="history.length > 1 ? history.back() : go(\'\')" aria-label="戻る">‹</button>' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div><div class="h-sub">連絡帳</div><div class="h-title">まとめて印刷(A5横)</div></div></div>' + h + '</div>';
   };
   showLoading(app, isRpcFresh('apiGetCommunicationBooks', [date]), wrap);
@@ -3556,7 +3874,7 @@ var Actions = {
       S.vitalConfirmed = false;
       S.lastSaved = { kind: 'vitals', id: rec.id, label: 'バイタルを記録しました' };
       S.todayStatusCache = null; // メニューの状況表示を最新化
-      go('menu');
+      goAfterSave('menu');
     }).catch(function (e) {
       showSaveError('保存できませんでした。電波状況をご確認のうえ、もう一度お試しください');
       if (btn) { btn.disabled = false; btn.textContent = 'バイタルを保存'; }
