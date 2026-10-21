@@ -3301,4 +3301,231 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 @media print {
   .camera-idle-mark, .form-actions, .preview-notice, .dashboard-toolbar, #dashboard-empty { display: none !important; }
 }
+
+/* @@GIN_UI BEGIN@@ 共通UI/gin-ui.css の写し。直すときは 共通UI 側を直して node 共通UI/sync.js */
+/*
+ * 共通UI: 色・文字・部品(壱番館・弐番館・ヘルパー共通)
+ * 正本は 共通UI/gin-ui.css。各アプリへは `node 共通UI/sync.js` で書き写す。
+ * 方針: Google Workspace 風(白い面・細い線・丸いボタン)に、淡いさくら色を合わせる。
+ *       重い効果(すりガラス、大きな影、長いアニメーション)は使わない。
+ */
+:root {
+  /* 面と線 */
+  --gin-bg: #fbf7fa;
+  --gin-surface: #ffffff;
+  --gin-surface-2: #f8f2f6;
+  --gin-surface-3: #f2e9ef;
+  --gin-line: #ebe1e8;
+  --gin-line-strong: #d9cbd4;
+  /* 文字 */
+  --gin-text: #2d2630;
+  --gin-text-sub: #5f5563;
+  --gin-text-aux: #7a6f80;
+  /* 主色: さくら */
+  --gin-primary: #b04a73;
+  --gin-primary-strong: #933a5f;
+  --gin-primary-soft: #fde8f0;
+  --gin-primary-soft-2: #f9d5e3;
+  --gin-primary-ink: #8a3358;
+  /* 淡い補助色(背景 / 文字) */
+  --gin-lav: #efe8fb;   --gin-lav-ink: #5b4a8f;
+  --gin-mint: #e3f5ec;  --gin-mint-ink: #2c6e4f;
+  --gin-peach: #fff0e2; --gin-peach-ink: #94531a;
+  --gin-sky: #e5f1fb;   --gin-sky-ink: #2b5f8e;
+  --gin-lemon: #fff8d6; --gin-lemon-ink: #7a6000;
+  --gin-danger: #c62f45; --gin-danger-soft: #fdeaec; --gin-danger-ink: #a42437;
+  /* 形 */
+  --gin-radius: 16px;
+  --gin-radius-sm: 12px;
+  --gin-pill: 999px;
+  --gin-shadow: 0 1px 2px rgba(70, 40, 60, .08), 0 1px 3px 1px rgba(70, 40, 60, .04);
+  --gin-tap: 44px;
+  --gin-font: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+}
+
+/* ---- 戻るボタン(どの画面も同じ形・同じ場所) ---- */
+.gin-back {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--gin-tap);
+  padding: 0 14px 0 8px;
+  border: 1px solid var(--gin-line-strong);
+  border-radius: var(--gin-pill);
+  background: var(--gin-surface);
+  color: var(--gin-primary-ink);
+  font: 700 15px/1 var(--gin-font);
+  cursor: pointer;
+  flex: 0 0 auto;
+  -webkit-tap-highlight-color: transparent;
+}
+.gin-back::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  margin: 0 6px 0 6px;
+  border-left: 2.5px solid currentColor;
+  border-bottom: 2.5px solid currentColor;
+  transform: rotate(45deg);
+}
+.gin-back:hover { background: var(--gin-primary-soft); }
+.gin-back:active { background: var(--gin-primary-soft-2); }
+.gin-back:focus-visible { outline: 3px solid var(--gin-primary-soft-2); outline-offset: 2px; }
+.gin-can-back .gin-back,
+.gin-back.gin-back--always { display: inline-flex; }
+
+/* ---- 共通の部品 ---- */
+.gin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--gin-tap);
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--gin-pill);
+  font: 700 15px/1.2 var(--gin-font);
+  cursor: pointer;
+}
+.gin-btn--filled { background: var(--gin-primary); color: #fff; }
+.gin-btn--filled:hover { background: var(--gin-primary-strong); }
+.gin-btn--tonal { background: var(--gin-primary-soft); color: var(--gin-primary-ink); }
+.gin-btn--tonal:hover { background: var(--gin-primary-soft-2); }
+.gin-btn--outline { background: var(--gin-surface); color: var(--gin-primary-ink); border-color: var(--gin-line-strong); }
+.gin-btn--outline:hover { background: var(--gin-primary-soft); }
+
+/* ---- タッチで選ぶ部品（gin-pick.js） ---- */
+.gin-pick-hidden { display: none !important; }
+.gin-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 2px; }
+.gin-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: var(--gin-tap);
+  padding: 0 16px;
+  border: 1px solid var(--gin-line-strong);
+  border-radius: var(--gin-pill);
+  background: var(--gin-surface);
+  color: var(--gin-text);
+  font: 600 15px/1.2 var(--gin-font);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: none; /* 押したらすぐ色が変わるように */
+}
+.gin-chip:hover { background: var(--gin-surface-2); }
+.gin-chip[aria-pressed="true"] {
+  border-color: var(--gin-primary);
+  background: var(--gin-primary-soft);
+  color: var(--gin-primary-ink);
+  font-weight: 700;
+}
+.gin-chip[aria-pressed="true"]::before { content: "✓"; font-size: 13px; }
+.gin-chip:focus-visible { outline: 3px solid var(--gin-primary-soft-2); outline-offset: 2px; }
+.gin-chip--day { min-width: 48px; padding: 0 10px; font-size: 17px; }
+.gin-chip--day[aria-pressed="true"]::before { content: none; }
+.gin-chips--phrases .gin-chip { min-height: 38px; padding: 0 12px; font-size: 14px; font-weight: 500; }
+.gin-pick-other { margin-top: 2px; }
+.gin-pick-note { margin: 4px 0; color: var(--gin-text-aux); font-size: 13px; }
+.gin-day-usage { display: grid; gap: 6px; margin-top: 4px; }
+.gin-day-usage-row { display: flex; align-items: center; gap: 10px; }
+.gin-day-usage-row .gin-chips { margin: 0; }
+.gin-day-usage-day {
+  display: inline-grid; place-items: center; flex: 0 0 auto;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--gin-lav); color: var(--gin-lav-ink); font-weight: 700;
+}
+.gin-stepper { display: flex; align-items: center; gap: 8px; }
+.gin-stepper > input { width: 5.5em; min-width: 0; text-align: center; font-size: 18px; }
+.gin-stepper-btn { width: var(--gin-tap); padding: 0; font-size: 22px; }
+.gin-stepper-btn[aria-pressed]::before { content: none; }
+
+/* ---- 軽さ: 重い効果を止める ---- */
+.gin-app *, .gin-app *::before, .gin-app *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gin-app *, .gin-app *::before, .gin-app *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+@media print {
+  .gin-back { display: none !important; }
+}
+/* @@GIN_UI END@@ */
+
+/* ===== 共通デザイン（さくら）: 弐番館用の当てはめ。画面表示だけ（印刷帳票は変えない） ===== */
+@media screen {
+  :root {
+    --green: var(--gin-primary);
+    --green-dark: var(--gin-primary-strong);
+    --green-l1: #eab3c8;
+    --green-l2: #d9779c;
+    --green-l3: var(--gin-primary-soft-2);
+    --green-l4: var(--gin-primary-soft);
+    --purple: var(--gin-lav-ink);
+    --purple-dark: #4a3a78;
+    --purple-pale: var(--gin-lav);
+    --alert: var(--gin-danger);
+    --alert-bg: var(--gin-danger-soft);
+    --alert-border: #f5c6cd;
+    --alert-text: var(--gin-danger-ink);
+    --page: var(--gin-bg);
+    --card-face: var(--gin-surface);
+    --input-bg: var(--gin-surface-2);
+    --subtle-bg: var(--gin-surface-2);
+    --sidebar: #fcf5f8;
+    --border: var(--gin-line);
+    --border-undone: var(--gin-line-strong);
+    --text: var(--gin-text);
+    --text-sub: var(--gin-text-sub);
+    --text-aux: var(--gin-text-aux);
+    --text-success: var(--gin-mint-ink);
+    --success-bg: var(--gin-mint);
+    --border-success: #b9e2cc;
+    --shadow-sm: var(--gin-shadow);
+    --shadow-md: var(--gin-shadow);
+  }
+  body { font-family: var(--gin-font); }
+  /* 戻るボタン: どの画面も同じ形（「‹」だけの小さなボタンをやめ、文字付きに） */
+  .phone-header .back-btn.gin-back,
+  .admin-mobile-head .back-btn.gin-back {
+    width: auto; min-width: 0; margin-left: 0; padding: 0 14px 0 8px;
+    font-size: 15px; color: var(--gin-primary-ink); background: var(--gin-surface);
+    border: 1px solid var(--gin-line-strong); border-radius: var(--gin-pill); justify-content: center;
+    white-space: nowrap; min-height: 40px; align-self: center;
+  }
+  .phone-header:has(> .avatar-md) { grid-template-columns: auto 40px minmax(0,1fr); }
+  .phone-header .back-btn.gin-back:hover, .admin-mobile-head .back-btn.gin-back:hover { background: var(--gin-primary-soft); }
+  .gin-can-back .phone-header > .gin-back + .logo { display: none; }
+  .admin-content > .gin-back { margin: 0 0 12px; align-self: flex-start; justify-self: start; width: auto; }
+  .avatar-sm { background: var(--gin-primary-soft); }
+  .phone-body, .list-controls, .admin-content, .person-row.offday { background: var(--gin-bg); }
+  @media (max-width: 900px) { .admin-content > .gin-back { display: none; } }
+  /* 選択中の色 */
+  .tab-item.active { color: var(--gin-primary-ink); }
+  .tab-item.active svg { background: var(--gin-primary-soft); }
+  .filter-chips .chip.selected { border-color: var(--gin-primary-soft-2); background: var(--gin-primary-soft); color: var(--gin-primary-ink); box-shadow: inset 0 -2px var(--gin-primary); }
+  .record-icon { color: var(--gin-primary-ink); background: var(--gin-primary-soft); }
+  .record-open { color: var(--gin-primary-ink); }
+  .form-section-label .required-tag { background: var(--gin-primary-soft); color: var(--gin-primary-ink); }
+  .btn-training:active { background: var(--gin-primary-strong); }
+  .camera-view:not(:has(video)) .capture-btn { color: var(--gin-primary-ink); background: var(--gin-primary-soft); }
+  .preview-notice { border-color: var(--gin-primary-soft-2); background: var(--gin-primary-soft); color: var(--gin-primary-ink); }
+  .preview-notice strong { color: var(--gin-primary-ink); }
+  .phone-header, .phone-header.training, .phone-header.compact { background: var(--gin-surface); }
+}
+
+/* 利用者の登録・編集: 曜日は大きな押しボタン(チェック枠は隠し、月〜土・日の順に並べる) */
+@media screen {
+  #user-form .check-item { position: relative; display: inline-flex; flex-direction: row; align-items: center; min-width: 48px; min-height: 44px; justify-content: center; line-height: 1; padding: 0 10px; font-size: 17px; cursor: pointer; }
+  #user-form .check-item input { position: absolute; opacity: 0; pointer-events: none; }
+  #user-form .check-item:first-child { order: 7; }
+  #user-form .check-item:has(input:checked) { border-color: var(--gin-primary); background: var(--gin-primary-soft); color: var(--gin-primary-ink); font-weight: 700; }
+  #user-form .check-item:has(input:focus-visible) { outline: 3px solid var(--gin-primary-soft-2); outline-offset: 2px; }
+  #user-form .gin-stepper > input { max-width: 6em; }
+}
 </style>
