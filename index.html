@@ -3542,7 +3542,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261021-1656';window.APP_MOCK=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261023-1925';window.APP_MOCK=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -3926,9 +3926,82 @@ var RPC_READ_TTL = {
 function rpcCacheKey(name, args) {
   return name + ':' + JSON.stringify(args || []);
 }
-function clearRpcCache() {
+// 保存しても内容が変わらない読み取りの組み合わせ(ここにある保存だけが古くする)。
+// ここにない読み取りは、どの保存の後でも古い扱いにする。
+// 例: 受付してもバイタルの前回値は変わらないので、受付と同時に先読みした前回値を捨てない。
+var RPC_READ_DEPENDS = {
+  apiGetVitalContext: ['apiSaveVitals', 'apiVoidRecord'],
+  apiGetUserPhotos: ['apiAdminSaveUser', 'apiAdminDeleteUser'],
+  apiGetStaffList: ['apiAdminSaveStaff', 'apiAdminDeleteStaff'],
+};
+var RPC_WRITES = []; // 直近の保存 [{epoch, name}](読み取り中に保存があったかの判定用)
+function writeAffects(readName, writeName) {
+  var deps = RPC_READ_DEPENDS[readName];
+  return !deps || !writeName || deps.indexOf(writeName) >= 0;
+}
+function writtenSince(readName, epoch) {
+  if (epoch === RPC_CACHE_EPOCH) return false;
+  if (!RPC_WRITES.length || RPC_WRITES[0].epoch > epoch + 1) return true;
+  return RPC_WRITES.some(function (w) { return w.epoch > epoch && writeAffects(readName, w.name); });
+}
+/**
+ * 保存の後: 読み込み済みの結果は消さずに「古い」印を付けて残す
+ * (画面を移るときに先に描き、裏で取り直すため)。writeName を省くとすべて古くする。
+ */
+function clearRpcCache(writeName) {
+  Object.keys(RPC_CACHE).forEach(function (k) {
+    if (!writeAffects(k.split(':')[0], writeName)) return;
+    RPC_CACHE[k].expires = 0;
+    RPC_CACHE[k].invalid = true;
+  });
+  RPC_CACHE_EPOCH += 1;
+  RPC_WRITES.push({ epoch: RPC_CACHE_EPOCH, name: writeName || '' });
+  if (RPC_WRITES.length > 50) RPC_WRITES.shift();
+}
+/** ログイン・ログアウト: 前の職員の読み込み結果を残さない */
+function resetRpcCache() {
   RPC_CACHE = {};
   RPC_CACHE_EPOCH += 1;
+  RPC_WRITES.push({ epoch: RPC_CACHE_EPOCH, name: '' });
+}
+// 同じ画面の描き直し(運動の枠を選ぶ・定型文を足すなど)では、期限切れでも手元のデータを使う。
+// 以前は画面を開いて45〜60秒たつと、選ぶたびに「読み込み中…」とサーバー往復が起き、位置も先頭に戻っていた。
+// 画面を移ったとき・同じメニューを押し直したとき・保存した後(キャッシュを消す)は従来どおり取り直す。
+var RENDER_REUSE = false;
+function cacheUsable(c) {
+  return !!(c && (c.expires > Date.now() || (RENDER_REUSE && !c.invalid)));
+}
+
+/** 古くても読み込み済みの結果があるか */
+function hasCachedData(name, args) {
+  var c = RPC_CACHE[rpcCacheKey(name, args || [])];
+  return !!(c && 'data' in c);
+}
+
+/**
+ * 画面を移るとき用の読み込み。新しい結果があればそれを、古い結果しかなければそれで先に描き、
+ * 裏で取り直して内容が違っていれば onFresh を呼ぶ(描き直し)。何もなければ従来どおり待つ。
+ */
+function rpcSwr(name, args, onFresh) {
+  var cached = RPC_CACHE[rpcCacheKey(name, args)];
+  if (cacheUsable(cached)) return Promise.resolve(cached.data);
+  var request = rpc.apply(null, [name].concat(args));
+  if (!cached || !('data' in cached)) return request;
+  var stale = cached.data;
+  request.then(function (data) {
+    if (JSON.stringify(data) !== JSON.stringify(stale)) onFresh(data);
+  }).catch(function () {});
+  return Promise.resolve(stale);
+}
+
+/** 裏で取り直した結果が届いたとき、まだ同じ画面にいて入力中でなければ描き直す */
+function redrawIfStill(renderId) {
+  return function () {
+    if (!isCurrentRender(renderId)) return;
+    var a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) return;
+    render();
+  };
 }
 function delay(ms) {
   return new Promise(function (resolve) { setTimeout(resolve, ms); });
@@ -3965,7 +4038,7 @@ function rpc(name) {
   var key = rpcCacheKey(name, args);
   var requestEpoch = RPC_CACHE_EPOCH;
   var cached = RPC_CACHE[key];
-  if (ttl && cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
+  if (ttl && cacheUsable(cached)) return Promise.resolve(cached.data);
   if (ttl && RPC_INFLIGHT[key]) return RPC_INFLIGHT[key];
 
   var request;
@@ -3991,8 +4064,8 @@ function rpc(name) {
   }
 
   request = Promise.resolve(request).then(function (data) {
-    if (ttl && requestEpoch === RPC_CACHE_EPOCH) RPC_CACHE[key] = { data: data, expires: Date.now() + ttl };
-    else clearRpcCache();
+    if (!ttl) clearRpcCache(name);
+    else if (!writtenSince(name, requestEpoch)) RPC_CACHE[key] = { data: data, expires: Date.now() + ttl };
     return data;
   }).finally(function () { delete RPC_INFLIGHT[key]; });
   if (ttl) RPC_INFLIGHT[key] = request;
@@ -4587,8 +4660,8 @@ function snackbarHtml() {
   if (!S.lastSaved) return '';
   return (
     '<div class="snackbar" id="snackbar" role="status">' +
-    '<span class="snack-text">✓ ' + esc(S.lastSaved.label) + '</span>' +
-    '<button class="snack-undo" onclick="Actions.undoLast()">取り消す</button>' +
+    '<span class="snack-text">' + (S.lastSaved.pending ? '' : '✓ ') + esc(S.lastSaved.label) + '</span>' +
+    (S.lastSaved.pending ? '' : '<button class="snack-undo" onclick="Actions.undoLast()">取り消す</button>') +
     '<button class="snack-close" onclick="Actions.dismissSnackbar()" aria-label="閉じる">✕</button>' +
     '</div>'
   );
@@ -4621,18 +4694,15 @@ function saveSession(session, me) {
 
 /** 直近の取得結果がまだ新しいか(読み込み画面のちらつきを避ける判定) */
 function isRpcFresh(name, args) {
-  var c = RPC_CACHE[rpcCacheKey(name, args || [])];
-  return !!(c && c.expires > Date.now());
+  return cacheUsable(RPC_CACHE[rpcCacheKey(name, args || [])]);
 }
 
 function hasExerciseCache(userId) {
-  var c = S.exerciseCache[userId];
-  return !!(c && c.expires > Date.now());
+  return cacheUsable(S.exerciseCache[userId]);
 }
 
 function hasTodayStatusCache() {
-  var c = S.todayStatusCache;
-  return !!(c && c.expires > Date.now());
+  return cacheUsable(S.todayStatusCache);
 }
 
 /** キャッシュ済みなら読み込み表示を出さずに即描画する */
@@ -4761,6 +4831,7 @@ function go(hash) {
   var current = location.hash.replace(/^#\/?/, '');
   // 同じメニューをもう一度押した場合も再読み込みし、無反応に見えないようにする。
   if (current === hash) {
+    S.forceFresh = true;
     render();
     return false;
   }
@@ -4867,6 +4938,19 @@ function syncDefaultPrintPage(route) {
 }
 
 function render() {
+  var route = location.hash.replace(/^#\/?/, '');
+  var sameScreen = S.me && S.ready && S.renderedRoute === route && !S.forceFresh;
+  S.forceFresh = false;
+  S.renderedRoute = S.me && S.ready ? route : null;
+  RENDER_REUSE = !!sameScreen;
+  try {
+    return renderRoute();
+  } finally {
+    RENDER_REUSE = false;
+  }
+}
+
+function renderRoute() {
   var renderId = (S.renderId || 0) + 1;
   S.renderId = renderId;
   // 画面描画のたびに表ラベルを付け直す(非同期描画にも追従する)
@@ -5137,13 +5221,33 @@ function precautionHtml(user, confirmable) {
 }
 
 /** 本日の全記録(15秒キャッシュ)。メニューの状況表示に使う */
-function getTodayStatus() {
+function getTodayStatus(onFresh) {
   var cached = S.todayStatusCache;
-  if (cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
-  return rpc('apiGetTodayRecords').then(function (res) {
+  if (cacheUsable(cached)) return Promise.resolve(cached.data);
+  var request = rpc('apiGetTodayRecords').then(function (res) {
     S.todayStatusCache = { data: res, expires: Date.now() + 45000 };
     return res;
   });
+  // 表示だけの画面(記録メニュー)は、手元の記録ですぐ描き、裏で取り直して違っていれば描き直す
+  if (onFresh && cached && cached.data) {
+    var stale = cached.data;
+    request.then(function (res) {
+      if (JSON.stringify(res) !== JSON.stringify(stale)) onFresh(res);
+    }).catch(function () {});
+    return Promise.resolve(stale);
+  }
+  return request;
+}
+
+/** 保存した記録を手元の「本日の記録」に足す(記録メニューへ戻るときの再取得を省く) */
+function patchTodayStatus(kind, items) {
+  var c = S.todayStatusCache;
+  if (!c || !c.data) return;
+  var added = (items || []).filter(Boolean);
+  var ids = {};
+  added.forEach(function (x) { ids[x.id] = true; });
+  c.data[kind] = (c.data[kind] || []).filter(function (x) { return !ids[x.id]; }).concat(added);
+  c.expires = Date.now() + 45000;
 }
 
 /**
@@ -5153,9 +5257,16 @@ function getTodayStatus() {
 function renderUserMenu(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
-  showLoading(app, hasTodayStatusCache() && hasExerciseCache(user.id));
+  var hasStatus = !!(S.todayStatusCache && S.todayStatusCache.data);
+  showLoading(app, hasStatus || (hasTodayStatusCache() && hasExerciseCache(user.id)));
+  // 新しい記録が届いたら、まだこの画面を見ているときだけ描き直す
+  var redraw = redrawIfStill(renderId);
+  var onFresh = function () {
+    delete S.exerciseCache[user.id];
+    redraw();
+  };
 
-  Promise.all([getTodayStatus(), getTodayExerciseRecords(user.id)]).then(function (both) {
+  Promise.all([getTodayStatus(onFresh), getTodayExerciseRecords(user.id, onFresh)]).then(function (both) {
     if (!isCurrentRender(renderId)) return;
     var today = both[0];
     var exRecords = both[1] || [];
@@ -5345,11 +5456,11 @@ function progressHtml(records, pickable) {
   );
 }
 
-function getTodayExerciseRecords(userId) {
+function getTodayExerciseRecords(userId, onFresh) {
   var cached = S.exerciseCache[userId];
-  if (cached && cached.expires > Date.now()) return Promise.resolve(cached.data);
+  if (cacheUsable(cached)) return Promise.resolve(cached.data);
   // 当日分の全記録(起動時に先読み済み)から絞り込み、利用者ごとの通信を省く
-  return getTodayStatus().then(function (today) {
+  return getTodayStatus(onFresh).then(function (today) {
     var records = (today.records || []).filter(function (r) { return r.userId === userId; })
       .sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : 1; });
     S.exerciseCache[userId] = { data: records, expires: Date.now() + 45000 };
@@ -5772,9 +5883,9 @@ function renderUserDetail(app, userId, renderId) {
   var user = null;
   S.users.forEach(function (u) { if (u.id === userId) user = u; });
   if (!user) return go('users');
-  showLoading(app, isRpcFresh('apiGetUserDetail', [userId]));
+  showLoading(app, hasCachedData('apiGetUserDetail', [userId]));
 
-  rpc('apiGetUserDetail', userId).then(function (res) {
+  rpcSwr('apiGetUserDetail', [userId], redrawIfStill(renderId)).then(function (res) {
     if (!isCurrentRender(renderId)) return;
     var doneIds = {};
     res.todayExercises.forEach(function (e) { doneIds[e.exerciseId] = true; });
@@ -6254,10 +6365,10 @@ var lastResults = null; // CSV出力用キャッシュ
 function renderAdminResults(app, renderId) {
   if (!S.admin.userId) S.admin.userId = S.users.length ? S.users[0].id : '';
   if (!S.admin.month) S.admin.month = S.today.slice(0, 7);
-  showLoading(app, isRpcFresh('apiGetUserResults', [S.admin.userId, S.admin.month]),
+  showLoading(app, hasCachedData('apiGetUserResults', [S.admin.userId, S.admin.month]),
     function (h) { return adminShell('admin', h); });
 
-  rpc('apiGetUserResults', S.admin.userId, S.admin.month).then(function (res) {
+  rpcSwr('apiGetUserResults', [S.admin.userId, S.admin.month], redrawIfStill(renderId)).then(function (res) {
     if (!isCurrentRender(renderId)) return;
     lastResults = res;
     var user = null;
@@ -6552,9 +6663,9 @@ function renderAdminUsers(app, renderId) {
 // ---------------------------------------------------------------- 管理: 本日の記録一覧
 
 function renderAdminToday(app, renderId) {
-  showLoading(app, isRpcFresh('apiGetCareDashboard', []),
+  showLoading(app, hasCachedData('apiGetCareDashboard', []),
     function (h) { return adminShell('admin/today', h); });
-  rpc('apiGetCareDashboard').then(function (res) {
+  rpcSwr('apiGetCareDashboard', [], redrawIfStill(renderId)).then(function (res) {
     if (!isCurrentRender(renderId)) return;
     S.dashboard = res;
     var tiles = [
@@ -6768,10 +6879,10 @@ function monthlyIndividualHtml(data) {
 
 function renderAdminMonthly(app, renderId) {
   if (!S.admin.month) S.admin.month = S.today.slice(0, 7);
-  showLoading(app, isRpcFresh('apiGetMonthly', [S.admin.month]),
+  showLoading(app, hasCachedData('apiGetMonthly', [S.admin.month]),
     function (h) { return adminShell('admin/monthly', h); });
 
-  rpc('apiGetMonthly', S.admin.month).then(function (res) {
+  rpcSwr('apiGetMonthly', [S.admin.month], redrawIfStill(renderId)).then(function (res) {
     if (!isCurrentRender(renderId)) return;
     var months = res.months.length ? res.months : [S.admin.month];
     var alertCount = res.vitals.filter(function (v) { return v.flagged; }).length;
@@ -7199,21 +7310,46 @@ var Actions = {
     if (S.checkinPending) return;
     var already = S.todayCheckins.some(function (c) { return c.userId === userId; });
     if (already) return Actions.startSession(userId);
-    S.checkinPending = userId;
-    updateCheckinStatusDom();
+    // 受付の保存を待たずに記録メニューを開く(画面の切り替えで待たせない)。
+    // 保存は裏で行い、失敗したら受付を元に戻して知らせる。サーバー側は同じ日の二重受付をしない。
+    var u = userById(userId);
+    var name = u ? u.name + ' さま ' : '';
+    var now = new Date();
+    var temp = {
+      id: 'pending-' + userId, date: S.today, userId: userId, checkoutTime: '', transport: '', pending: true,
+      time: ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2),
+    };
+    var setCheckins = function (list) {
+      S.todayCheckins = list;
+      if (S.todayStatusCache && S.todayStatusCache.data) {
+        S.todayStatusCache.data.checkins = list;
+        S.todayStatusCache.expires = Date.now() + 45000;
+      }
+    };
+    setCheckins([temp].concat(S.todayCheckins));
+    if (navigator.vibrate) navigator.vibrate(60);
+    Actions.startSession(userId);
+    S.lastSaved = { kind: 'checkins', id: '', pending: true, label: name + '受付を記録しています…' };
+    var showing = function () {
+      return S.currentUserId === userId && location.hash.replace(/^#\/?/, '') === 'menu';
+    };
     rpc('apiCheckin', userId).then(function (res) {
-      S.todayCheckins = res.todayCheckins;
-      S.checkinPending = '';
-      S.todayStatusCache = null;
-      if (navigator.vibrate) navigator.vibrate(60);
-      var u = userById(userId);
-      Actions.startSession(userId);
+      setCheckins(res.todayCheckins);
+      var pendingNote = S.lastSaved && S.lastSaved.pending && S.lastSaved.kind === 'checkins';
       // 押し間違えたときにすぐ取り消せるよう、記録メニューに「取り消す」付きで表示する
-      if (!res.already) S.lastSaved = { kind: 'checkins', id: res.record.id, label: (u ? u.name + ' さま ' : '') + res.record.time + ' 受付しました' };
+      if (pendingNote) {
+        S.lastSaved = res.already ? null : { kind: 'checkins', id: res.record.id, label: name + res.record.time + ' 受付しました' };
+      }
+      if (showing()) render();
+      else if (location.hash.replace(/^#\/?/, '') === '') updateCheckinStatusDom();
     }).catch(function () {
-      S.checkinPending = '';
-      S.toast = { type: 'error', title: '通信エラー', sub: '受付を記録できませんでした。もう一度お試しください' };
-      render();
+      setCheckins(S.todayCheckins.filter(function (c) { return c.id !== temp.id; }));
+      if (S.lastSaved && S.lastSaved.pending) S.lastSaved = null;
+      S.toast = { type: 'error', title: '通信エラー', sub: name + 'の受付を記録できませんでした。もう一度「受付する」を押してください' };
+      // 記録メニューにいるときは受付画面へ戻す。入力中の画面からは移さない(戻ったときに知らせる)
+      if (showing()) go('');
+      else if (location.hash.replace(/^#\/?/, '') === '') render();
+      else showSaveError(name + 'の受付を記録できませんでした。受付画面でもう一度「受付する」を押してください');
     });
   },
   openPicker: function () {
@@ -7423,7 +7559,7 @@ var Actions = {
       S.vDraft = null;
       S.vitalConfirmed = false;
       S.lastSaved = { kind: 'vitals', id: rec.id, label: 'バイタルを記録しました' };
-      S.todayStatusCache = null; // メニューの状況表示を最新化
+      patchTodayStatus('vitals', [rec]); // メニューの状況表示を、取り直さずに最新化
       goAfterSave('menu');
     }).catch(function (e) {
       showSaveError('保存できませんでした。電波状況をご確認のうえ、もう一度お試しください');
@@ -7478,7 +7614,7 @@ var Actions = {
         var next = cached && cached.data ? cached.data.slice() : [];
         (res.records || []).forEach(function (r) { next.push(r); });
         S.exerciseCache[S.currentUserId] = { data: next, expires: Date.now() + 45000 };
-        S.todayStatusCache = null;
+        patchTodayStatus('records', res.records || []);
         S.exDraft = { slots: emptyExerciseSlots(), note: '', message: (res.records || []).length + '項目を記録しました' };
         render();
       })
@@ -7518,7 +7654,7 @@ var Actions = {
   /** 直前に保存した記録の取り消し(論理削除) */
   undoLast: function () {
     var last = S.lastSaved;
-    if (!last) return;
+    if (!last || !last.id) return;
     S.lastSaved = null;
     rpc('apiVoidRecord', last.kind, last.id).then(function () {
       delete S.exerciseCache[S.currentUserId];
@@ -7771,7 +7907,7 @@ var Actions = {
       S.loginPin = '';
       S.loginError = '';
       S.loginStaffId = '';
-      clearRpcCache();
+      resetRpcCache();
       // ログイン応答に初期データが含まれていれば、そのまま使って通信を1回省く
       if (loginBoot) RPC_CACHE[rpcCacheKey('apiGetBootstrap', [])] = { data: loginBoot, expires: Date.now() + RPC_READ_TTL.apiGetBootstrap };
       return bootAfterLogin();
@@ -7791,7 +7927,9 @@ var Actions = {
     S.loginError = '';
     S.staffAdminList = null;
     S.editingStaff = null;
-    clearRpcCache();
+    S.todayStatusCache = null;
+    S.exerciseCache = {};
+    resetRpcCache();
     location.hash = '';
     loadStaffListThenRender();
   },
@@ -8014,11 +8152,17 @@ var Actions = {
     var status = row ? row.status : { bathed: false, mealDone: false, notebookDone: false };
     var payload = { userId: userId, date: S.today, bathed: !!status.bathed, mealDone: !!status.mealDone, notebookDone: !!status.notebookDone };
     payload[field] = !!checked;
+    if (row) row.status = Object.assign({}, status, payload);
     rpc('apiSaveDailyStatus', payload).then(function (saved) {
       if (row) row.status = saved;
-      clearRpcCache();
+      // 手元の一覧を最新として残し、描き直しても読み込み直さない
+      if (S.dashboard) RPC_CACHE[rpcCacheKey('apiGetCareDashboard', [])] = { data: S.dashboard, expires: Date.now() + RPC_READ_TTL.apiGetCareDashboard };
+      if (location.hash.replace(/^#\/?/, '') === 'admin/today') render();
+    }).catch(function (e) {
+      if (row) row.status = status;
+      alert((e && e.message) || '進捗を保存できませんでした');
       render();
-    }).catch(function (e) { alert((e && e.message) || '進捗を保存できませんでした'); render(); });
+    });
   },
   prepareHandoff: function (userId) {
     S.handoffDraftUser = userId;
@@ -9175,7 +9319,8 @@ function bootAfterLogin() {
     // 次に開かれやすい画面のデータを裏で温めておく(初回タップの待ちを消す)
     setTimeout(function () {
       rpc('apiGetTodayAlerts').catch(function () {});
-      rpc('apiGetTodayRecords').catch(function () {});
+      getTodayStatus().catch(function () {});
+      if (isAdmin()) rpc('apiGetCareDashboard').catch(function () {}); // 管理者は「本日の進捗」もすぐ開けるように
       ensurePhotos(); // 顔写真は裏で読み込み、取得後に表示中の画面へ反映される
       checkForUpdate();
     }, 300);
