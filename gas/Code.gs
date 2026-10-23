@@ -54,12 +54,30 @@ var HEADER_ALIASES = {
 var REQUEST_SS_ = null;
 var REQUEST_ROWS_ = {};
 var REQUEST_VOIDED_ = null;
+var REQUEST_PROPS_ = null;
 function resetRequestCache_() {
   REQUEST_SS_ = null;
   REQUEST_ROWS_ = {};
   REQUEST_VOIDED_ = null;
+  REQUEST_PROPS_ = null;
 }
+
+/**
+ * スクリプトプロパティの読み取り(1回のAPI実行で1回だけまとめて読む)。
+ * 以前は合言葉・スキーマ版・署名鍵・シートIDを毎回1件ずつ読んでおり、そのたびに待ちが出ていた。
+ */
+function scriptProp_(key) {
+  if (!REQUEST_PROPS_) REQUEST_PROPS_ = PropertiesService.getScriptProperties().getProperties() || {};
+  var v = REQUEST_PROPS_[key];
+  return v === undefined ? null : v;
+}
+function setScriptProp_(key, value) {
+  PropertiesService.getScriptProperties().setProperty(key, value);
+  if (REQUEST_PROPS_) REQUEST_PROPS_[key] = value;
+}
+
 function invalidateRequestRows_(key) {
+  if (key === 'staff') CacheService.getScriptCache().remove(STAFF_CACHE_KEY_);
   delete REQUEST_ROWS_[key];
   Object.keys(REQUEST_ROWS_).forEach(function (k) {
     if (k.indexOf(key + '@') === 0) delete REQUEST_ROWS_[k];
@@ -177,7 +195,7 @@ function apiCall(fnName, args, session, facility) {
  * スクリプトプロパティ FACILITY_CODE が未設定なら照合しない(移行期間用)。
  */
 function requireFacilityCode_(code) {
-  var expected = PropertiesService.getScriptProperties().getProperty('FACILITY_CODE') || '';
+  var expected = scriptProp_('FACILITY_CODE') || '';
   if (!expected) return;
   if (String(code || '').trim().toLowerCase() !== expected.trim().toLowerCase()) {
     throw new Error('施設コードが違います。管理者から配布されたリンクから開いてください');
@@ -189,7 +207,7 @@ function doPost(e) {
   try {
     resetRequestCache_();
     var body = JSON.parse(e.postData.contents);
-    var token = PropertiesService.getScriptProperties().getProperty('API_TOKEN');
+    var token = scriptProp_('API_TOKEN');
     var requestedFn = String(body.fn || '');
     // 新しい端末は管理者PINで一度だけペアリングできる。通常APIは共有トークン必須。
     if (token && body.token !== token && requestedFn !== 'apiPairDevice') throw new Error('認証エラー');
@@ -211,7 +229,7 @@ function doPost(e) {
 
 function getSs_() {
   if (REQUEST_SS_) return REQUEST_SS_;
-  var id = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+  var id = scriptProp_('SPREADSHEET_ID');
   if (id) {
     REQUEST_SS_ = SpreadsheetApp.openById(id);
     return REQUEST_SS_;
@@ -235,8 +253,8 @@ function sheet_(key) {
  * 既存列は同じ順序のまま末尾へ拡張するため、過去データは失われない。
  */
 function ensureSchema_() {
+  if (scriptProp_('SCHEMA_VERSION') === '10') return;
   var props = PropertiesService.getScriptProperties();
-  if (props.getProperty('SCHEMA_VERSION') === '10') return;
   var cache = CacheService.getScriptCache();
   if (cache.get('schema-v10')) {
     props.setProperty('SCHEMA_VERSION', '10');
@@ -355,15 +373,20 @@ function rows_(key) {
     REQUEST_ROWS_[key] = [];
     return REQUEST_ROWS_[key];
   }
-  checkHeader_(sh, key);
-  REQUEST_ROWS_[key] = sh.getRange(2, 1, last - 1, HEADERS[key].length).getValues()
+  // 見出しの確認と中身を1回の読み取りで済ませる(以前は見出しと中身で2回読んでいた)
+  var values = sh.getRange(1, 1, last, HEADERS[key].length).getValues();
+  checkHeaderRow_(values[0], key);
+  REQUEST_ROWS_[key] = values.slice(1)
     .filter(function (r) { return String(r[0]) !== ''; });
   return REQUEST_ROWS_[key];
 }
 
 /** マスタ編集ミス(列の挿入・並べ替え)を早期検知する */
 function checkHeader_(sh, key) {
-  var head = sh.getRange(1, 1, 1, HEADERS[key].length).getValues()[0];
+  checkHeaderRow_(sh.getRange(1, 1, 1, HEADERS[key].length).getValues()[0], key);
+}
+
+function checkHeaderRow_(head, key) {
   for (var i = 0; i < HEADERS[key].length; i++) {
     if (String(head[i]) !== HEADERS[key][i]) {
       throw new Error('シート「' + SHEETS[key] + '」の列構成が変更されています(' +
@@ -770,11 +793,10 @@ var SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 1勤務分
 
 /** セッション署名用の秘密鍵。無ければ自動生成して保存する */
 function sessionSecret_() {
-  var props = PropertiesService.getScriptProperties();
-  var secret = props.getProperty('SESSION_SECRET');
+  var secret = scriptProp_('SESSION_SECRET');
   if (!secret) {
     secret = Utilities.getUuid() + Utilities.getUuid();
-    props.setProperty('SESSION_SECRET', secret);
+    setScriptProp_('SESSION_SECRET', secret);
   }
   return secret;
 }
@@ -851,8 +873,22 @@ function toStaff_(r) {
   };
 }
 
+/**
+ * 職員一覧。API のたびにログイン確認で職員シートを読んでいたため、60秒だけキャッシュする。
+ * アプリから職員を変更したときは invalidateRequestRows_('staff') で消す。シートを直接直した場合は最長60秒で反映。
+ */
+var STAFF_CACHE_KEY_ = 'staff-v1';
 function allStaff_() {
-  return rows_('staff').map(toStaff_);
+  if (REQUEST_ROWS_.staff) return REQUEST_ROWS_.staff.map(toStaff_);
+  var cache = CacheService.getScriptCache();
+  var saved = cache.get(STAFF_CACHE_KEY_);
+  if (saved) {
+    try { return JSON.parse(saved); } catch (e) {}
+  }
+  var list = rows_('staff').map(toStaff_);
+  var json = JSON.stringify(list);
+  if (json.length < 90000) cache.put(STAFF_CACHE_KEY_, json, 60);
+  return list;
 }
 
 function currentStaffName_() {
