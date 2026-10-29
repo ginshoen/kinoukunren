@@ -1661,7 +1661,17 @@ function apiAdminSaveExercise_(payload) {
       sh.getRange(idx, 7, 1, 1).setNumberFormat('@').setValues([[active]]);
     } else {
       id = 'ex' + Date.now().toString(36);
-      appendRowNoLock_('exercises', [id, name, name, '実施時間', '15分', '', active]);
+      var row = [id, name, name, '実施時間', '15分', '', active];
+      // 追加した運動はプルダウンの「その他」の直前に入れる(停止した旧種目や「その他」の後ろに回さない)
+      var otherIdx = findRowById_(sh, OTHER_EXERCISE_ID);
+      var lastRow = sh.getLastRow();
+      if (otherIdx >= 2) {
+        var width = HEADERS.exercises.length;
+        var tail = sh.getRange(otherIdx, 1, lastRow - otherIdx + 1, width).getValues().map(function (r) { return r.map(String); });
+        sh.getRange(otherIdx, 1, tail.length + 1, width).setNumberFormat('@').setValues([row].concat(tail));
+      } else {
+        appendRowNoLock_('exercises', row);
+      }
     }
     invalidateRequestRows_('exercises');
     CacheService.getScriptCache().remove('master-v4-exercises');
