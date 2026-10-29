@@ -2043,7 +2043,7 @@ textarea {
   .notebook-photo-frame { flex: 1 1 auto; min-height: 0; height: 100%; border-radius: 5px; }
   .notebook-photo-frame img { max-height: none; border-radius: 5px; }
   .notebook-photo-empty span { font-size: 26px; }
-  .notebook-photo-empty small { font-size: 9px; max-width: 140px; }
+  .notebook-photo-empty small { display: none; } /* 管理画面の「写真を選ぶ」案内は紙に出さない */
   /* 文章は欄からはみ出さないよう、長さに応じて段階的に文字を小さくする(Client.html の notebookDensity) */
   .notebook-comment { flex: 1 1 0; min-height: 0; overflow: hidden; font-size: 13.5px; line-height: 1.55; }
   .communication-sheet.dense-1 .notebook-comment { font-size: 12px; line-height: 1.5; }
@@ -3566,4 +3566,11 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .exmaster-tools { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
 .exmaster-tools .link-plain { width: auto; min-width: 44px; min-height: 40px; padding: 0 8px; flex: none; }
 .exmaster-tools .link-plain:disabled { opacity: .3; }
+
+/* 連絡帳のPDF(iPhone/iPad はホーム画面のアプリで印刷画面が出ないため、PDFを共有メニューから印刷する) */
+.pdf-ready { position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: rgba(20, 35, 29, .45); }
+.pdf-ready-card { width: min(440px, 100%); display: grid; gap: 10px; padding: 20px; background: #fff; border-radius: 16px; box-shadow: 0 18px 48px rgba(0, 0, 0, .25); }
+.pdf-ready-title { font-size: 17px; font-weight: 900; color: var(--green-dark); }
+.pdf-ready-card p { margin: 0; font-size: 14px; line-height: 1.6; }
+.pdf-ready-card button { width: 100%; min-height: 48px; }
 </style>
