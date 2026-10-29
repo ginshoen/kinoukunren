@@ -3528,4 +3528,42 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
   #user-form .check-item:has(input:focus-visible) { outline: 3px solid var(--gin-primary-soft-2); outline-offset: 2px; }
   #user-form .gin-stepper > input { max-width: 6em; }
 }
+/* 体温: 小数点を最初から表示し、整数と小数を別の欄で入れる(2026-10-29 現場要望) */
+.temp-split { display: flex; align-items: flex-end; gap: 2px; }
+.vital-cell .temp-split input { flex: 0 0 auto; text-align: center; border-bottom: 2px solid var(--border); border-radius: 0; }
+.vital-cell .temp-split #temp-int { width: 2.1em; }
+.vital-cell .temp-split #temp-dec { width: 1.2em; }
+.vital-cell .temp-split input:focus { border-bottom-color: var(--green); }
+.temp-dot { font-size: 30px; font-weight: 900; line-height: 1.1; padding: 0 1px; }
+/* 連絡帳: バイタルを測った時刻つきで全部(再測定を含む)表に並べる(2026-10-29 現場要望) */
+.notebook-vital-table { width: 100%; margin-top: 8px; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.notebook-vital-table th { font-size: 10px; font-weight: 800; color: #5f7068; padding: 2px 3px; border-bottom: 1px solid #d5dcd7; text-align: center; }
+.notebook-vital-table th small { display: block; font-size: 8.5px; font-weight: 500; color: #8a978f; }
+.notebook-vital-table th:first-child { width: 22%; }
+.notebook-vital-table td { padding: 3px; text-align: center; font-weight: 900; font-size: 15px; border-bottom: 1px dashed #e3e8e2; white-space: nowrap; outline: none; }
+.notebook-vital-table td:first-child { font-weight: 700; font-size: 12px; color: #4b5a52; }
+.notebook-vital-table td[contenteditable]:focus { background: #fff9e8; }
+.notebook-entry-summary .vital-line { display: block; }
+@media print {
+  .notebook-vital-table { margin-top: 1.5mm; font-size: 11px; }
+  .notebook-vital-table th { font-size: 9px; padding: 0 1mm; }
+  .notebook-vital-table th small { display: inline; font-size: 7.5px; margin-left: 1px; }
+  .notebook-vital-table td { font-size: 13px; padding: .4mm 1mm; }
+  .notebook-vital-table td:first-child { font-size: 10.5px; }
+  .notebook-vital-table.many td { font-size: 11.5px; padding: 0 1mm; }
+}
+/* 体力測定: 握力は右・左の2つの入力欄(2026-10-29 現場要望) */
+.grip-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.grip-pair label { position: relative; }
+.grip-pair label > span { font-weight: 800; color: var(--text); font-size: 12px; }
+.grip-pair input { padding-right: 30px !important; }
+.grip-pair em { position: absolute; right: 9px; bottom: 12px; font-style: normal; font-size: 12px; color: var(--text-aux); pointer-events: none; }
+.assessment-grid-row.grip-row { grid-template-columns: minmax(180px, 1fr) minmax(200px, 1fr) minmax(200px, 1fr); }
+@media (max-width: 700px) {
+  .assessment-grid-row.grip-row { grid-template-columns: 1fr; }
+}
+/* 管理: 実施した運動の並べ替え・停止ボタンは横に並べる */
+.exmaster-tools { display: flex; align-items: center; justify-content: flex-end; gap: 6px; white-space: nowrap; }
+.exmaster-tools .link-plain { width: auto; min-width: 44px; min-height: 40px; padding: 0 8px; flex: none; }
+.exmaster-tools .link-plain:disabled { opacity: .3; }
 </style>
