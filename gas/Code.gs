@@ -28,7 +28,8 @@ var SHEETS = {
 var HEADERS = {
   staff: ['ID', '氏名', 'ふりがな', '職種', '権限', 'PINハッシュ', '有効', 'PINソルト', 'セッション世代'],
   users: ['ID', '氏名', '年齢', '介護度', '利用曜日', '予定種目', 'QRコード', 'ふりがな', '個人目標', '既往歴', '運動禁止事項', '顔写真'],
-  exercises: ['ID', '種目名', '短縮名', '選択肢ラベル', '選択肢', 'QRコード'],
+  // 有効=false の種目は記録画面のプルダウンに出さない(過去の記録の名前表示には使う)。2026-10-29 追加
+  exercises: ['ID', '種目名', '短縮名', '選択肢ラベル', '選択肢', 'QRコード', '有効'],
   checkins: ['ID', '日付', '来苑時刻', '利用者ID', '帰苑時刻', '送迎区分', '記録者'],
   vitals: ['ID', '日付', '時刻', '利用者ID', '収縮期', '拡張期', '脈拍', '体温', 'SpO2', '体重', 'アラートフラグ', 'アラート内容', '体調・特記事項', '記録者'],
   records: ['ID', '日付', '時刻', '利用者ID', '種目ID', '実施量', '負荷', '所見', '記録者'],
@@ -155,6 +156,8 @@ var API_REGISTRY = {
   apiAdminDeleteStaff: { fn: apiAdminDeleteStaff_, auth: 'admin' },
   apiAdminSaveCognitiveMenu: { fn: apiAdminSaveCognitiveMenu_, auth: 'admin' },
   apiAdminDeleteCognitiveMenu: { fn: apiAdminDeleteCognitiveMenu_, auth: 'admin' },
+  apiAdminSaveExercise: { fn: apiAdminSaveExercise_, auth: 'admin' },
+  apiAdminMoveExercise: { fn: apiAdminMoveExercise_, auth: 'admin' },
   apiAdminSaveTemplate: { fn: apiAdminSaveTemplate_, auth: 'admin' },
   apiAdminDeleteTemplate: { fn: apiAdminDeleteTemplate_, auth: 'admin' },
   apiGetMonthly: { fn: apiGetMonthly_, auth: 'admin' },
@@ -252,12 +255,14 @@ function sheet_(key) {
  * 新しい記録項目を既存データベースへ安全に追加する。
  * 既存列は同じ順序のまま末尾へ拡張するため、過去データは失われない。
  */
+var SCHEMA_VERSION = '11';
+
 function ensureSchema_() {
-  if (scriptProp_('SCHEMA_VERSION') === '10') return;
+  if (scriptProp_('SCHEMA_VERSION') === SCHEMA_VERSION) return;
   var props = PropertiesService.getScriptProperties();
   var cache = CacheService.getScriptCache();
-  if (cache.get('schema-v10')) {
-    props.setProperty('SCHEMA_VERSION', '10');
+  if (cache.get('schema-v' + SCHEMA_VERSION)) {
+    props.setProperty('SCHEMA_VERSION', SCHEMA_VERSION);
     return;
   }
   var lock = LockService.getScriptLock();
@@ -279,6 +284,8 @@ function ensureSchema_() {
           }
         }
       }
+      // 種目マスタに「有効」列がまだない(v10以前) → 列を足したあとで現場の運動一覧に合わせる
+      var addExerciseActive = key === 'exercises' && sh.getLastRow() >= 2 && lastCol < HEADERS.exercises.length;
       sh.getRange(1, 1, Math.max(2, sh.getLastRow()), HEADERS[key].length).setNumberFormat('@');
       sh.getRange(1, 1, 1, HEADERS[key].length).setValues([HEADERS[key]])
         .setFontWeight('bold').setBackground('#E3F1E1');
@@ -315,13 +322,73 @@ function ensureSchema_() {
           invalidateRequestRows_('exercises');
           CacheService.getScriptCache().remove('master-v4-exercises');
         }
+        if (addExerciseActive) applyFieldExerciseList_(sh);
       }
     });
-    props.setProperty('SCHEMA_VERSION', '10');
-    cache.put('schema-v10', '1', 21600);
+    props.setProperty('SCHEMA_VERSION', SCHEMA_VERSION);
+    cache.put('schema-v' + SCHEMA_VERSION, '1', 21600);
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * 現場の「実施した運動」一覧(2026-10-28 職員より)。この順でプルダウンに並べる。
+ * 「その他」は自由入力(ID other)。準備運動(prep)は1コマ目に自動で入るので一覧には出さない。
+ */
+var FIELD_EXERCISE_LIST = [
+  '足浴', '歩行練習', '上半身の運動', '自転車運動', 'ボール運動', 'タオルを用いた運動', '脳トレ', '介護整体',
+  '屋外歩行練習（園芸療法）', '飲み込み体操', 'ストレッチ', '体力測定', '筋力トレーニング', 'トレーニングパチンコ',
+  'マッサージ機', '口腔体操', 'バランス練習',
+];
+var OTHER_EXERCISE_ID = 'other';
+
+/** 表記ゆれ(全角半角・空白)を無視して種目名を比べる */
+function exerciseNameKey_(name) {
+  return String(name || '').normalize('NFKC').replace(/[\s　]/g, '');
+}
+
+/**
+ * 種目マスタを現場の一覧に合わせる(「有効」列を足すときに1回だけ)。
+ * 名前が一致する既存の種目はIDをそのまま使い(過去の記録とつながる)、ない種目は追加、
+ * 一覧にない旧種目は消さずに「有効=false」にする。並びは 準備運動 → 一覧の順 → その他 → 停止中。
+ */
+function applyFieldExerciseList_(sh) {
+  var width = HEADERS.exercises.length;
+  var last = sh.getLastRow();
+  var rows = last >= 2 ? sh.getRange(2, 1, last - 1, width).getValues().map(function (r) {
+    return r.map(function (v) { return String(v == null ? '' : v); });
+  }).filter(function (r) { return r[0] !== ''; }) : [];
+  var byKey = {};
+  var used = {};
+  rows.forEach(function (r) { if (!byKey[exerciseNameKey_(r[1])]) byKey[exerciseNameKey_(r[1])] = r; });
+  var stamp = Date.now().toString(36);
+  function newRow(id, name) { return [id, name, name, '実施時間', '15分', '', 'true']; }
+  var prep = rows.filter(function (r) { return r[0] === 'prep'; })[0] || newRow('prep', '準備運動');
+  prep[6] = 'true';
+  used.prep = true;
+  var ordered = [prep];
+  FIELD_EXERCISE_LIST.forEach(function (name, i) {
+    var hit = byKey[exerciseNameKey_(name)];
+    if (hit && !used[hit[0]]) { hit[6] = 'true'; used[hit[0]] = true; ordered.push(hit); }
+    else ordered.push(newRow('ex' + stamp + ('0' + i).slice(-2), name));
+  });
+  var other = rows.filter(function (r) { return r[0] === OTHER_EXERCISE_ID; })[0] || newRow(OTHER_EXERCISE_ID, 'その他');
+  other[6] = 'true';
+  used[OTHER_EXERCISE_ID] = true;
+  ordered.push(other);
+  rows.forEach(function (r) {
+    if (used[r[0]]) return;
+    r[6] = 'false';
+    ordered.push(r);
+  });
+  ordered = ordered.map(function (r) { while (r.length < width) r.push(''); return r.slice(0, width); });
+  if (last >= 2) sh.getRange(2, 1, last - 1, width).setValues(Array.apply(null, Array(last - 1)).map(function () {
+    return Array.apply(null, Array(width)).map(function () { return ''; });
+  }));
+  sh.getRange(2, 1, ordered.length, width).setNumberFormat('@').setValues(ordered);
+  invalidateRequestRows_('exercises');
+  CacheService.getScriptCache().remove('master-v4-exercises');
 }
 
 function todayStr_() {
@@ -437,6 +504,7 @@ function toExercise_(r) {
   return {
     id: String(r[0]), name: String(r[1]), shortName: String(r[2]),
     amountLabel: String(r[3]), amountOptions: splitCsv_(r[4]), qrCode: String(r[5]),
+    active: String(r[6] == null ? '' : r[6]) !== 'false', // 空欄は有効(旧版の行)
   };
 }
 
@@ -634,7 +702,7 @@ function apiGetBootstrap_() {
   var me = CURRENT_STAFF_;
   return {
     apiVersion: 8,
-    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint'],
+    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll'],
     // 起動時の往復を1回にするため、ログイン中の職員情報も一緒に返す(apiGetSession を別に呼ばない)
     me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null,
     users: allUsers_(),
@@ -1421,11 +1489,14 @@ function apiSaveExerciseBatch_(payload) {
     if (!byId[id]) throw new Error('訓練種目が見つかりません: ' + id);
   });
   var note = safeText_(payload.note, 300);
+  // 「その他」は入力した運動名を「負荷」列に残す(この列は15分コマ形式では使っていない)
+  var otherText = safeText_(payload.otherText, 40);
+  if (ids.indexOf(OTHER_EXERCISE_ID) >= 0 && !otherText) throw new Error('「その他」の運動の内容を入力してください。');
   var time = nowTime_();
   var records = ids.map(function (id, i) {
     return {
       id: newId_(), date: date, time: time, userId: String(payload.userId),
-      exerciseId: id, amount: '15分', load: '', note: i === 0 ? note : '',
+      exerciseId: id, amount: '15分', load: id === OTHER_EXERCISE_ID ? otherText : '', note: i === 0 ? note : '',
     };
   });
   var lock = LockService.getScriptLock();
@@ -1496,6 +1567,8 @@ function apiSaveAssessment_(payload) {
   return rec;
 }
 
+var GRIP_SIDES = ['右', '左'];
+
 /** 体力測定を1種目ずつ、利用者複数名分まとめて保存する。測定日はサーバーの当日日付を自動使用する。 */
 function apiSaveAssessmentBatch_(payload) {
   var item = safeText_(payload.item, 40);
@@ -1510,12 +1583,16 @@ function apiSaveAssessmentBatch_(payload) {
   var records = [];
   entries.forEach(function (entry) {
     var userId = String(entry.userId || '');
-    if (!users[userId] || seen[userId]) return;
+    // 握力は右・左を別の種目「握力(右)」「握力(左)」として残す(グラフも左右別になる)
+    var side = String(entry.side || '');
+    var recItem = item === '握力' && GRIP_SIDES.indexOf(side) >= 0 ? '握力(' + side + ')' : item;
+    var key = userId + '|' + recItem;
+    if (!users[userId] || seen[key]) return;
     var result = safeText_(entry.result, 120);
     if (!result) return;
-    seen[userId] = true;
+    seen[key] = true;
     records.push({
-      id: newId_(), date: date, userId: userId, type: '体力測定', item: item,
+      id: newId_(), date: date, userId: userId, type: '体力測定', item: recItem,
       result: result, detail: safeText_(entry.detail, 500),
     });
   });
@@ -1558,6 +1635,69 @@ function apiAdminSaveCognitiveMenu_(payload) {
   }
 }
 
+/**
+ * 実施した運動(種目マスタ)の追加・停止/再開(管理者のみ)。過去の記録とつながるため削除はしない。
+ * payload: { id?, name, active }  id が空なら新規(末尾に追加)
+ */
+function apiAdminSaveExercise_(payload) {
+  payload = payload || {};
+  var name = safeText_(payload.name, 40);
+  if (!name) throw new Error('運動の名前を入力してください');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = sheet_('exercises');
+    var id = String(payload.id || '').trim();
+    var active = payload.active === false ? 'false' : 'true';
+    if (id === 'prep' && active === 'false') throw new Error('準備運動は止められません');
+    var same = allExercisesFresh_().filter(function (e) {
+      return e.id !== id && exerciseNameKey_(e.name) === exerciseNameKey_(name);
+    })[0];
+    if (same) throw new Error('「' + same.name + '」はすでにあります' + (same.active ? '' : '(停止中。「再開」で戻せます)'));
+    if (id) {
+      var idx = findRowById_(sh, id);
+      if (idx < 0) throw new Error('対象の運動が見つかりません');
+      sh.getRange(idx, 2, 1, 1).setNumberFormat('@').setValues([[name]]);
+      sh.getRange(idx, 7, 1, 1).setNumberFormat('@').setValues([[active]]);
+    } else {
+      id = 'ex' + Date.now().toString(36);
+      appendRowNoLock_('exercises', [id, name, name, '実施時間', '15分', '', active]);
+    }
+    invalidateRequestRows_('exercises');
+    CacheService.getScriptCache().remove('master-v4-exercises');
+    return { exercises: allExercisesFresh_() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** 運動の並び順を1つ上/下へ(管理者のみ)。dir: -1=上 / 1=下。準備運動は先頭のまま */
+function apiAdminMoveExercise_(id, dir) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = sheet_('exercises');
+    var idx = findRowById_(sh, String(id || ''));
+    if (idx < 0) throw new Error('対象の運動が見つかりません');
+    var to = idx + (Number(dir) < 0 ? -1 : 1);
+    if (to < 2 || to > sh.getLastRow()) return { exercises: allExercisesFresh_() };
+    var width = HEADERS.exercises.length;
+    var a = sh.getRange(idx, 1, 1, width).getValues()[0].map(String);
+    var b = sh.getRange(to, 1, 1, width).getValues()[0].map(String);
+    if (a[0] === 'prep' || b[0] === 'prep') return { exercises: allExercisesFresh_() };
+    sh.getRange(idx, 1, 1, width).setNumberFormat('@').setValues([b]);
+    sh.getRange(to, 1, 1, width).setNumberFormat('@').setValues([a]);
+    invalidateRequestRows_('exercises');
+    CacheService.getScriptCache().remove('master-v4-exercises');
+    return { exercises: allExercisesFresh_() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** キャッシュを通さずに種目マスタを読む(管理画面の変更直後) */
+function allExercisesFresh_() { return rows_('exercises').map(toExercise_); }
+
 /** 脳トレメニューの削除(管理者のみ)。過去の記録は残る */
 function apiAdminDeleteCognitiveMenu_(id) {
   var lock = LockService.getScriptLock();
@@ -1590,10 +1730,11 @@ function apiGetCommunicationBookCore_(user, target) {
   checkinsOn_(target).forEach(function (c) {
     if (c.userId === userId) checkin = c;
   });
-  var vital = null;
-  vitalsOn_(target).forEach(function (v) {
-    if (v.userId === userId && (!vital || timeKey_(v.time) >= timeKey_(vital.time))) vital = v;
-  });
+  // 再測定した日は全部を測った時刻順で返す(連絡帳に時刻つきで並べる)。vital は最後の値(従来どおり)
+  var vitals = vitalsOn_(target)
+    .filter(function (v) { return v.userId === userId; })
+    .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : timeKey_(a.time) > timeKey_(b.time) ? 1 : 0; });
+  var vital = vitals.length ? vitals[vitals.length - 1] : null;
   var exercises = recordsOn_(target)
     .filter(function (e) { return e.userId === userId; })
     .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; });
@@ -1601,7 +1742,7 @@ function apiGetCommunicationBookCore_(user, target) {
     .filter(function (e) { return e.userId === userId; })
     .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; });
   return {
-    user: { id: user.id, name: user.name, plan: user.plan }, date: target, checkin: checkin, vital: vital,
+    user: { id: user.id, name: user.name, plan: user.plan }, date: target, checkin: checkin, vital: vital, vitals: vitals,
     exercises: exercises, cognitiveRecords: cognitive,
   };
 }
