@@ -652,9 +652,20 @@ function activeExercises() {
   return S.exercises.filter(function (ex) { return ex.active !== false; });
 }
 
+/** 全角の数字・記号を半角に(日本語キーボードで「３６．５」と入れても数字として扱う) */
+function halfWidth(v) {
+  v = String(v == null ? '' : v);
+  return v.normalize ? v.normalize('NFKC') : v;
+}
+
+/** 「その他」の入力内容。保存時に表計算の数式よけで先頭に付いた ' は表示しない */
+function otherExerciseText(load) {
+  return String(load || '').replace(/^'(?=[=+\-@])/, '');
+}
+
 /** 記録に表示する運動名(「その他」は入力した内容) */
 function recordExerciseName(r) {
-  if (r.exerciseId === OTHER_EXERCISE_ID && r.load) return r.load;
+  if (r.exerciseId === OTHER_EXERCISE_ID && r.load) return otherExerciseText(r.load);
   var ex = exerciseById(r.exerciseId);
   return ex ? ex.name : r.exerciseId;
 }
@@ -1387,6 +1398,180 @@ function withPrintPage(size, margin, printFn) {
   };
   window.addEventListener('afterprint', cleanup);
   try { printFn(); } finally { setTimeout(cleanup, 1500); }
+}
+
+/**
+ * iPhone/iPad のホーム画面から開いたアプリか。この形では window.print() が無視され、
+ * 印刷画面が出ない(10/29 施設長の端末で確認)。そのため連絡帳はPDFにして共有メニューから印刷する。
+ */
+function isHomeScreenApp() {
+  if (window.navigator.standalone === true) return true;
+  try {
+    return !!(window.matchMedia && (window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches));
+  } catch (e) {
+    return false;
+  }
+}
+
+/** iPhone/iPad か(iPadOS は「Mac」を名乗るため、タッチ対応のMacも iPad として扱う) */
+function isAppleTouchDevice() {
+  var ua = navigator.userAgent || '';
+  return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+}
+
+/**
+ * 連絡帳を印刷画面ではなくPDFで渡すか。iPhone/iPad では、ホーム画面のアプリだと印刷画面が出ず、
+ * Safari でも通信中は印刷画面が通信の終わるまで待たされるため、PDF(共有メニューの「プリント」)に統一する
+ */
+function notebookUsesPdf() {
+  return isHomeScreenApp() || isAppleTouchDevice();
+}
+
+/** PDF作成のライブラリは連絡帳をPDFにするときだけ読み込む(普段の表示を重くしない) */
+function ensurePdfLibs() {
+  return loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas')
+    .catch(function () {
+      return loadScriptOnce('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js', 'html2canvas');
+    })
+    .then(function () {
+      return loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', 'jspdf')
+        .catch(function () {
+          return loadScriptOnce('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js', 'jspdf');
+        });
+    })
+    .catch(function () {
+      throw new Error('PDFを作る部品を読み込めませんでした。通信状態を確かめて、もう一度お試しください。');
+    });
+}
+
+/** 印刷用のCSS(@media print の中身)を、画面上でも効く形で取り出す。PDFを印刷と同じ見た目にするため */
+function printRulesCss() {
+  if (S.printRulesCss != null) return S.printRulesCss;
+  var out = [];
+  Array.prototype.forEach.call(document.styleSheets, function (sheet) {
+    var rules;
+    try { rules = sheet.cssRules; } catch (e) { return; }
+    Array.prototype.forEach.call(rules || [], function (rule) {
+      var media = rule.media && rule.media.mediaText;
+      if (!media || !/(^|[\s,])print([\s,]|$)/.test(media) || /screen/.test(media)) return;
+      Array.prototype.forEach.call(rule.cssRules || [], function (inner) {
+        if (inner.selectorText) out.push(inner.cssText);
+      });
+    });
+  });
+  S.printRulesCss = out.join('\n');
+  return S.printRulesCss;
+}
+
+/**
+ * 連絡帳(.communication-sheet)を1人1ページのA5横PDFにする。
+ * 画面の連絡帳を印刷用の見た目にして画像化し、A5横(余白5mm)に貼る。
+ */
+function notebookSheetsToPdf(sheets, onProgress) {
+  return ensurePdfLibs().then(function () {
+    var css = printRulesCss();
+    var pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5', compress: true });
+    var chain = Promise.resolve();
+    sheets.forEach(function (sheet, i) {
+      chain = chain.then(function () {
+        if (onProgress) onProgress(i + 1, sheets.length);
+        sheet.setAttribute('data-pdf-target', '1');
+        return window.html2canvas(sheet, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          logging: false,
+          windowWidth: 756, // 200mm。印刷するときの画面幅にそろえる
+          scrollX: 0,
+          scrollY: 0,
+          // 他の方の連絡帳(写真つき)まで毎回写さない(人数が多いと遅くなるため)
+          ignoreElements: function (node) {
+            return !!(node.classList && node.classList.contains('communication-sheet') && !node.hasAttribute('data-pdf-target'));
+          },
+          onclone: function (doc) {
+            // 画面用(@media screen)の指定は印刷では効かないため外す(色・文字の大きさを紙と同じにする)
+            Array.prototype.forEach.call(doc.styleSheets, function (sheet) {
+              var rules;
+              try { rules = sheet.cssRules; } catch (e) { return; }
+              if (!rules) return;
+              for (var k = rules.length - 1; k >= 0; k--) {
+                var media = rules[k].media && rules[k].media.mediaText;
+                if (media && /screen/.test(media) && !/print/.test(media)) sheet.deleteRule(k);
+              }
+            });
+            var style = doc.createElement('style');
+            style.textContent = css;
+            doc.head.appendChild(style);
+            var el = doc.querySelector('[data-pdf-target]');
+            if (!el) return;
+            // 印刷と同じ 200×137mm(A5横から余白5mmを除いた大きさ)にそろえる
+            el.style.setProperty('width', '200mm', 'important');
+            el.style.setProperty('height', '137mm', 'important');
+            el.style.setProperty('min-width', '0', 'important');
+            // 写真の切り抜き(object-fit)は画像化で崩れるため、同じ見え方の背景画像に置き換える
+            Array.prototype.forEach.call(el.querySelectorAll('.notebook-photo-frame img'), function (img) {
+              var box = doc.createElement('div');
+              box.style.cssText = 'width:100%;height:100%;border-radius:5px;background-position:center;background-size:cover;background-repeat:no-repeat;';
+              box.style.backgroundImage = 'url("' + img.getAttribute('src') + '")';
+              img.parentNode.replaceChild(box, img);
+            });
+          },
+        }).then(function (canvas) {
+          sheet.removeAttribute('data-pdf-target');
+          if (i > 0) pdf.addPage('a5', 'landscape');
+          pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 5, 5, 200, 137);
+        }, function (err) {
+          sheet.removeAttribute('data-pdf-target');
+          throw err;
+        });
+      });
+    });
+    return chain.then(function () { return pdf.output('blob'); });
+  });
+}
+
+/** 作ったPDFを渡す画面。共有メニュー(プリント・ファイルに保存・メール)は押した直後にしか開けないため、ボタンを押してもらう */
+function showPdfReady(blob, fileName, pages) {
+  S.pdfReady = { blob: blob, name: fileName };
+  var old = document.getElementById('pdf-ready');
+  if (old) old.parentNode.removeChild(old);
+  var box = document.createElement('div');
+  box.id = 'pdf-ready';
+  box.className = 'pdf-ready no-print';
+  box.setAttribute('role', 'dialog');
+  box.setAttribute('aria-label', '連絡帳のPDF');
+  box.innerHTML =
+    '<div class="pdf-ready-card">' +
+    '<div class="pdf-ready-title">連絡帳のPDFができました(' + pages + '枚)</div>' +
+    '<p>「印刷・共有する」を押し、出てきたメニューから<b>「プリント」</b>を選んでください。用紙は<b>A5・横</b>です。</p>' +
+    '<p class="section-note">iPadからプリンタが見つからないときは、同じメニューの「ファイルに保存」やメールで事務所のパソコンへ送って印刷できます。</p>' +
+    '<button class="btn-primary" id="pdf-share" onclick="Actions.sharePdf()">印刷・共有する</button>' +
+    '<button class="btn-outline" onclick="Actions.openPdf()">PDFを開く</button>' +
+    '<button class="btn-outline" onclick="Actions.closePdf()">閉じる</button>' +
+    '</div>';
+  document.body.appendChild(box);
+}
+
+/** 連絡帳をPDFにする共通処理。button は進み具合を表示するボタン。作れたら true */
+function makeNotebookPdf(sheets, fileName, button) {
+  if (!sheets.length || S.pdfBusy) return Promise.resolve(false);
+  S.pdfBusy = true;
+  var label = button ? button.innerHTML : '';
+  if (button) { button.disabled = true; button.textContent = 'PDFを作成中…'; }
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  return notebookSheetsToPdf(sheets, function (n, total) {
+    if (button) button.textContent = 'PDFを作成中… ' + n + ' / ' + total;
+  }).then(function (blob) {
+    showPdfReady(blob, fileName, sheets.length);
+    return true;
+  }).catch(function (e) {
+    alert((e && e.message) || 'PDFを作成できませんでした');
+    return false;
+  }).then(function (ok) {
+    S.pdfBusy = false;
+    if (button && document.body.contains(button)) { button.disabled = false; button.innerHTML = label; }
+    return ok;
+  });
 }
 
 /** 画面にあわせた既定の用紙(ブラウザのメニューから直接印刷した場合にも効く) */
@@ -2433,7 +2618,7 @@ function renderUserDetail(app, userId, renderId) {
           return (
             '<div class="card history-day">' +
             '<div class="history-date">' + dayLabel(d.date) + ' <span class="section-note">' + esc(d.time) + ' 来所</span></div>' +
-            '<div class="history-ex">' + (d.exercises.map(exerciseLabel).join(' → ') || '訓練記録なし') + '</div>' +
+            '<div class="history-ex">' + (d.exercises.map(function (e) { return esc(exerciseLabel(e)); }).join(' → ') || '訓練記録なし') + '</div>' +
             (d.note ? '<div class="history-note">所見: ' + esc(d.note) + '</div>' : '') +
             '</div>'
           );
@@ -2691,7 +2876,7 @@ function adminShell(active, contentHtml) {
 
 /** 保存済みPINの再検証を全メニューで共有し、連続タップ時の競合を防ぐ。 */
 function exerciseLabel(rec) {
-  if (rec.exerciseId === OTHER_EXERCISE_ID && rec.load) return rec.load;
+  if (rec.exerciseId === OTHER_EXERCISE_ID && rec.load) return otherExerciseText(rec.load);
   var ex = exerciseById(rec.exerciseId);
   if (!ex) return '?';
   return /分$/.test(rec.amount) ? ex.shortName + rec.amount : ex.shortName;
@@ -2823,7 +3008,11 @@ function fitnessTrendCards(records) {
     if (!groups[key]) groups[key] = [];
     groups[key].push({ date: r.date, value: value, unit: String(r.result).replace(/^\s*[-+]?\d+(?:\.\d+)?\s*/, '') });
   });
-  return Object.keys(groups).filter(function (key) { return groups[key].length >= 2; }).slice(0, 6).map(function (key, i) {
+  // 最近測った項目から並べる(握力の右・左を足したことで、以前の項目に押し出されて表示されなくならないよう)
+  var latestDate = function (key) { return groups[key].reduce(function (m, p) { return p.date > m ? p.date : m; }, ''); };
+  return Object.keys(groups).filter(function (key) { return groups[key].length >= 2; })
+    .sort(function (a, b) { return latestDate(a) < latestDate(b) ? 1 : latestDate(a) > latestDate(b) ? -1 : 0; })
+    .slice(0, 8).map(function (key, i) {
     var unit = groups[key][groups[key].length - 1].unit || '';
     return '<div class="trend-card"><div class="trend-title">' + esc(key) + '<span>直近' + groups[key].length + '回</span></div>' +
       numericTrendSvg(groups[key], unit, i % 2 ? '#5B5EA6' : '#2E7D32') + '</div>';
@@ -2897,16 +3086,21 @@ function renderAdminResults(app, renderId) {
     var days = buildDays(res);
     var tableRows = days.map(function (d, i) {
       var last = i === days.length - 1 ? ' last' : '';
-      var vitalTxt = d.vital
-        ? d.vital.systolic + '/' + d.vital.diastolic + ' · P' + d.vital.pulse + ' · ' + d.vital.temp.toFixed(1) + '℃'
+      // 再測定した日は全部を時刻つきで並べる
+      var vitalTxt = d.vitals.length
+        ? d.vitals.map(function (v) {
+            return (d.vitals.length > 1 && v.time ? esc(v.time) + ' ' : '') +
+              v.systolic + '/' + v.diastolic + ' · P' + v.pulse + ' · ' + Number(v.temp).toFixed(1) + '℃';
+          }).join('<br>')
         : '—';
-      var flag = d.vital && d.vital.flagged
-        ? ' <span class="flag-mark" title="' + esc(d.vital.alerts.join(' / ')) + '">⚑</span>' : '';
+      var flagged = d.vitals.filter(function (v) { return v.flagged; });
+      var flag = flagged.length
+        ? ' <span class="flag-mark" title="' + esc(flagged.map(function (v) { return v.alerts.join(' / '); }).join(' / ')) + '">⚑</span>' : '';
       return (
         '<div class="td date' + last + '">' + dayLabel(d.date) + '</div>' +
         '<div class="td' + last + '">' + (d.checkin ? esc(d.checkin.time) : '') + '</div>' +
         '<div class="td' + last + '">' + vitalTxt + flag + '</div>' +
-        '<div class="td' + last + '">' + (d.exercises.map(exerciseLabel).join(' → ') || '—') + '</div>' +
+        '<div class="td' + last + '">' + (d.exercises.map(function (e) { return esc(exerciseLabel(e)); }).join(' → ') || '—') + '</div>' +
         '<div class="td note' + last + '">' + esc(d.note) + '</div>'
       );
     }).join('');
@@ -2976,13 +3170,14 @@ function buildDays(res) {
   return dates.map(function (date) {
     var checkin = null;
     res.monthCheckins.forEach(function (c) { if (c.date === date && !checkin) checkin = c; });
-    var vital = null;
-    res.monthVitals.forEach(function (v) { if (v.date === date) vital = v; });
+    var vitals = res.monthVitals.filter(function (v) { return v.date === date; })
+      .sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : timeKey(a.time) > timeKey(b.time) ? 1 : 0; });
+    var vital = vitals.length ? vitals[vitals.length - 1] : null;
     var exercises = res.monthExercises
       .filter(function (e) { return e.date === date; })
       .sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : 1; });
     var note = exercises.map(function (e) { return e.note; }).filter(String).join(' ');
-    return { date: date, checkin: checkin, vital: vital, exercises: exercises, note: note };
+    return { date: date, checkin: checkin, vital: vital, vitals: vitals, exercises: exercises, note: note };
   });
 }
 
@@ -3507,8 +3702,10 @@ function defaultNotebookComment(data, variant) {
 var NOTEBOOK_COMMENT_MAX = 450;
 
 /** 連絡文の長さからA5横の文字サイズ段階を決める(欄からはみ出さない目安の文字数) */
-function notebookDensity(comment, exerciseCount) {
+function notebookDensity(comment, exerciseCount, vitalCount) {
   var n = String(comment || '').length + (String(comment || '').split('\n').length - 1) * 12; // 改行は1行分の余白を使う
+  // バイタルを3回以上測った日は表が伸びて「弐番館より」欄が狭くなるため、1回ふえるごとに約2行分を差し引く
+  if (vitalCount > 2) n += (vitalCount - 2) * 50;
   var cls = n <= 120 ? '' : n <= 170 ? ' dense-1' : n <= 240 ? ' dense-2' : n <= 320 ? ' dense-3' : ' dense-4';
   return cls + (exerciseCount > 8 ? ' compact-print' : '');
 }
@@ -3519,8 +3716,8 @@ function notebookVitals(data) {
   return list.slice().sort(function (a, b) { return timeKey(a.time) < timeKey(b.time) ? -1 : timeKey(a.time) > timeKey(b.time) ? 1 : 0; });
 }
 
-/** 1回分のバイタルを1行の文に(職員の入力画面の「自動で入る内容」) */
-function vitalLineText(v) {
+/** 1回分のバイタルを1行の文に(職員の入力画面の「自動で入る内容」)。受付の vitalLineText とは別 */
+function notebookVitalLine(v) {
   return (v.time ? v.time + '  ' : '') + v.systolic + '/' + v.diastolic + ' · 脈拍' + v.pulse + ' · ' + Number(v.temp).toFixed(1) + '℃' +
     (v.spo2 != null && v.spo2 !== '' ? ' · SpO2 ' + v.spo2 + '%' : '');
 }
@@ -3568,7 +3765,7 @@ function notebookSheetHtml(data, comment, photo, opts) {
     ? '<div id="notebook-comment" class="notebook-comment" contenteditable="true" role="textbox" aria-label="施設からの連絡" oninput="Actions.notebookComment(this.innerText)">' + esc(comment) + '</div>'
     : '<div class="notebook-comment">' + esc(comment) + '</div>';
   return (
-    '<section class="communication-sheet' + notebookDensity(comment, data.exercises.length) + '" aria-label="弐番館デイサービス連絡帳 ' + esc(data.user.name) + ' 様">' +
+    '<section class="communication-sheet' + notebookDensity(comment, data.exercises.length, notebookVitals(data).length) + '" aria-label="弐番館デイサービス連絡帳 ' + esc(data.user.name) + ' 様">' +
     '<header class="notebook-head"><div class="notebook-brand"><img src="' + LOGO + '" alt=""><div><small>機能訓練デイサービス</small><h1>弐番館 連絡帳</h1></div></div>' +
     '<div class="notebook-meta"><div><small>お名前</small><strong>' + esc(data.user.name) + ' 様</strong></div><div><small>ご利用日</small><strong>' + esc(notebookDateLabel(data.date)) + '</strong></div></div></header>' +
     '<p class="notebook-thanks">本日もご利用いただきありがとうございます。</p>' +
@@ -3626,7 +3823,8 @@ function renderCommunicationBook(app, renderId) {
       '<div class="admin-actions"><select class="select-plain" onchange="Actions.notebookUser(this.value)">' + userSel + '</select>' +
       '<input class="select-plain" type="date" value="' + esc(S.admin.notebookDate) + '" onchange="Actions.notebookDate(this.value)">' +
       '<button class="btn-csv" id="notebook-save" onclick="Actions.saveNotebook()">保存</button>' +
-      '<button class="btn-csv" onclick="Actions.printNotebook()">🖨 この方を印刷(A5横)</button>' +
+      '<button class="btn-csv" id="notebook-print" onclick="Actions.printNotebook()">🖨 この方を' + (notebookUsesPdf() ? 'PDFにして印刷' : '印刷(A5横)') + '</button>' +
+      (notebookUsesPdf() ? '' : '<button class="btn-csv" id="notebook-pdf" onclick="Actions.printNotebook(true)">📄 PDFにする</button>') +
       '<button class="btn-csv" onclick="Actions.openNotebookBatch(S.admin.notebookDate)">🖨 来所者全員分をまとめて印刷</button></div></div>' +
       '<div class="notebook-tools no-print"><label class="btn-outline" id="notebook-photo-label">📷 端末ライブラリから写真を選ぶ<input type="file" accept="image/*" onchange="Actions.notebookPhoto(this.files[0],this)" hidden></label>' +
       (S.notebook.photo ? '<button class="btn-csv" onclick="Actions.notebookRemovePhoto()">写真を外す</button>' : '') +
@@ -3658,7 +3856,7 @@ function renderNotebookEntry(app, renderId) {
     if (!isCurrentRender(renderId)) return;
     loadNotebookEntry(data);
     var exNames = data.exercises.map(function (r) { return esc(recordExerciseName(r)); }).join('・');
-    var vitalLines = notebookVitals(data).map(function (v) { return '<span class="vital-line">' + esc(vitalLineText(v)) + '</span>'; }).join('');
+    var vitalLines = notebookVitals(data).map(function (v) { return '<span class="vital-line">' + esc(notebookVitalLine(v)) + '</span>'; }).join('');
     var photoHtml = S.notebook.photo
       ? '<img src="' + esc(S.notebook.photo) + '" alt="本日のご様子">'
       : '<div class="notebook-photo-empty"><span>写真</span><small>まだ選ばれていません</small></div>';
@@ -3729,9 +3927,13 @@ function renderNotebookBatch(app, renderId) {
       '<div class="notebook-batch-summary"><b>' + books.length + '名分</b>' +
       (books.length ? '<span>未入力 ' + missing.length + '名 · 写真なし ' + noPhoto.length + '名</span>' : '') + '</div>' +
       (books.length ? '<ul class="notebook-batch-list">' + listHtml + '</ul>' : '<div class="empty-note">この日の来所記録がありません</div>') +
-      (books.length ? '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + books.length + '名分をA5横で印刷</button>' +
-        '<p class="section-note">印刷画面で用紙サイズが「A5」・向きが「横」になっているか確認してください。倍率は「100%」がおすすめです。</p>' +
-        '<p class="section-note">iPadで「AirPrintプリンタが見つかりません」と出るときは、iPadからそのプリンタへは印刷できません。事務所のパソコンでこの画面(受付 →「本日の連絡帳をまとめて印刷」)を開いて印刷してください。</p>' : '') +
+      (books.length ? (notebookUsesPdf()
+        ? '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + books.length + '名分をPDFにして印刷</button>' +
+          '<p class="section-note">PDFができたら「印刷・共有する」→「プリント」を選びます。用紙は「A5」・「横」です。</p>' +
+          '<p class="section-note">iPadで「AirPrintプリンタが見つかりません」と出るときは、同じメニューの「ファイルに保存」やメールで事務所のパソコンへ送るか、事務所のパソコンでこの画面(受付 →「本日の連絡帳をまとめて印刷」)を開いて印刷してください。</p>'
+        : '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + books.length + '名分をA5横で印刷</button>' +
+          '<button class="btn-outline" id="batch-pdf" onclick="Actions.printNotebookBatch(true)">📄 PDFにする(保存・送る)</button>' +
+          '<p class="section-note">印刷画面で用紙サイズが「A5」・向きが「横」になっているか確認してください。倍率は「100%」がおすすめです。</p>') : '') +
       '</div>';
     app.innerHTML = wrap(tools + '<div class="notebook-batch-sheets">' + sheets + '</div>');
   }).catch(function (e) {
@@ -3746,7 +3948,9 @@ function renderNotebookBatch(app, renderId) {
  */
 function resizeSelectedImage(file, options) {
   options = options || {};
-  if (!file || !/^image\//.test(file.type || '')) return Promise.reject(new Error('画像ファイルを選択してください'));
+  // 「ファイル」アプリの写真(HEICなど)は種類が空のことがあるため、拡張子でも画像と判断する
+  var looksImage = file && (/^image\//.test(file.type || '') || (!file.type && /\.(jpe?g|png|heic|heif|gif|webp)$/i.test(file.name || '')));
+  if (!looksImage) return Promise.reject(new Error('画像ファイルを選択してください'));
   if (file.size > 25 * 1024 * 1024) return Promise.reject(new Error('25MB以下の写真を選択してください'));
 
   function draw(source, sourceWidth, sourceHeight, close) {
@@ -4005,7 +4209,7 @@ var Actions = {
     var decEl = document.getElementById('temp-dec');
     if (!intEl || !decEl) return;
     if (part === 'int') {
-      var raw = String(el.value || '');
+      var raw = halfWidth(el.value);
       var moveToDec = /[.．。,]/.test(raw);
       var digits = raw.replace(/[^0-9]/g, '');
       if (digits.length > 2) { decEl.value = digits.charAt(2); digits = digits.slice(0, 2); moveToDec = true; }
@@ -4013,7 +4217,7 @@ var Actions = {
       if (digits.length === 2) moveToDec = true;
       if (moveToDec) { decEl.focus(); if (decEl.select) decEl.select(); }
     } else {
-      var dec = String(el.value || '').replace(/[^0-9]/g, '');
+      var dec = halfWidth(el.value).replace(/[^0-9]/g, '');
       decEl.value = dec.slice(-1); // 1桁だけ(打ち直したら新しい数字に置き換える)
     }
     var i = intEl.value, f = decEl.value;
@@ -4385,7 +4589,7 @@ var Actions = {
     var entries = [];
     var grip = d.item === '握力';
     // 握力は数字だけ入れれば kg を付けて保存する(過去の記録「18.5kg」と同じ形)
-    function withKg(v) { v = String(v || '').trim(); return /^\d+(\.\d+)?$/.test(v) ? v + 'kg' : v; }
+    function withKg(v) { v = halfWidth(v).trim(); return /^\d+(\.\d+)?$/.test(v) ? v + 'kg' : v; }
     Object.keys(d.entries || {}).forEach(function (userId) {
       var entry = d.entries[userId];
       var detail = (entry.detail || '').trim();
@@ -4940,44 +5144,99 @@ var Actions = {
       throw e;
     });
   },
-  printNotebook: function () {
+  /** asPdf=true か iPhone・iPad のときはPDFにする(ホーム画面のアプリでは印刷画面が出ないため。notebookUsesPdf) */
+  printNotebook: function (asPdf) {
     Actions.readNotebookCommentBox();
     if (S.notebook.comment.length > 320 && !window.confirm('連絡文が長いため文字が小さくなります。このまま印刷しますか？')) return;
     var sheet = document.querySelector('.communication-sheet');
     if (sheet) {
-      sheet.className = 'communication-sheet' + notebookDensity(S.notebook.comment, S.notebook.data ? S.notebook.data.exercises.length : 0);
+      sheet.className = 'communication-sheet' + notebookDensity(S.notebook.comment, S.notebook.data ? S.notebook.data.exercises.length : 0, S.notebook.data ? notebookVitals(S.notebook.data).length : 0);
+    }
+    var user = S.notebook.data && S.notebook.data.user;
+    var fileName = '連絡帳_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.notebookDate;
+    var markDone = function () {
+      if (!user) return;
+      // 編集中の内容を保存する(ほかの端末のまとめて印刷にも反映される)
+      var saving = S.notebook.dirty ? Actions.saveNotebook(false) : Promise.resolve();
+      saving.then(function () {
+        return rpc('apiSaveDailyStatus', { userId: user.id, date: S.admin.notebookDate, notebookDone: true });
+      }).then(function () { clearRpcCache(); })
+        .catch(function () { /* 保存失敗は saveNotebook が画面に表示する */ });
+    };
+    if (asPdf === true || notebookUsesPdf()) {
+      var button = document.getElementById(asPdf === true ? 'notebook-pdf' : 'notebook-print');
+      makeNotebookPdf(sheet ? [sheet] : [], fileName + '.pdf', button).then(function (ok) { if (ok) markDone(); });
+      return;
     }
     var oldTitle = document.title;
-    var user = S.notebook.data && S.notebook.data.user;
-    document.title = '連絡帳_' + (user ? user.name.replace(/\s/g, '') : '') + '_' + S.admin.notebookDate;
+    document.title = fileName;
     // 印刷はボタンを押したその場で開く。通信を待ってから開くと、iPad/iPhone の Safari では
     // 印刷画面が出ない・数秒反応がない(固まって見える)ことがあるため、保存は印刷の後に行う
     withPrintPage('A5 landscape', '5mm', function () { window.print(); });
     setTimeout(function () { document.title = oldTitle; }, 500);
-    if (!user) return;
-    // 編集中の内容を保存する(ほかの端末のまとめて印刷にも反映される)
-    var saving = S.notebook.dirty ? Actions.saveNotebook(false) : Promise.resolve();
-    saving.then(function () {
-      return rpc('apiSaveDailyStatus', { userId: user.id, date: S.admin.notebookDate, notebookDone: true });
-    }).then(function () { clearRpcCache(); })
-      .catch(function () { /* 保存失敗は saveNotebook が画面に表示する */ });
+    markDone();
   },
   openNotebookBatch: function (date) {
     S.notebookBatchDate = date || S.today;
     if (location.hash.replace(/^#\/?/, '') === 'notebook-print') render();
     else go('notebook-print');
   },
-  printNotebookBatch: function () {
+  /** まとめて印刷。asPdf=true か iPhone・iPad のときはPDFにする */
+  printNotebookBatch: function (asPdf) {
     var books = S.notebookBatch || [];
     if (!books.length) return;
+    var date = S.notebookBatchDate || S.today;
+    // 印刷した方を「連絡帳完了」にする(本日の進捗画面に反映)
+    var markDone = function () {
+      rpc('apiMarkNotebooksDone', date, books.map(function (b) { return b.user.id; }))
+        .then(function () { S.todayStatusCache = null; })
+        .catch(function () {});
+    };
+    if (asPdf === true || notebookUsesPdf()) {
+      var sheets = Array.prototype.slice.call(document.querySelectorAll('.notebook-batch-sheets .communication-sheet'));
+      var button = document.getElementById(asPdf === true ? 'batch-pdf' : 'batch-print');
+      makeNotebookPdf(sheets, '連絡帳_まとめて_' + date + '.pdf', button).then(function (ok) { if (ok) markDone(); });
+      return;
+    }
     var oldTitle = document.title;
-    document.title = '連絡帳_まとめて印刷_' + (S.notebookBatchDate || S.today);
+    document.title = '連絡帳_まとめて印刷_' + date;
     withPrintPage('A5 landscape', '5mm', function () { window.print(); });
     setTimeout(function () { document.title = oldTitle; }, 500);
-    // 印刷した方を「連絡帳完了」にする(本日の進捗画面に反映)
-    rpc('apiMarkNotebooksDone', S.notebookBatchDate || S.today, books.map(function (b) { return b.user.id; }))
-      .then(function () { S.todayStatusCache = null; })
-      .catch(function () {});
+    markDone();
+  },
+  /** できたPDFを共有メニューへ(iPad/iPhone では「プリント」「ファイルに保存」などが選べる) */
+  sharePdf: function () {
+    var ready = S.pdfReady;
+    if (!ready) return;
+    var file = null;
+    try { file = new File([ready.blob], ready.name, { type: 'application/pdf' }); } catch (e) { file = null; }
+    if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: ready.name }).catch(function (e) {
+        if (e && e.name === 'AbortError') return; // 共有メニューを閉じただけ
+        Actions.openPdf();
+      });
+      return;
+    }
+    Actions.openPdf();
+  },
+  /** 共有メニューが使えない端末(パソコンなど)は、PDFを開く・保存する */
+  openPdf: function () {
+    var ready = S.pdfReady;
+    if (!ready) return;
+    if (S.pdfUrl) URL.revokeObjectURL(S.pdfUrl);
+    S.pdfUrl = URL.createObjectURL(ready.blob);
+    var a = document.createElement('a');
+    a.href = S.pdfUrl;
+    a.download = ready.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  },
+  closePdf: function () {
+    var box = document.getElementById('pdf-ready');
+    if (box) box.parentNode.removeChild(box);
+    S.pdfReady = null;
+    if (S.pdfUrl) { URL.revokeObjectURL(S.pdfUrl); S.pdfUrl = null; }
   },
   printQrCards: function (mode) {
     // 用紙の余白は各シート内で取る(名刺サイズを崩さないよう、ブラウザ側の余白は0にする)
@@ -5116,21 +5375,29 @@ var Actions = {
     var user = null;
     S.users.forEach(function (u) { if (u.id === S.admin.userId) user = u; });
     var days = buildDays(lastResults).slice().reverse();
-    var header = ['日付', '来苑時刻', '帰苑時刻', '送迎区分', '収縮期血圧', '拡張期血圧', '脈拍', '体温', 'SpO2', '体重', '体調・特記事項', 'アラート', '実施種目', '所見'];
+    // 再測定した日はバイタルの各欄に測った順で「／」区切りで並べ、測定時刻を最後の列に入れる(既存の列の位置は変えない)
+    var header = ['日付', '来苑時刻', '帰苑時刻', '送迎区分', '収縮期血圧', '拡張期血圧', '脈拍', '体温', 'SpO2', '体重', '体調・特記事項', 'アラート', '実施種目', '所見', 'バイタル測定時刻'];
     var rows = days.map(function (d) {
+      var vs = d.vitals || (d.vital ? [d.vital] : []);
+      var col = function (fn) { return vs.map(fn).join('／'); };
+      // 空の回も位置を保つ(ほかのバイタル列と何回目かをそろえる)。全部空なら空欄
+      var joinIfAny = function (list) { return list.some(String) ? list.join('／') : ''; };
       return [
         d.date,
         d.checkin ? d.checkin.time : '',
         d.checkin ? d.checkin.checkoutTime || '' : '',
         d.checkin ? d.checkin.transport || '' : '',
-        d.vital ? d.vital.systolic : '', d.vital ? d.vital.diastolic : '',
-        d.vital ? d.vital.pulse : '', d.vital ? d.vital.temp : '',
-        d.vital && d.vital.spo2 != null ? d.vital.spo2 : '',
-        d.vital && d.vital.weight != null ? d.vital.weight : '',
-        d.vital ? d.vital.conditionNote || '' : '',
-        d.vital ? d.vital.alerts.join(' / ') : '',
-        d.exercises.map(function (e) { return exerciseLabel(e) + (e.load ? '(' + e.load + ')' : ''); }).join(' → '),
+        col(function (v) { return v.systolic; }), col(function (v) { return v.diastolic; }),
+        col(function (v) { return v.pulse; }), col(function (v) { return v.temp; }),
+        col(function (v) { return v.spo2 != null ? v.spo2 : ''; }),
+        col(function (v) { return v.weight != null ? v.weight : ''; }),
+        joinIfAny(vs.map(function (v) { return v.conditionNote || ''; })),
+        joinIfAny(vs.map(function (v) { return (v.alerts || []).join(' / '); })),
+        d.exercises.map(function (e) {
+          return exerciseLabel(e) + (e.load && e.exerciseId !== OTHER_EXERCISE_ID ? '(' + e.load + ')' : '');
+        }).join(' → '),
         d.note,
+        vs.length > 1 ? col(function (v) { return v.time || ''; }) : '',
       ];
     });
     var csv = [header].concat(rows).map(function (r) {
@@ -5446,8 +5713,17 @@ var Mock = (function () {
     },
     apiAdminSaveExercise: function (p) {
       var db = load();
+      var key = function (n) { return String(n || '').replace(/\s/g, ''); };
+      if (!String(p.name || '').trim()) throw new Error('運動の名前を入力してください');
+      if (p.id === 'prep' && p.active === false) throw new Error('準備運動は止められません');
+      var same = db.exercises.filter(function (e) { return e.id !== p.id && key(e.name) === key(p.name); })[0];
+      if (same) throw new Error('「' + same.name + '」はすでにあります' + (same.active !== false ? '' : '(停止中。「再開」で戻せます)'));
       if (p.id) db.exercises.forEach(function (e) { if (e.id === p.id) { e.name = p.name; e.active = p.active !== false; } });
-      else db.exercises.push({ id: 'ex' + Date.now().toString(36), name: p.name, shortName: p.name, amountLabel: '実施時間', amountOptions: ['15分'], qrCode: '', active: true });
+      else {
+        var added = { id: 'ex' + Date.now().toString(36), name: p.name, shortName: p.name, amountLabel: '実施時間', amountOptions: ['15分'], qrCode: '', active: true };
+        var at = db.exercises.map(function (e) { return e.id; }).indexOf(OTHER_EXERCISE_ID);
+        if (at >= 0) db.exercises.splice(at, 0, added); else db.exercises.push(added);
+      }
       save(db);
       return { exercises: db.exercises };
     },
