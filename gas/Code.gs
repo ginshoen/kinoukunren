@@ -188,6 +188,7 @@ function apiCall(fnName, args, session, facility) {
   resetRequestCache_();
   if (fnName === 'apiGetStaffList' || fnName === 'apiLogin') requireFacilityCode_(facility);
   ensureSchema_();
+  seedDemoEnvironment_(); // デモのスプレッドシートだけ初回に架空のデータを入れる(本番では何もしない)
   return dispatch_(fnName, args, session);
 }
 
@@ -219,7 +220,9 @@ function doPost(e) {
         requestedFn === 'apiPairDevice') {
       requireFacilityCode_(body.facility);
     }
+    requireSameEnvironment_(body.env);
     ensureSchema_();
+    seedDemoEnvironment_(); // デモのスプレッドシートだけ初回に架空のデータを入れる(本番では何もしない)
     result = { ok: true, data: dispatch_(requestedFn, body.args, body.session) };
   } catch (err) {
     result = { ok: false, error: String((err && err.message) || err) };
@@ -524,7 +527,8 @@ function toVital_(r) {
   return {
     id: String(r[0]), date: dateStr_(r[1]), time: timeStr_(r[2]), userId: String(r[3]),
     systolic: Number(r[4]), diastolic: Number(r[5]), pulse: Number(r[6]),
-    temp: Number(r[7]), spo2: numOrNull_(r[8]), weight: numOrNull_(r[9]),
+    // 体温は2回目以降の測定では空のことがある(2026-11-04 現場要望)。空は 0 ではなく null
+    temp: numOrNull_(r[7] == null ? '' : r[7]), spo2: numOrNull_(r[8]), weight: numOrNull_(r[9]),
     flagged: String(r[10]) === 'true', alerts: String(r[11] || '') ? String(r[11]).split(' / ') : [],
     conditionNote: String(r[12] || ''),
   };
@@ -1344,14 +1348,24 @@ function apiVoidRecord_(kind, recordId) {
 /** バイタル入力用コンテキスト: 前回値(本日より前の最新) */
 function apiGetVitalContext_(userId) {
   var today = todayStr_();
-  var prev = allVitals_()
-    .filter(function (v) { return v.userId === userId && v.date < today; })
+  var mine = allVitals_().filter(function (v) { return v.userId === userId; });
+  var prev = mine
+    .filter(function (v) { return v.date < today; })
     .sort(function (a, b) {
       var ka = a.date + timeKey_(a.time);
       var kb = b.date + timeKey_(b.time);
       return ka < kb ? -1 : 1;
     });
-  return { prev: prev.length ? prev[prev.length - 1] : null };
+  var last = prev.length ? prev[prev.length - 1] : null;
+  // 前回が体温なしの再測定だったときは、体温だけその前の測定から引き継ぐ(前回比の警告・表示用)
+  if (last && last.temp == null) {
+    var withTemp = prev.filter(function (v) { return v.temp != null; });
+    last = JSON.parse(JSON.stringify(last));
+    last.temp = withTemp.length ? withTemp[withTemp.length - 1].temp : null;
+  }
+  // 本日すでに測った回数。1回以上あれば、今回(2回目以降)は体温を省略できる
+  var todayCount = mine.filter(function (v) { return v.date === today; }).length;
+  return { prev: last, todayCount: todayCount };
 }
 
 /**
@@ -1359,14 +1373,17 @@ function apiGetVitalContext_(userId) {
  * payload: {userId, systolic, diastolic, pulse, temp, spo2, weight, conditionNote}
  */
 function apiSaveVitals_(payload) {
-  validateVitalPayload_(payload);
-  var prev = apiGetVitalContext_(payload.userId).prev;
+  var ctx = payload && allUsers_().some(function (u) { return u.id === payload.userId; })
+    ? apiGetVitalContext_(payload.userId) : { prev: null, todayCount: 0 };
+  // 2回目以降の測定(本日すでに1回以上ある)は体温を省略できる(2026-11-04 現場要望)
+  validateVitalPayload_(payload, ctx.todayCount > 0);
+  var prev = ctx.prev;
   var alerts = evaluateVitalAlerts_(payload, prev);
   // SpO2・体重は任意項目。未入力は 0 ではなく空(null)として保存する
   var rec = {
     id: newId_(), date: todayStr_(), time: nowTime_(), userId: payload.userId,
     systolic: Number(payload.systolic) || 0, diastolic: Number(payload.diastolic) || 0,
-    pulse: Number(payload.pulse) || 0, temp: Number(payload.temp) || 0,
+    pulse: Number(payload.pulse) || 0, temp: payload.temp == null || String(payload.temp) === '' ? null : Number(payload.temp),
     spo2: String(payload.spo2) === '' ? null : Number(payload.spo2),
     weight: String(payload.weight) === '' ? null : Number(payload.weight),
     flagged: alerts.length > 0, alerts: alerts,
@@ -1374,14 +1391,14 @@ function apiSaveVitals_(payload) {
   };
   appendRow_('vitals', [
     rec.id, rec.date, rec.time, rec.userId,
-    rec.systolic, rec.diastolic, rec.pulse, rec.temp,
+    rec.systolic, rec.diastolic, rec.pulse, rec.temp === null ? '' : rec.temp,
     rec.spo2 === null ? '' : rec.spo2, rec.weight === null ? '' : rec.weight,
     rec.flagged, rec.alerts.join(' / '), rec.conditionNote, currentStaffName_(),
   ]);
   return rec;
 }
 
-function validateVitalPayload_(payload) {
+function validateVitalPayload_(payload, tempOptional) {
   if (!payload || !allUsers_().some(function (u) { return u.id === payload.userId; })) {
     throw new Error('利用者が見つかりません。');
   }
@@ -1389,9 +1406,12 @@ function validateVitalPayload_(payload) {
     systolic: [60, 250], diastolic: [30, 150], pulse: [30, 220],
     temp: [30, 45], spo2: [50, 100], weight: [20, 250],
   };
-  var optional = { spo2: true, weight: true };
+  var optional = { spo2: true, weight: true, temp: !!tempOptional };
   Object.keys(limits).forEach(function (key) {
-    if (optional[key] && String(payload[key]) === '') return; // SpO2・体重は任意
+    if (optional[key] && String(payload[key] == null ? '' : payload[key]) === '') return; // SpO2・体重(2回目以降は体温も)は任意
+    if (key === 'temp' && String(payload[key] == null ? '' : payload[key]) === '') {
+      throw new Error('体温を入力してください(本日1回目の測定は体温が必要です)。');
+    }
     var value = Number(payload[key]);
     var range = limits[key];
     if (payload[key] === '' || !isFinite(value) || value < range[0] || value > range[1]) {
@@ -1420,10 +1440,11 @@ function evaluateVitalAlerts_(draft, prev) {
   } else if (prev && draft.spo2 !== '' && prev.spo2 != null && prev.spo2 - spo2 >= 3) {
     alerts.push('SpO2が前回より' + (prev.spo2 - spo2) + '%低下しています。状態を確認してください');
   }
-  var temp = Number(draft.temp);
-  if (draft.temp !== '' && !isNaN(temp) && temp >= 37.5) {
+  // 体温は2回目以降の測定で空(''/null)のことがある。空は判定しない
+  var temp = draft.temp == null || draft.temp === '' ? NaN : Number(draft.temp);
+  if (!isNaN(temp) && temp >= 37.5) {
     alerts.push('体温が高めです(37.5℃以上)。本日の運動可否を確認してください');
-  } else if (prev && draft.temp !== '' && Math.abs(temp - prev.temp) >= 1) {
+  } else if (prev && prev.temp != null && !isNaN(temp) && Math.abs(temp - prev.temp) >= 1) {
     alerts.push('体温が前回から' + Math.abs(temp - prev.temp).toFixed(1) + '℃変化しています');
   }
   var dia = Number(draft.diastolic);
@@ -2193,6 +2214,172 @@ function apiGetMonthly_(month) {
     vitals: allVitals_().filter(function (v) { return inMonth(v.date); }),
     records: allRecords_().filter(function (e) { return inMonth(e.date); }),
   };
+}
+
+// ---------------------------------------------------------------- デモ環境(2026-11-04)
+// 現場の職員が操作を試すための、本番とは別の Apps Script・スプレッドシートで動くときだけ使う。
+// デモの条件(すべて満たすときだけ):
+//   1) デモ用の Apps Script にだけ置くファイル Demo.gs(../kinoukunren-demo/、本番のフォルダには置かない)があり DEMO_BUILD = true
+//   2) シートIDの設定(SPREADSHEET_ID)がない  3) つながっているスプレッドシートの名前に「デモ」が入っている
+// 本番では 1) で必ず止まるので、デモとして動くことはない(スプレッドシートにも触れない)。
+// デモでは初回に架空の職員・利用者・記録を自動で入れる。実在の方の情報は入れない。
+
+var DEMO_SEED_PROP = 'DEMO_SEEDED';
+var IS_DEMO_MEMO_ = null;
+
+function isDemoEnvironment_() {
+  if (IS_DEMO_MEMO_ !== null) return IS_DEMO_MEMO_;
+  IS_DEMO_MEMO_ = false;
+  if (typeof DEMO_BUILD === 'undefined' || DEMO_BUILD !== true) return false;
+  try {
+    if (scriptProp_('SPREADSHEET_ID')) return false;
+    var ss = SpreadsheetApp.getActive();
+    IS_DEMO_MEMO_ = !!ss && String(ss.getName()).indexOf('デモ') !== -1;
+  } catch (e) {
+    IS_DEMO_MEMO_ = false;
+  }
+  return IS_DEMO_MEMO_;
+}
+
+/** 画面が本番用かデモ用かを送ってきたら、つながった先と同じか確かめる(取り違えて相手のデータに書かない) */
+function requireSameEnvironment_(env) {
+  if (!env) return; // env を送らない古い画面はそのまま通す
+  var server = isDemoEnvironment_() ? 'demo' : 'production';
+  if (String(env) === server) return;
+  throw new Error(server === 'demo'
+    ? 'この画面は本番用です。デモにはつなげません。'
+    : 'デモの画面が本番につながろうとしたため止めました。デモ用のリンクから開き直してください。');
+}
+
+// 架空の職員(デモ用の番号。本番では使わない)
+var DEMO_STAFF = [
+  ['sdemo1', '職員デモ', 'しょくいんでも', '介護職員', 'staff', '1111'],
+  ['sdemo3', '管理者デモ', 'かんりしゃでも', '管理者', 'admin', '3333'],
+];
+// 架空の利用者10名(ID は d01〜d10)。並び: ID・氏名・年齢・介護度・利用曜日・ふりがな・個人目標・既往歴・運動の注意
+var DEMO_USERS = [
+  ['d01', '山田 花子', 84, '要介護1', '月/木', 'やまだ はなこ', '屋内を安全に歩き、買い物に行けるようにする', '変形性膝関節症(右)、高血圧症', '右膝に痛みが出たら負荷を軽くする'],
+  ['d02', '佐藤 一郎', 79, '要支援2', '月/水', 'さとう いちろう', '散歩を毎日続けられる体力をつける', '高血圧症', ''],
+  ['d03', '鈴木 美智子', 88, '要介護2', '火/金', 'すずき みちこ', '立ち上がりを安定させる', '腰部脊柱管狭窄症', '腰をひねる運動は控える'],
+  ['d04', '高橋 健二', 76, '要支援1', '水/土', 'たかはし けんじ', '畑仕事を続ける', '糖尿病(内服)', '運動前に体調を確認する'],
+  ['d05', '田中 和子', 82, '要介護1', '月/木', 'たなか かずこ', '転ばずに過ごす', '骨粗しょう症', 'ふらつき時は休憩'],
+  ['d06', '伊藤 正男', 85, '要介護3', '火/金', 'いとう まさお', '車いすから自分で移れるようにする', '脳梗塞後遺症(左片まひ)', '左手足に無理な力をかけない'],
+  ['d07', '渡辺 幸子', 80, '要支援2', '月/水', 'わたなべ さちこ', '友人と旅行に行く', '特になし', ''],
+  ['d08', '小林 秀夫', 87, '要介護2', '水/土', 'こばやし ひでお', '食事を自分で続ける', 'パーキンソン病', 'すくみ足に注意'],
+  ['d09', '加藤 春江', 78, '要支援1', '火/金', 'かとう はるえ', '体力を保つ', '高脂血症', ''],
+  ['d10', '中村 茂', 83, '要介護1', '月/木', 'なかむら しげる', '階段の上り下りを続ける', '慢性心不全', '息切れに注意'],
+];
+
+var DEMO_SEEDING_ = false;
+
+/** デモのスプレッドシートだけ、初回に架空の職員・利用者・記録を入れる(本番では何もしない) */
+function seedDemoEnvironment_() {
+  if (DEMO_SEEDING_ || !isDemoEnvironment_() || scriptProp_(DEMO_SEED_PROP)) return;
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  DEMO_SEEDING_ = true;
+  try {
+    var props = PropertiesService.getScriptProperties();
+    if (props.getProperty(DEMO_SEED_PROP)) return;
+    invalidateRequestRows_('users');
+    invalidateRequestRows_('staff');
+    // デモは空のスプレッドシートから始める。架空以外の利用者が入っていたら止める(本番の写しを使わせない)
+    var demoIds = DEMO_USERS.map(function (u) { return u[0]; });
+    var existing = rows_('users').map(function (r) { return String(r[0]); }).filter(String);
+    if (existing.some(function (id) { return demoIds.indexOf(id) < 0; })) {
+      throw new Error('デモのスプレッドシートに架空ではない利用者が入っています。デモは空のスプレッドシートから作り直してください。');
+    }
+    if (!rows_('staff').length) {
+      appendRowsNoLock_('staff', DEMO_STAFF.map(function (s) {
+        var salt = Utilities.getUuid();
+        return [s[0], s[1], s[2], s[3], s[4], hashPin_(s[0], s[5], salt), 'true', salt, '1'];
+      }));
+    }
+    // 実施した運動は現場の一覧にそろえる
+    applyFieldExerciseList_(sheet_('exercises'));
+    if (!existing.length) seedDemoRecords_();
+    setScriptProp_(DEMO_SEED_PROP, new Date().toISOString());
+  } finally {
+    DEMO_SEEDING_ = false;
+    lock.releaseLock();
+  }
+}
+
+function appendRowsNoLock_(key, rows) {
+  if (!rows.length) return;
+  var sh = sheet_(key);
+  var width = HEADERS[key].length;
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, width).setNumberFormat('@')
+    .setValues(rows.map(function (r) {
+      var out = r.map(function (v) { return v == null ? '' : String(v); });
+      while (out.length < width) out.push('');
+      return out.slice(0, width);
+    }));
+  invalidateRequestRows_(key);
+  if (key === 'users' || key === 'exercises') CacheService.getScriptCache().remove('master-v4-' + key);
+}
+
+/** 架空の利用者と、グラフ・連絡帳を試せる程度の過去の記録・本日の記録を入れる */
+function seedDemoRecords_() {
+  appendRowsNoLock_('users', DEMO_USERS.map(function (u) {
+    return [u[0], u[1], u[2], u[3], u[4], '', 'GSU:' + u[0], u[5], u[6], u[7], u[8], ''];
+  }));
+  var exByName = {};
+  rows_('exercises').map(toExercise_).forEach(function (e) { exByName[e.name] = e.id; });
+  function exId(name) { return exByName[name] || 'prep'; }
+  var tz = Session.getScriptTimeZone();
+  function day(offset) {
+    var d = new Date();
+    d.setDate(d.getDate() - offset);
+    return Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+  }
+  var checkins = [], vitals = [], records = [], cognitive = [], assessments = [];
+  var staffName = '職員デモ';
+  var seq = 0;
+  function id(prefix) { seq += 1; return prefix + Date.now().toString(36) + ('00' + seq).slice(-3); }
+
+  // 過去の来所(グラフ・前回値・前回コピー用)。山田さんは右膝の痛みの記録あり(連絡帳の言葉の見本)
+  var pastPlan = [
+    ['d01', [32, 28, 25, 21, 18, 14, 11, 7, 4], [128, 74, 70, '36.4', 97]],
+    ['d02', [30, 23, 16, 9, 2], [136, 80, 72, '36.2', 98]],
+    ['d05', [29, 22, 15, 8, 1], [122, 70, 68, '36.5', 96]],
+    ['d10', [31, 24, 17, 10, 3], [118, 68, 76, '36.3', 95]],
+  ];
+  pastPlan.forEach(function (p) {
+    p[1].forEach(function (offset, i) {
+      var date = day(offset);
+      var wobble = (i % 3) - 1;
+      checkins.push([id('c'), date, '9:0' + (i % 6), p[0], '15:30', '施設送迎', staffName]);
+      vitals.push([id('v'), date, '9:1' + (i % 6), p[0], p[2][0] + wobble * 4, p[2][1] + wobble * 2, p[2][2] + wobble,
+        (Number(p[2][3]) + wobble * 0.1).toFixed(1), p[2][4], '', 'false', '', i === 2 && p[0] === 'd01' ? '右膝の痛みあり' : '', staffName]);
+      records.push([id('r'), date, '9:30', p[0], 'prep', '15分', '', '', staffName]);
+      records.push([id('r'), date, '9:45', p[0], exId('歩行練習'), '実施', '', i === 2 && p[0] === 'd01' ? '右膝の痛みあるため、負荷量軽めに運動行いました' : '', staffName]);
+      records.push([id('r'), date, '10:00', p[0], exId(i % 2 ? 'ボール運動' : '自転車運動'), '実施', '', '', staffName]);
+      records.push([id('r'), date, '10:15', p[0], exId('ストレッチ'), '実施', '', '', staffName]);
+      if (i % 2 === 0) cognitive.push([id('g'), date, '10:40', p[0], '計算プリント', '集中して取り組まれました。', staffName, '15', String(14 + i), '問']);
+    });
+  });
+  assessments.push([id('a'), day(28), 'd01', '体力測定', '12.8秒', '', staffName, 'TUG(立ち上がり歩行)']);
+  assessments.push([id('a'), day(7), 'd01', '体力測定', '12.1秒', '前回より0.7秒短縮。', staffName, 'TUG(立ち上がり歩行)']);
+  assessments.push([id('a'), day(7), 'd01', '体力測定', '18.5kg', '', staffName, '握力(右)']);
+  assessments.push([id('a'), day(7), 'd01', '体力測定', '17.0kg', '', staffName, '握力(左)']);
+
+  // 本日: 4名が来所済み。山田さんは1回目のバイタルと運動を記録済み(2回目のバイタルは体温なしで保存できる)
+  var today = todayStr_();
+  [['d01', '8:58'], ['d02', '9:05'], ['d05', '9:12'], ['d10', '9:20']].forEach(function (c) {
+    checkins.push([id('c'), today, c[1], c[0], '', '', staffName]);
+  });
+  vitals.push([id('v'), today, '9:10', 'd01', 142, 82, 74, '36.6', 97, '', 'false', '', '体調良好。右膝の痛みあり', staffName]);
+  records.push([id('r'), today, '9:30', 'd01', 'prep', '15分', '', '', staffName]);
+  records.push([id('r'), today, '9:45', 'd01', exId('歩行練習'), '実施', '', '右膝の痛みあるため、負荷量軽めに運動行いました', staffName]);
+  records.push([id('r'), today, '10:00', 'd01', exId('自転車運動'), '実施', '', '意欲高い', staffName]);
+  vitals.push([id('v'), today, '9:25', 'd02', 134, 78, 70, '36.3', 98, '', 'false', '', '体調良好', staffName]);
+
+  appendRowsNoLock_('checkins', checkins);
+  appendRowsNoLock_('vitals', vitals);
+  appendRowsNoLock_('records', records);
+  appendRowsNoLock_('cognitive', cognitive);
+  appendRowsNoLock_('assessments', assessments);
 }
 
 // ---------------------------------------------------------------- セットアップ
