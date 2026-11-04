@@ -646,6 +646,18 @@ select {
   font-size: 11px;
   color: var(--text-aux);
 }
+/* 2回目以降の測定で体温を省略できることを示す小さな札(2026-11-04) */
+.vital-optional {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #eef4ec;
+  color: #2e6b34;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
 
 /* ---------- アラート ---------- */
 .alert-banner {
@@ -3573,4 +3585,25 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .pdf-ready-title { font-size: 17px; font-weight: 900; color: var(--green-dark); }
 .pdf-ready-card p { margin: 0; font-size: 14px; line-height: 1.6; }
 .pdf-ready-card button { width: 100%; min-height: 48px; }
+
+/* デモの画面(架空のデータ)であることを常に表示する(2026-11-04)。印刷・PDFには出さない */
+html.is-demo body::before {
+  content: 'デモ(架空のデータ)';
+  position: fixed;
+  z-index: 9999;
+  top: calc(env(safe-area-inset-top, 0px) + 4px);
+  right: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fff4d6;
+  border: 1px solid #e8c56a;
+  color: #7a5200;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+  box-shadow: 0 1px 4px #0000001a;
+}
+@media print {
+  html.is-demo body::before { display: none; }
+}
 </style>
