@@ -656,6 +656,18 @@ select {
   font-size: 11px;
   color: var(--text-aux);
 }
+/* 2回目以降の測定で体温を省略できることを示す小さな札(2026-11-04) */
+.vital-optional {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #eef4ec;
+  color: #2e6b34;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: middle;
+}
 
 /* ---------- アラート ---------- */
 .alert-banner {
@@ -3583,11 +3595,32 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .pdf-ready-title { font-size: 17px; font-weight: 900; color: var(--green-dark); }
 .pdf-ready-card p { margin: 0; font-size: 14px; line-height: 1.6; }
 .pdf-ready-card button { width: 100%; min-height: 48px; }
+
+/* デモの画面(架空のデータ)であることを常に表示する(2026-11-04)。印刷・PDFには出さない */
+html.is-demo body::before {
+  content: 'デモ(架空のデータ)';
+  position: fixed;
+  z-index: 9999;
+  top: calc(env(safe-area-inset-top, 0px) + 4px);
+  right: 8px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fff4d6;
+  border: 1px solid #e8c56a;
+  color: #7a5200;
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+  box-shadow: 0 1px 4px #0000001a;
+}
+@media print {
+  html.is-demo body::before { display: none; }
+}
 </style>
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261029-1541';window.APP_MOCK=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261104-1544';window.APP_MOCK=false;window.APP_DEMO=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -3873,6 +3906,12 @@ var PREPARATION_EXERCISE_ID = 'prep';
 var WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 
 // ホスティング版の接続設定: ファイル編集不要。画面の「接続設定」から入力し端末に保存される
+// デモの画面(GitHub Pages の demo/)は架空のデータだけのデモ用サーバーにつなぐ(2026-11-04)
+var APP_ENV = window.APP_DEMO ? 'demo' : 'production';
+if (window.APP_DEMO) {
+  document.documentElement.classList.add('is-demo');
+  document.title = '【デモ】' + (document.title || '機能訓練記録');
+}
 window.GAS_API_URL = window.APP_MOCK ? '' : (window.GAS_API_URL || localStorage.getItem('gasApiUrl') || '');
 window.GAS_API_TOKEN = window.APP_MOCK ? '' : (window.GAS_API_TOKEN || localStorage.getItem('gasApiToken') || '');
 
@@ -4063,6 +4102,7 @@ function fetchRpc(name, args) {
       token: window.GAS_API_TOKEN || '',
       session: S.session || '', // 職員ログインのセッション(サーバー側で権限判定)
       facility: FACILITY_CODE,  // ログイン前APIの保護に使う施設コード
+      env: APP_ENV,             // 本番の画面かデモの画面か(取り違えてつながったらサーバーが止める)
     }),
     signal: controller ? controller.signal : undefined,
   }).then(function (r) {
@@ -4126,6 +4166,7 @@ function pairDeviceRpc(pin) {
     body: JSON.stringify({
       fn: 'apiPairDevice', args: [String(pin || '')], token: '',
       facility: FACILITY_CODE, // ペアリングも施設コードで保護する
+      env: APP_ENV,
     }),
   }).then(function (r) {
     if (!r.ok) throw new Error('通信エラー(' + r.status + ')');
@@ -4303,6 +4344,12 @@ function nowClock() {
   };
 }
 
+/** 体温の表示(2回目以降の測定は体温なしで保存できるため、空なら空文字を返す) */
+function tempText(t) {
+  if (t == null || t === '' || !isFinite(Number(t))) return '';
+  return Number(t).toFixed(1);
+}
+
 // バイタル閾値判定(サーバーと同一ロジック。ライブ表示用)
 function evaluateVitalAlerts(draft, prev) {
   var alerts = [];
@@ -4314,9 +4361,9 @@ function evaluateVitalAlerts(draft, prev) {
   var spo2 = Number(draft.spo2);
   if (draft.spo2 !== '' && !isNaN(spo2) && spo2 <= 92) alerts.push('SpO2が低めです(92%以下)。安静にして再測定してください');
   else if (prev && draft.spo2 !== '' && prev.spo2 != null && prev.spo2 - spo2 >= 3) alerts.push('SpO2が前回より' + (prev.spo2 - spo2) + '%低下しています。状態を確認してください');
-  var temp = Number(draft.temp);
-  if (draft.temp !== '' && !isNaN(temp) && temp >= 37.5) alerts.push('体温が高めです(37.5℃以上)。本日の運動可否を確認してください');
-  else if (prev && draft.temp !== '' && Math.abs(temp - prev.temp) >= 1) alerts.push('体温が前回から' + Math.abs(temp - prev.temp).toFixed(1) + '℃変化しています');
+  var temp = draft.temp == null || draft.temp === '' ? NaN : Number(draft.temp);
+  if (!isNaN(temp) && temp >= 37.5) alerts.push('体温が高めです(37.5℃以上)。本日の運動可否を確認してください');
+  else if (prev && prev.temp != null && !isNaN(temp) && Math.abs(temp - prev.temp) >= 1) alerts.push('体温が前回から' + Math.abs(temp - prev.temp).toFixed(1) + '℃変化しています');
   var dia = Number(draft.diastolic);
   if (prev && draft.diastolic !== '' && Math.abs(dia - prev.diastolic) >= 20) alerts.push('拡張期血圧が前回から' + Math.abs(dia - prev.diastolic) + 'mmHg変化しています');
   var pulse = Number(draft.pulse);
@@ -5067,6 +5114,11 @@ function notebookSheetsToPdf(sheets, onProgress) {
   return ensurePdfLibs().then(function () {
     var css = printRulesCss();
     var pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5', compress: true });
+    // 片面・A5・等倍で印刷するようプリンタへ伝える設定を入れる(2026-11-04 現場要望「片面・A5に自動で」)。
+    // 対応するプリンタ・アプリではこの設定が既定になる。従わない機種もあるため、画面の案内も残す
+    if (pdf.viewerPreferences) {
+      try { pdf.viewerPreferences({ Duplex: 'Simplex', PickTrayByPDFSize: true, PrintScaling: 'None' }); } catch (e) { /* 設定できなくてもPDFは作る */ }
+    }
     var chain = Promise.resolve();
     sheets.forEach(function (sheet, i) {
       chain = chain.then(function () {
@@ -5138,7 +5190,7 @@ function showPdfReady(blob, fileName, pages) {
   box.innerHTML =
     '<div class="pdf-ready-card">' +
     '<div class="pdf-ready-title">連絡帳のPDFができました(' + pages + '枚)</div>' +
-    '<p>「印刷・共有する」を押し、出てきたメニューから<b>「プリント」</b>を選んでください。用紙は<b>A5・横</b>です。</p>' +
+    '<p>「印刷・共有する」を押し、出てきたメニューから<b>「プリント」</b>を選んでください。用紙は<b>A5・横・片面</b>です(PDFに設定済み。プリント画面で「両面」がオフになっているかだけ確かめてください)。</p>' +
     '<p class="section-note">iPadからプリンタが見つからないときは、同じメニューの「ファイルに保存」やメールで事務所のパソコンへ送って印刷できます。</p>' +
     '<button class="btn-primary" id="pdf-share" onclick="Actions.sharePdf()">印刷・共有する</button>' +
     '<button class="btn-outline" onclick="Actions.openPdf()">PDFを開く</button>' +
@@ -5596,6 +5648,9 @@ function renderVitals(app, renderId) {
   rpc('apiGetVitalContext', user.id).then(function (ctx) {
     if (!isCurrentRender(renderId)) return;
     S.prevVital = ctx.prev;
+    // 本日2回目以降の測定は体温を省略できる(2026-11-04 現場要望)
+    S.vitalTempOptional = Number(ctx.todayCount || 0) > 0;
+    var round = Number(ctx.todayCount || 0) + 1;
     if (!S.vDraft) S.vDraft = { systolic: '', diastolic: '', pulse: '', temp: '', spo2: '', weight: '', conditionNote: '', conditionTags: [] };
     if (!S.vDraft.conditionTags) S.vDraft.conditionTags = [];
     var prev = S.prevVital;
@@ -5622,6 +5677,7 @@ function renderVitals(app, renderId) {
       var parts = String(d.temp || '').split('.');
       return (
         '<div class="vital-cell temp-cell" data-vital-field="temp"><span class="card-label">体温 <span class="unit">℃</span>' +
+        (S.vitalTempOptional ? '<span class="vital-optional">2回目以降は省略可</span>' : '') +
         (prevValue != null ? '<span class="vital-prev">(前回 ' + prevValue + ')</span>' : '') + '</span>' +
         '<div class="temp-split">' +
         '<input id="temp-int" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="36" value="' + esc(parts[0] || '') + '"' +
@@ -5641,7 +5697,10 @@ function renderVitals(app, renderId) {
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:12px;">' +
-      '<div class="screen-intro compact-intro"><span class="eyebrow">バイタル</span><h1>測定した値を入力</h1><p>血圧・脈拍・体温を入力すると保存できます。</p></div>' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">バイタル</span><h1>測定した値を入力</h1>' +
+      (S.vitalTempOptional
+        ? '<p>本日' + round + '回目の測定です。<b>体温は入力しなくても保存できます。</b></p></div>'
+        : '<p>血圧・脈拍・体温を入力すると保存できます。</p></div>') +
       (prev ? '<button class="btn-outline copy-previous" onclick="Actions.vCopyPrevious()">↻ 前回 ' + esc(dayLabel(prev.date)) + ' の値と特記事項をコピー</button>' : '') +
       precautionHtml(user, true) +
       '<div class="form-section-label">必須の測定値 <span class="required-tag">必須</span></div>' +
@@ -5656,7 +5715,7 @@ function renderVitals(app, renderId) {
       '</div></div>' +
       '<div class="vitals-grid">' +
       cell('pulse', '脈拍', 'bpm', prev ? String(prev.pulse) : null) +
-      tempCell(prev ? prev.temp.toFixed(1) : null) +
+      tempCell(prev && prev.temp != null ? tempText(prev.temp) : null) +
       '</div><div class="form-section-label">その他の測定値 <span>任意</span></div><div class="vitals-grid">' +
       cell('spo2', 'SpO2(任意)', '%', prev && prev.spo2 != null ? String(prev.spo2) : null) +
       cell('weight', '体重(任意)', 'kg', prev && prev.weight != null ? prev.weight.toFixed(1) : null) +
@@ -6150,7 +6209,8 @@ function renderErrorHtml(message, backHash) {
 
 function vitalLineText(v) {
   if (!v) return null;
-  var parts = ['血圧 <b>' + v.systolic + '/' + v.diastolic + '</b>', '脈拍 <b>' + v.pulse + '</b>', '<b>' + v.temp.toFixed(1) + '</b>℃'];
+  var parts = ['血圧 <b>' + v.systolic + '/' + v.diastolic + '</b>', '脈拍 <b>' + v.pulse + '</b>'];
+  if (tempText(v.temp)) parts.push('<b>' + tempText(v.temp) + '</b>℃');
   if (v.spo2 != null) parts.push('SpO2 <b>' + v.spo2 + '</b>%');
   if (v.weight != null) parts.push('<b>' + v.weight.toFixed(1) + '</b>kg');
   return parts.join(' · ');
@@ -6200,7 +6260,7 @@ function renderUserDetail(app, userId, renderId) {
     var statsHtml = latest
       ? '<div class="vitals-grid" style="margin-top:12px;">' +
         statCell('血圧', 'mmHg', latest.systolic + '/' + latest.diastolic, prev ? prev.systolic + '/' + prev.diastolic : null) +
-        statCell('体温', '℃', latest.temp.toFixed(1), prev ? prev.temp.toFixed(1) : null) +
+        statCell('体温', '℃', tempText(latest.temp) || null, prev && tempText(prev.temp) ? tempText(prev.temp) : null) +
         statCell('SpO2', '%', latest.spo2, prev ? prev.spo2 : null) +
         statCell('体重', 'kg', latest.weight != null ? latest.weight.toFixed(1) : null,
           prev && prev.weight != null ? prev.weight.toFixed(1) : null) +
@@ -6685,7 +6745,7 @@ function renderAdminResults(app, renderId) {
       var vitalTxt = d.vitals.length
         ? d.vitals.map(function (v) {
             return (d.vitals.length > 1 && v.time ? esc(v.time) + ' ' : '') +
-              v.systolic + '/' + v.diastolic + ' · P' + v.pulse + ' · ' + Number(v.temp).toFixed(1) + '℃';
+              v.systolic + '/' + v.diastolic + ' · P' + v.pulse + (tempText(v.temp) ? ' · ' + tempText(v.temp) + '℃' : '');
           }).join('<br>')
         : '—';
       var flagged = d.vitals.filter(function (v) { return v.flagged; });
@@ -7252,6 +7312,179 @@ function notebookDateLabel(date) {
 }
 
 /**
+ * 記録の言葉(「右膝の痛みあり」「負荷軽め」など)を、連絡帳でご本人・ご家族に向けた言葉にする(2026-11-04 現場要望)。
+ * 外部には送らず、この画面の中だけで決まった言い換えをする。言い換えられない文はそのまま残す(職員が印刷前に直せる)。
+ * すでに「〜ました」「〜です」で終わる文は変えない。
+ */
+var FAMILY_EXACT = {
+  '体調良好': '体調はお変わりなく、お元気に過ごされました。',
+  '良好': '体調はお変わりなく、お元気に過ごされました。',
+  '体調変わらず': '体調はお変わりなく過ごされました。',
+  '変わりなし': 'お変わりなく過ごされました。',
+  '著変なし': 'お変わりなく過ごされました。',
+  '特変なし': 'お変わりなく過ごされました。',
+  '特記なし': 'お変わりなく過ごされました。',
+  '異常なし': 'お変わりなく過ごされました。',
+  '問題なし': 'お変わりなく過ごされました。',
+  '体調不良': '体調がすぐれないご様子でした。',
+  '体調不良あり': '体調がすぐれないご様子でした。',
+  '体調不良の訴えあり': '体調がすぐれないとのお話がありました。',
+  '様子観察': '引き続き様子を見てまいります。',
+  '経過観察': '引き続き様子を見てまいります。',
+  '意欲高い': '意欲的に取り組まれました。',
+  '意欲的': '意欲的に取り組まれました。',
+  '意欲あり': '意欲的に取り組まれました。',
+  '意欲低下': '少しお疲れのご様子でした。',
+  '傾眠': 'うとうとされるご様子がありました。',
+  '傾眠傾向': 'うとうとされるご様子がありました。',
+  '食欲不振': '食欲があまりないご様子でした。',
+  '休憩あり': '途中で休憩をとりながら過ごされました。',
+  '疲労の訴えあり': '少しお疲れのご様子でした。',
+  '疲労感あり': '少しお疲れのご様子でした。',
+  '疲れあり': '少しお疲れのご様子でした。',
+  '疲労あり': '少しお疲れのご様子でした。',
+  '休憩しながら実施': '途中で休憩をとりながら取り組まれました。',
+  'フォーム良好': 'よい姿勢で取り組まれました。',
+  'ペース安定': '安定したペースで取り組まれました。',
+  '笑顔あり': '笑顔も見られました。',
+  '笑顔多い': '笑顔が多く見られました。',
+};
+// 痛み・体調不良などのあとには、お見舞いのひとことを1回だけ添える
+var FAMILY_CARE_CLOSING = 'お大事になさってください。';
+// 記録の略語を一般の言葉に
+var FAMILY_WORDS = [
+  // 略語は前後が英字でないときだけ(「BPM」「PTSD」などを崩さない)
+  [/(^|[^A-Za-z])BP(?![A-Za-z])/g, '$1血圧'], [/(^|[^A-Za-z])KT(?![A-Za-z])/g, '$1体温'], [/(^|[^A-Za-z])Ns(?![A-Za-z])/g, '$1看護師'],
+  [/(^|[^A-Za-z])Dr(?![A-Za-z])/g, '$1医師'], [/(^|[^A-Za-z])PT(?![A-Za-z])/g, '$1機能訓練指導員'],
+  [/疼痛/g, '痛み'], [/再検/g, '再測定'], [/下肢/g, '脚'], [/上肢/g, '腕'], [/浮腫/g, 'むくみ'], [/↑/g, '高め'], [/↓/g, '低め'],
+  [/負荷量?(?:を)?軽め(?:(?:に|で)(?:して)?)?(?![にでし])/g, '負荷を軽めにして'],
+  [/(運動|体操|歩行|訓練|練習|マッサージ|足浴|ストレッチ|測定|再測定|休憩|入浴)(?:を)?(行い|行っ|行う|行った|実施し|実施|施行し|施行)/g, function (m, a, b) {
+    var verb = /^(行い|実施し|施行し)$/.test(b) ? '行い' : /^(行っ)$/.test(b) ? '行っ' : /^(行った)$/.test(b) ? '行いました' : '行いました';
+    return a + 'を' + verb;
+  }],
+];
+// 症状などは「〜が見られました」に
+var FAMILY_SYMPTOMS = ['ふらつき', '咳', 'せき', '鼻水', 'くしゃみ', 'むくみ', '息切れ', 'しびれ', '震え', 'めまい', '眠気', '疲労感', '疲れ',
+  '発赤', '内出血', '痰', 'かゆみ', '微熱', '吐き気', '嘔気', '下痢', '便秘', '腫れ', '熱感', '冷感', 'あくび', '笑顔'];
+var PAIN_RE = /(痛み|痛|疼痛|しびれ|違和感|張り)/;
+
+/** 全角の英数字だけ半角にする(記号・句読点はそのまま) */
+function halfAlnum(s) {
+  return String(s || '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
+}
+
+function isPoliteSentence(s) {
+  return /(ます|ました|ません|でした|です|ください|ませ|でしょう|ましょう)$/.test(s);
+}
+
+/** 文の終わりを、ご家族向けの「〜ました」の形にする。changed=false なら言い換えられなかった */
+function familySentence(raw) {
+  var s = halfAlnum(raw).replace(/^[\s・\-]+|[\s。．.!！、,]+$/g, '');
+  if (!s) return { text: '', care: false };
+  var exact = FAMILY_EXACT[s.replace(/\s/g, '')];
+  if (exact) return { text: exact, care: /体調不良|すぐれない/.test(exact) };
+  FAMILY_WORDS.forEach(function (w) { s = s.replace(w[0], w[1]); });
+  exact = FAMILY_EXACT[s.replace(/\s/g, '')];
+  if (exact) return { text: exact, care: /体調不良|すぐれない/.test(exact) };
+  var m;
+  // 「右膝の痛みあるため、負荷を軽めにして運動を行いました」→ 理由と本文に分けて、それぞれ整える
+  if ((m = /^(.+?)(ため|ので)[、,]?\s*(.+)$/.exec(s))) {
+    var reason = familyReason(m[1]);
+    var main = familySentence(m[3]);
+    var joint = /(ました|でした|です|ます)$/.test(reason) || m[2] === 'ので' ? 'ので、' : 'ため、';
+    return { text: reason + joint + endWithPeriod(main.text), care: false };
+  }
+  if (isPoliteSentence(s)) return { text: s + '。', care: false };
+  // 「腰が痛いとの訴えあり」→ とのお話がありました
+  if ((m = /^(.+?)との(?:訴え|こと|話)(?:が)?(?:あり|有り|有|ある)?$/.exec(s))) {
+    return { text: m[1] + 'とのお話がありました。', care: PAIN_RE.test(m[1]) || /痛/.test(m[1]) };
+  }
+  // 読点が残る文(「右膝の痛み、少しあり」など)は言い換えると不自然になるため、下の「あり/なし」の言い換えをしない
+  if (/[、,]/.test(s)) return { text: endWithPeriod(s), care: false };
+  // 「右膝の痛みあり」「腰痛の訴えあり」→ 伺いました + お大事に
+  if ((m = /^(.+?)(?:の訴え|訴え)?(?:が)?(?:あり|有り|有|ある|みられる|見られる|出現)$/.exec(s)) && PAIN_RE.test(m[1])) {
+    return { text: painPhrase(m[1]) + 'があると伺いました。', care: true };
+  }
+  // 「〜の訴えなし」「左膝の痛み訴えなし」→ ないとのことでした
+  if ((m = /^(.+?)(?:の訴え|訴え)(?:は)?(?:なし|無し|無)$/.exec(s))) {
+    return { text: m[1].replace(/の$/, '') + 'はないとのことでした。', care: false };
+  }
+  if ((m = /^(.+?)(?:は)?(?:なし|無し|無|見られず|みられず)$/.exec(s))) {
+    return { text: m[1].replace(/の$/, '') + 'はありませんでした。', care: false };
+  }
+  // 「疲労の訴えあり」→ お話がありました
+  if ((m = /^(.+?)(?:の訴え|訴え)(?:が)?(?:あり|有り|有|ある)$/.exec(s))) {
+    return { text: m[1].replace(/の$/, '') + 'があるとのお話がありました。', care: /体調|不良|疲/.test(m[1]) };
+  }
+  if ((m = /^(.+?)(?:が)?(?:あり|有り|有|ある|みられる|見られる|出現)$/.exec(s))) {
+    var what = m[1].replace(/の$/, '');
+    var symptom = FAMILY_SYMPTOMS.some(function (w) { return what.indexOf(w) >= 0; });
+    return { text: what + (symptom ? 'が見られました。' : 'がありました。'), care: false };
+  }
+  if ((m = /^(.+?)(?:は)?(?:良好|よい|良い)$/.exec(s))) return { text: m[1].replace(/の$/, '') + 'も良好でした。', care: false };
+  if ((m = /^(.+?)(?:は)?(?:中止|中断)$/.exec(s))) return { text: m[1] + 'は今回お休みしました。', care: false };
+  if ((m = /^(.+?)(?:は)?(?:見合わせ|見送り)$/.exec(s))) return { text: m[1] + 'は今回見合わせました。', care: false };
+  if ((m = /^(.+?)(?:は)?(?:拒否|拒否あり)$/.exec(s))) return { text: m[1] + 'は今回お休みされました。', care: false };
+  if ((m = /^(.+?)(?:は)?(?:不可|できず)$/.exec(s))) return { text: m[1] + 'は今回難しいご様子でした。', care: false };
+  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(高値|高め|高い)$/.exec(s))) return { text: m[1] + 'が高めでした。', care: false };
+  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(低値|低め|低い)$/.exec(s))) return { text: m[1] + 'が低めでした。', care: false };
+  if ((m = /^(.+?)(して|にて|で)(?:実施|施行)$/.exec(s))) return { text: m[1] + (m[2] === 'して' ? 'して' : 'で') + '行いました。', care: false };
+  if ((m = /^(.+?機)(?:を)?(?:実施|施行|使用)$/.exec(s))) return { text: m[1] + 'を使いました。', care: false };
+  if ((m = /^(.+?)(?:を)?(?:実施|施行)$/.exec(s))) return { text: m[1] + 'を行いました。', care: false };
+  if ((m = /^(血圧|体温|脈拍|SpO2|体重|握力)(?:の)?(再測定|測定)$/.exec(s))) return { text: m[1] + 'を' + m[2] + 'しました。', care: false };
+  if (/^(再測定|測定|休憩|確認|調整|対応|介助|中断)$/.test(s) || /(再測定|休憩)$/.test(s)) return { text: s + 'しました。', care: false };
+  if (/行い$|行っ$/.test(s)) return { text: s.replace(/行い$|行っ$/, '行いました。'), care: false };
+  if (/(行う|行った)$/.test(s)) return { text: s.replace(/(行う|行った)$/, '行いました。'), care: false };
+  if (/軽めにして$/.test(s)) return { text: s.replace(/軽めにして$/, '軽めにしました。'), care: false };
+  if (/(?:し|して)$/.test(s)) return { text: s.replace(/(?:し|して)$/, 'しました。'), care: false };
+  // 言い換えられない文は、書いたままにする(見出しや職員が整えた文を崩さない)
+  return { text: s === halfAlnum(raw).trim().replace(/[。．.!！、,]+$/, '') ? String(raw).trim() : s + '。', care: false };
+}
+
+/** 「〜ため」の前半(理由)を整える。例: 右膝の痛みある → 右膝の痛みがある */
+function familyReason(raw) {
+  var original = String(raw || '').replace(/[、,\s]+$/, '');
+  var s = original.replace(/の$/, '');
+  var m;
+  if ((m = /^(.+?)(?:の訴え|訴え)?(?:が)?(?:あり|有り|有|ある|あった)$/.exec(s))) return (PAIN_RE.test(m[1]) ? painPhrase(m[1]) : m[1].replace(/の$/, '')) + 'がある';
+  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(?:高値|高め|高い)$/.exec(s))) return m[1] + 'が高めだった';
+  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(?:低値|低め|低い)$/.exec(s))) return m[1] + 'が低めだった';
+  if ((m = /^(.+?)(?:は)?(?:不良)$/.exec(s))) return m[1] + 'がすぐれない';
+  return original; // 言い換えないときは「の」も残す(「体温37.8℃のため」)
+}
+
+/** 文の終わりに句点がなければ足す(次の文とつながらないように) */
+function endWithPeriod(t) {
+  t = String(t || '');
+  return !t || /[。．.!！?？」』）)】]$/.test(t) ? t : t + '。';
+}
+
+/** 「右膝の痛み」「右膝痛」「腰痛」をそのまま使い、「右膝の疼痛」は「右膝の痛み」に */
+function painPhrase(raw) {
+  return String(raw || '').replace(/の$/, '').replace(/疼痛/g, '痛み');
+}
+
+/** 文章全体を、文ごとにご家族向けの言葉へ整える。お見舞いのひとことは最初の該当文のあとに1回だけ */
+function familyFriendlyText(text) {
+  var src = halfAlnum(text);
+  var lines = src.split(/\n/);
+  var cared = /お大事に/.test(src);
+  return lines.map(function (line) {
+    // 句点で文に分け(「/」は血圧の値や日付に使うので区切らない)、「〜あり、」「〜なし、」のように記録の言い方で区切られた読点でも分ける
+    var sentences = line.replace(/([。．!！])/g, '$1\u0000')
+      .replace(/(あり|なし|有り|無し|実施|良好|中止|不可|見られず|みられず)[、,\s]/g, '$1\u0000')
+      .split(/\u0000|\s{2,}/).map(function (x) { return x.trim(); }).filter(Boolean);
+    return sentences.map(function (sentence, i) {
+      var r = familySentence(sentence);
+      // 次の文が続くときは句点で区切る(「早退」+「意欲的に…」がつながらないように)
+      var out = i < sentences.length - 1 ? endWithPeriod(r.text) : r.text;
+      if (r.care && !cared) { out += FAMILY_CARE_CLOSING; cared = true; }
+      return out;
+    }).join('');
+  }).join('\n');
+}
+
+/**
  * 連絡文の自動作成。variant を変えると言い回しが変わるため、
  * 「文章を自動作成し直す」を押すたびに違う下書きが得られる。
  */
@@ -7274,14 +7507,22 @@ function defaultNotebookComment(data, variant) {
   var v = Math.abs(Number(variant) || 0);
   function pick(list) { return list[v % list.length]; }
   var notes = data.exercises.map(function (e) { return e.note; }).filter(String);
+  // 再測定した日は全部の測定の体調・特記事項を使う(同じ文は1回だけ)
+  var vitalList = data.vitals && data.vitals.length ? data.vitals : (data.vital ? [data.vital] : []);
+  var conditionNotes = [];
+  vitalList.forEach(function (v) {
+    var t = String(v.conditionNote || '').trim();
+    if (t && conditionNotes.indexOf(t) < 0) conditionNotes.push(t);
+  });
   var parts = [];
   if (data.exercises.length) {
     parts.push(pick(NOTEBOOK_OPENINGS).replace('{n}', data.exercises.length));
   } else {
     parts.push(pick(NOTEBOOK_OPENINGS_REST));
   }
-  if (data.vital && data.vital.conditionNote) parts.push(data.vital.conditionNote);
-  if (notes.length) parts.push(notes.join(' '));
+  // 記録の言葉(「右膝の痛みあり」など)は、ご本人・ご家族に向けた言葉にしてから入れる(2026-11-04 現場要望)
+  var recordWords = conditionNotes.concat(notes).join('。');
+  if (recordWords) parts.push(familyFriendlyText(recordWords));
   if (data.cognitiveRecords && data.cognitiveRecords.length) {
     parts.push('脳トレは「' + data.cognitiveRecords.map(function (r) { return r.activity; }).join('、') + '」を実施しました。');
   }
@@ -7313,7 +7554,7 @@ function notebookVitals(data) {
 
 /** 1回分のバイタルを1行の文に(職員の入力画面の「自動で入る内容」)。受付の vitalLineText とは別 */
 function notebookVitalLine(v) {
-  return (v.time ? v.time + '  ' : '') + v.systolic + '/' + v.diastolic + ' · 脈拍' + v.pulse + ' · ' + Number(v.temp).toFixed(1) + '℃' +
+  return (v.time ? v.time + '  ' : '') + v.systolic + '/' + v.diastolic + ' · 脈拍' + v.pulse + (tempText(v.temp) ? ' · ' + tempText(v.temp) + '℃' : '') +
     (v.spo2 != null && v.spo2 !== '' ? ' · SpO2 ' + v.spo2 + '%' : '');
 }
 
@@ -7346,7 +7587,7 @@ function notebookSheetHtml(data, comment, photo, opts) {
       '<th>脈拍<small>回/分</small></th><th>体温<small>℃</small></th><th>SpO2<small>%</small></th></tr></thead><tbody>' +
       vitalList.map(function (v) {
         return '<tr>' + vitalTd(v.time || '') + vitalTd(v.systolic + '/' + v.diastolic) + vitalTd(String(v.pulse)) +
-          vitalTd(Number(v.temp).toFixed(1)) + vitalTd(v.spo2 != null && v.spo2 !== '' ? String(v.spo2) : '') + '</tr>';
+          vitalTd(tempText(v.temp)) + vitalTd(v.spo2 != null && v.spo2 !== '' ? String(v.spo2) : '') + '</tr>';
       }).join('') + '</tbody></table>'
     : '<div class="notebook-vital-grid">' +
       vitalCell('血圧', '', 'mmHg') + vitalCell('脈拍', '', '回/分') + vitalCell('体温', '', '℃') + vitalCell('SpO2', '', '%') +
@@ -7424,6 +7665,7 @@ function renderCommunicationBook(app, renderId) {
       '<div class="notebook-tools no-print"><label class="btn-outline" id="notebook-photo-label">📷 端末ライブラリから写真を選ぶ<input type="file" accept="image/*" onchange="Actions.notebookPhoto(this.files[0],this)" hidden></label>' +
       (S.notebook.photo ? '<button class="btn-csv" onclick="Actions.notebookRemovePhoto()">写真を外す</button>' : '') +
       '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
+      '<button class="btn-csv" onclick="Actions.familyNotebookComment()">✎ ご家族向けの言葉に整える</button>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<span id="notebook-photo-status" role="status">' + notebookSavedLabel(S.notebook.entry) + '。黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 240 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div>' +
       notebookSheetHtml(data, S.notebook.comment, S.notebook.photo, { editable: true, staffName: S.staff });
@@ -7477,6 +7719,8 @@ function renderNotebookEntry(app, renderId) {
       '<div class="card"><span class="card-label">デイサービスセンター弐番館より(ひとこと)</span>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<textarea class="note-area" id="notebook-comment-input" maxlength="' + NOTEBOOK_COMMENT_MAX + '" rows="6" oninput="Actions.notebookComment(this.value)">' + esc(S.notebook.comment) + '</textarea>' +
+      '<button class="btn-outline notebook-family-btn" onclick="Actions.familyNotebookComment()">✎ ご家族向けの言葉に整える</button>' +
+      '<div class="section-note">「右膝の痛みあり」のような記録の言葉を「右膝の痛みがあると伺いました。」のように直します。直したあとも書き換えられます。</div>' +
       '<div class="btn-row" style="justify-content:space-between;"><button class="link-plain" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
       '<span id="notebook-count" class="notebook-count">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div></div>' +
       '<div class="section-note" id="notebook-saved">' + notebookSavedLabel(S.notebook.entry) + '</div>' +
@@ -7524,11 +7768,11 @@ function renderNotebookBatch(app, renderId) {
       (books.length ? '<ul class="notebook-batch-list">' + listHtml + '</ul>' : '<div class="empty-note">この日の来所記録がありません</div>') +
       (books.length ? (notebookUsesPdf()
         ? '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + books.length + '名分をPDFにして印刷</button>' +
-          '<p class="section-note">PDFができたら「印刷・共有する」→「プリント」を選びます。用紙は「A5」・「横」です。</p>' +
+          '<p class="section-note">PDFができたら「印刷・共有する」→「プリント」を選びます。PDFには「片面・A5」の設定が入っています。プリント画面で「両面」がオフ、用紙が「A5」になっているかだけ確かめてください。</p>' +
           '<p class="section-note">iPadで「AirPrintプリンタが見つかりません」と出るときは、同じメニューの「ファイルに保存」やメールで事務所のパソコンへ送るか、事務所のパソコンでこの画面(受付 →「本日の連絡帳をまとめて印刷」)を開いて印刷してください。</p>'
         : '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + books.length + '名分をA5横で印刷</button>' +
           '<button class="btn-outline" id="batch-pdf" onclick="Actions.printNotebookBatch(true)">📄 PDFにする(保存・送る)</button>' +
-          '<p class="section-note">印刷画面で用紙サイズが「A5」・向きが「横」になっているか確認してください。倍率は「100%」がおすすめです。</p>') : '') +
+          '<p class="section-note">印刷画面で「用紙サイズ A5」「横」「片面(両面印刷をオフ)」になっているか確認してください。倍率は「100%」がおすすめです。このパソコンのプリンタの設定で「片面・A5」を既定にしておくと、毎回選ばずに済みます。</p>') : '') +
       '</div>';
     app.innerHTML = wrap(tools + '<div class="notebook-batch-sheets">' + sheets + '</div>');
   }).catch(function (e) {
@@ -7840,7 +8084,7 @@ var Actions = {
     if (!p) return;
     S.vDraft = {
       systolic: String(p.systolic), diastolic: String(p.diastolic), pulse: String(p.pulse),
-      temp: Number(p.temp).toFixed(1), spo2: p.spo2 == null ? '' : String(p.spo2),
+      temp: tempText(p.temp), spo2: p.spo2 == null ? '' : String(p.spo2),
       weight: p.weight == null ? '' : String(p.weight), conditionNote: p.conditionNote || '', conditionTags: [],
     };
     S.vitalConfirmed = false;
@@ -7882,6 +8126,7 @@ var Actions = {
     }
     // 必須は血圧・脈拍・体温のみ(SpO2・体重は任意)
     var requiredLabels = { systolic: '血圧(上)', diastolic: '血圧(下)', pulse: '脈拍', temp: '体温' };
+    if (S.vitalTempOptional) delete requiredLabels.temp; // 2回目以降は体温なしで保存できる
     var missing = Object.keys(requiredLabels).filter(function (k) { return S.vDraft[k] === ''; });
     var hint = document.getElementById('v-hint');
     var user = currentUser();
@@ -7933,7 +8178,9 @@ var Actions = {
       patchTodayStatus('vitals', [rec]); // メニューの状況表示を、取り直さずに最新化
       goAfterSave('menu');
     }).catch(function (e) {
-      showSaveError('保存できませんでした。電波状況をご確認のうえ、もう一度お試しください');
+      // 体温が必要なとき(別の端末で1回目が取り消された等)は、その理由をそのまま見せる
+      var msg = e && e.message && /体温を入力/.test(e.message) ? e.message : '保存できませんでした。電波状況をご確認のうえ、もう一度お試しください';
+      showSaveError(msg);
       if (btn) { btn.disabled = false; btn.textContent = 'バイタルを保存'; }
     });
   },
@@ -8660,6 +8907,16 @@ var Actions = {
     S.notebook.comment = S.notebook.comment.slice(0, NOTEBOOK_COMMENT_MAX);
     Actions.syncNotebookCommentBox(false);
   },
+  /** 入力済みの文章の中の記録の言葉を、ご家族向けの言葉に直す(丁寧な文はそのまま) */
+  familyNotebookComment: function () {
+    var before = S.notebook.comment || '';
+    var after = familyFriendlyText(before).slice(0, NOTEBOOK_COMMENT_MAX);
+    if (after !== before) {
+      S.notebook.comment = after;
+      S.notebook.dirty = true;
+    }
+    Actions.syncNotebookCommentBox(after !== before);
+  },
   resetNotebookComment: function () {
     if (!S.notebook.data) return;
     // 押すたびに言い回しを変えて作り直す(編集した文章は破棄される)
@@ -8983,7 +9240,7 @@ var Actions = {
         d.checkin ? d.checkin.checkoutTime || '' : '',
         d.checkin ? d.checkin.transport || '' : '',
         col(function (v) { return v.systolic; }), col(function (v) { return v.diastolic; }),
-        col(function (v) { return v.pulse; }), col(function (v) { return v.temp; }),
+        col(function (v) { return v.pulse; }), col(function (v) { return v.temp != null ? v.temp : ''; }),
         col(function (v) { return v.spo2 != null ? v.spo2 : ''; }),
         col(function (v) { return v.weight != null ? v.weight : ''; }),
         joinIfAny(vs.map(function (v) { return v.conditionNote || ''; })),
@@ -9426,17 +9683,25 @@ var Mock = (function () {
       var t = todayStr();
       var list = db.vitals.filter(function (v) { return v.userId === userId && v.date < t; })
         .sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? -1 : 1; });
-      return { prev: list.length ? list[list.length - 1] : null };
+      var last = list.length ? JSON.parse(JSON.stringify(list[list.length - 1])) : null;
+      if (last && last.temp == null) {
+        var withTemp = list.filter(function (v) { return v.temp != null; });
+        last.temp = withTemp.length ? withTemp[withTemp.length - 1].temp : null;
+      }
+      var todayCount = db.vitals.filter(function (v) { return v.userId === userId && v.date === t; }).length;
+      return { prev: last, todayCount: todayCount };
     },
     apiSaveVitals: function (p) {
       var db = load();
-      var prev = fns.apiGetVitalContext(p.userId).prev;
+      var ctx = fns.apiGetVitalContext(p.userId);
+      if (String(p.temp == null ? '' : p.temp) === '' && !ctx.todayCount) throw new Error('体温を入力してください(本日1回目の測定は体温が必要です)。');
+      var prev = ctx.prev;
       var alerts = evaluateVitalAlerts(p, prev);
       db.seq += 1;
       var rec = {
         id: 'm' + db.seq, date: todayStr(), time: nowTime(), userId: p.userId,
         systolic: Number(p.systolic) || 0, diastolic: Number(p.diastolic) || 0, pulse: Number(p.pulse) || 0,
-        temp: Number(p.temp) || 0,
+        temp: String(p.temp == null ? '' : p.temp) === '' ? null : Number(p.temp),
         spo2: String(p.spo2) === '' ? null : Number(p.spo2),
         weight: String(p.weight) === '' ? null : Number(p.weight),
         flagged: alerts.length > 0, alerts: alerts, conditionNote: p.conditionNote || '',
