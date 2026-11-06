@@ -3684,176 +3684,151 @@ function notebookDateLabel(date) {
 }
 
 /**
- * 記録の言葉(「右膝の痛みあり」「負荷軽め」など)を、連絡帳でご本人・ご家族に向けた言葉にする(2026-11-04 現場要望)。
- * 外部には送らず、この画面の中だけで決まった言い換えをする。言い換えられない文はそのまま残す(職員が印刷前に直せる)。
- * すでに「〜ました」「〜です」で終わる文は変えない。
+ * 連絡帳「弐番館より」の文章に入れる、記録(バイタルの体調・運動の特記事項)のご家族向けの言葉(2026-11-06 原山さん)。
+ * 記録の言葉をそのまま写さず、読み取れた内容(体調・痛み・休憩・負荷を軽めに など)ごとに、決まったご家族向けの文を入れる。
+ * 読み取れない言葉や、数値・お体の傷などの細かな内容は入れない(職員が文章欄に書き足せる)。外部には送らない。
  */
-var FAMILY_EXACT = {
-  '体調良好': '体調はお変わりなく、お元気に過ごされました。',
-  '良好': '体調はお変わりなく、お元気に過ごされました。',
-  '体調変わらず': '体調はお変わりなく過ごされました。',
-  '変わりなし': 'お変わりなく過ごされました。',
-  '著変なし': 'お変わりなく過ごされました。',
-  '特変なし': 'お変わりなく過ごされました。',
-  '特記なし': 'お変わりなく過ごされました。',
-  '異常なし': 'お変わりなく過ごされました。',
-  '問題なし': 'お変わりなく過ごされました。',
-  '体調不良': '体調がすぐれないご様子でした。',
-  '体調不良あり': '体調がすぐれないご様子でした。',
-  '体調不良の訴えあり': '体調がすぐれないとのお話がありました。',
-  '様子観察': '引き続き様子を見てまいります。',
-  '経過観察': '引き続き様子を見てまいります。',
-  '意欲高い': '意欲的に取り組まれました。',
-  '意欲的': '意欲的に取り組まれました。',
-  '意欲あり': '意欲的に取り組まれました。',
-  '意欲低下': '少しお疲れのご様子でした。',
-  '傾眠': 'うとうとされるご様子がありました。',
-  '傾眠傾向': 'うとうとされるご様子がありました。',
-  '食欲不振': '食欲があまりないご様子でした。',
-  '休憩あり': '途中で休憩をとりながら過ごされました。',
-  '疲労の訴えあり': '少しお疲れのご様子でした。',
-  '疲労感あり': '少しお疲れのご様子でした。',
-  '疲れあり': '少しお疲れのご様子でした。',
-  '疲労あり': '少しお疲れのご様子でした。',
-  '休憩しながら実施': '途中で休憩をとりながら取り組まれました。',
-  'フォーム良好': 'よい姿勢で取り組まれました。',
-  'ペース安定': '安定したペースで取り組まれました。',
-  '笑顔あり': '笑顔も見られました。',
-  '笑顔多い': '笑顔が多く見られました。',
-};
-// 痛み・体調不良などのあとには、お見舞いのひとことを1回だけ添える
 var FAMILY_CARE_CLOSING = 'お大事になさってください。';
-// 記録の略語を一般の言葉に
-var FAMILY_WORDS = [
-  // 略語は前後が英字でないときだけ(「BPM」「PTSD」などを崩さない)
-  [/(^|[^A-Za-z])BP(?![A-Za-z])/g, '$1血圧'], [/(^|[^A-Za-z])KT(?![A-Za-z])/g, '$1体温'], [/(^|[^A-Za-z])Ns(?![A-Za-z])/g, '$1看護師'],
-  [/(^|[^A-Za-z])Dr(?![A-Za-z])/g, '$1医師'], [/(^|[^A-Za-z])PT(?![A-Za-z])/g, '$1機能訓練指導員'],
-  [/疼痛/g, '痛み'], [/再検/g, '再測定'], [/下肢/g, '脚'], [/上肢/g, '腕'], [/浮腫/g, 'むくみ'], [/↑/g, '高め'], [/↓/g, '低め'],
-  [/負荷量?(?:を)?軽め(?:(?:に|で)(?:して)?)?(?![にでし])/g, '負荷を軽めにして'],
-  [/(運動|体操|歩行|訓練|練習|マッサージ|足浴|ストレッチ|測定|再測定|休憩|入浴)(?:を)?(行い|行っ|行う|行った|実施し|実施|施行し|施行)/g, function (m, a, b) {
-    var verb = /^(行い|実施し|施行し)$/.test(b) ? '行い' : /^(行っ)$/.test(b) ? '行っ' : /^(行った)$/.test(b) ? '行いました' : '行いました';
-    return a + 'を' + verb;
-  }],
+// 体の部位(「右膝」「R膝」「腰痛」の「腰」など)。言い換えが必要なものは2つめに一般の言葉
+var FAMILY_BODY_PARTS = [
+  ['股関節'], ['手首'], ['足首'], ['ふくらはぎ'], ['太もも'], ['大腿', '太もも'], ['下腿', 'すね'], ['臀部', 'お尻'], ['お尻'],
+  ['背中'], ['腹部', 'お腹'], ['お腹'], ['首'], ['肩'], ['肘'], ['ひじ', '肘'], ['膝'], ['ひざ', '膝'], ['腕'], ['手指', '指'], ['指'],
+  ['腰'], ['胸'], ['頭'], ['脚'], ['足'], ['手'],
 ];
-// 症状などは「〜が見られました」に
-var FAMILY_SYMPTOMS = ['ふらつき', '咳', 'せき', '鼻水', 'くしゃみ', 'むくみ', '息切れ', 'しびれ', '震え', 'めまい', '眠気', '疲労感', '疲れ',
-  '発赤', '内出血', '痰', 'かゆみ', '微熱', '吐き気', '嘔気', '下痢', '便秘', '腫れ', '熱感', '冷感', 'あくび', '笑顔'];
-var PAIN_RE = /(痛み|痛|疼痛|しびれ|違和感|張り)/;
+var FAMILY_NEGATION_RE = /(なし|無し|ない|無い|なく|無く|みられず|見られず|認めず|消失|\(-\)|（-）)/;
 
 /** 全角の英数字だけ半角にする(記号・句読点はそのまま) */
 function halfAlnum(s) {
   return String(s || '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
 }
 
-function isPoliteSentence(s) {
-  return /(ます|ました|ません|でした|です|ください|ませ|でしょう|ましょう)$/.test(s);
+/** 文の中の部位を一般の言葉で返す(「右膝」「左肩」「両膝」)。見つからなければ '' */
+function familyBodyPart(clause) {
+  var s = String(clause || '');
+  var found = [];
+  for (var i = 0; i < FAMILY_BODY_PARTS.length; i++) {
+    var word = FAMILY_BODY_PARTS[i][0];
+    var at = s.indexOf(word);
+    if (at < 0) continue;
+    var before = s.slice(Math.max(0, at - 3), at);
+    var side = /(右|Rt|R)\s*(の)?$/.test(before) ? '右' : /(左|Lt|L)\s*(の)?$/.test(before) ? '左' : /両\s*(の)?$/.test(before) ? '両' : '';
+    var name = side + (FAMILY_BODY_PARTS[i][1] || word);
+    if (found.indexOf(name) < 0) found.push(name);
+    s = s.slice(0, at) + '＿'.repeat(word.length) + s.slice(at + word.length); // 「手首」のあとに「手」を二重に拾わない
+    if (found.length >= 2) break;
+  }
+  return found.join('や');
 }
 
-/** 文の終わりを、ご家族向けの「〜ました」の形にする。changed=false なら言い換えられなかった */
-function familySentence(raw) {
-  var s = halfAlnum(raw).replace(/^[\s・\-]+|[\s。．.!！、,]+$/g, '');
-  if (!s) return { text: '', care: false };
-  var exact = FAMILY_EXACT[s.replace(/\s/g, '')];
-  if (exact) return { text: exact, care: /体調不良|すぐれない/.test(exact) };
-  FAMILY_WORDS.forEach(function (w) { s = s.replace(w[0], w[1]); });
-  exact = FAMILY_EXACT[s.replace(/\s/g, '')];
-  if (exact) return { text: exact, care: /体調不良|すぐれない/.test(exact) };
-  var m;
-  // 「右膝の痛みあるため、負荷を軽めにして運動を行いました」→ 理由と本文に分けて、それぞれ整える
-  if ((m = /^(.+?)(ため|ので)[、,]?\s*(.+)$/.exec(s))) {
-    var reason = familyReason(m[1]);
-    var main = familySentence(m[3]);
-    var joint = /(ました|でした|です|ます)$/.test(reason) || m[2] === 'ので' ? 'ので、' : 'ため、';
-    return { text: reason + joint + endWithPeriod(main.text), care: false };
+/** 記録の1つの区切り(「右膝の痛みあり」など)から、読み取れた内容を topics に足す */
+function familyTopicsOf(clause, topics) {
+  var s = halfAlnum(clause).replace(/\s+/g, '');
+  if (!s) return;
+  var negative = FAMILY_NEGATION_RE.test(s.replace(/無理(なく|のない|せず)/g, ''));
+  function add(key, value) { if (!topics[key]) topics[key] = value || true; }
+  if (/(痛|疼痛|しびれ|痺れ|違和感)/.test(s)) {
+    var part = familyBodyPart(s);
+    var kind = /痛/.test(s) ? '痛み' : /(しびれ|痺れ)/.test(s) ? 'しびれ' : '違和感';
+    if (/(軽減|軽快|和らい|やわらい|楽になっ|改善|軽くなっ|軽くなる)/.test(s)) add('painBetter', { part: part, kind: kind });
+    else if (negative) add('painNone', { part: part, kind: kind });
+    else {
+      var list = topics.pain || (topics.pain = []);
+      if (!list.some(function (p) { return p.part === part && p.kind === kind; })) list.push({ part: part, kind: kind });
+    }
   }
-  if (isPoliteSentence(s)) return { text: s + '。', care: false };
-  // 「腰が痛いとの訴えあり」→ とのお話がありました
-  if ((m = /^(.+?)との(?:訴え|こと|話)(?:が)?(?:あり|有り|有|ある)?$/.exec(s))) {
-    return { text: m[1] + 'とのお話がありました。', care: PAIN_RE.test(m[1]) || /痛/.test(m[1]) };
+  if (negative) {
+    if (/(体調|著変|特変|特記|異常|問題|変わり|変化)/.test(s)) add('good');
+    return; // 「ふらつきなし」「咳なし」などは書かない
   }
-  // 読点が残る文(「右膝の痛み、少しあり」など)は言い換えると不自然になるため、下の「あり/なし」の言い換えをしない
-  if (/[、,]/.test(s)) return { text: endWithPeriod(s), care: false };
-  // 「右膝の痛みあり」「腰痛の訴えあり」→ 伺いました + お大事に
-  if ((m = /^(.+?)(?:の訴え|訴え)?(?:が)?(?:あり|有り|有|ある|みられる|見られる|出現)$/.exec(s)) && PAIN_RE.test(m[1])) {
-    return { text: painPhrase(m[1]) + 'があると伺いました。', care: true };
-  }
-  // 「〜の訴えなし」「左膝の痛み訴えなし」→ ないとのことでした
-  if ((m = /^(.+?)(?:の訴え|訴え)(?:は)?(?:なし|無し|無)$/.exec(s))) {
-    return { text: m[1].replace(/の$/, '') + 'はないとのことでした。', care: false };
-  }
-  if ((m = /^(.+?)(?:は)?(?:なし|無し|無|見られず|みられず)$/.exec(s))) {
-    return { text: m[1].replace(/の$/, '') + 'はありませんでした。', care: false };
-  }
-  // 「疲労の訴えあり」→ お話がありました
-  if ((m = /^(.+?)(?:の訴え|訴え)(?:が)?(?:あり|有り|有|ある)$/.exec(s))) {
-    return { text: m[1].replace(/の$/, '') + 'があるとのお話がありました。', care: /体調|不良|疲/.test(m[1]) };
-  }
-  if ((m = /^(.+?)(?:が)?(?:あり|有り|有|ある|みられる|見られる|出現)$/.exec(s))) {
-    var what = m[1].replace(/の$/, '');
-    var symptom = FAMILY_SYMPTOMS.some(function (w) { return what.indexOf(w) >= 0; });
-    return { text: what + (symptom ? 'が見られました。' : 'がありました。'), care: false };
-  }
-  if ((m = /^(.+?)(?:は)?(?:良好|よい|良い)$/.exec(s))) return { text: m[1].replace(/の$/, '') + 'も良好でした。', care: false };
-  if ((m = /^(.+?)(?:は)?(?:中止|中断)$/.exec(s))) return { text: m[1] + 'は今回お休みしました。', care: false };
-  if ((m = /^(.+?)(?:は)?(?:見合わせ|見送り)$/.exec(s))) return { text: m[1] + 'は今回見合わせました。', care: false };
-  if ((m = /^(.+?)(?:は)?(?:拒否|拒否あり)$/.exec(s))) return { text: m[1] + 'は今回お休みされました。', care: false };
-  if ((m = /^(.+?)(?:は)?(?:不可|できず)$/.exec(s))) return { text: m[1] + 'は今回難しいご様子でした。', care: false };
-  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(高値|高め|高い)$/.exec(s))) return { text: m[1] + 'が高めでした。', care: false };
-  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(低値|低め|低い)$/.exec(s))) return { text: m[1] + 'が低めでした。', care: false };
-  if ((m = /^(.+?)(して|にて|で)(?:実施|施行)$/.exec(s))) return { text: m[1] + (m[2] === 'して' ? 'して' : 'で') + '行いました。', care: false };
-  if ((m = /^(.+?機)(?:を)?(?:実施|施行|使用)$/.exec(s))) return { text: m[1] + 'を使いました。', care: false };
-  if ((m = /^(.+?)(?:を)?(?:実施|施行)$/.exec(s))) return { text: m[1] + 'を行いました。', care: false };
-  if ((m = /^(血圧|体温|脈拍|SpO2|体重|握力)(?:の)?(再測定|測定)$/.exec(s))) return { text: m[1] + 'を' + m[2] + 'しました。', care: false };
-  if (/^(再測定|測定|休憩|確認|調整|対応|介助|中断)$/.test(s) || /(再測定|休憩)$/.test(s)) return { text: s + 'しました。', care: false };
-  if (/行い$|行っ$/.test(s)) return { text: s.replace(/行い$|行っ$/, '行いました。'), care: false };
-  if (/(行う|行った)$/.test(s)) return { text: s.replace(/(行う|行った)$/, '行いました。'), care: false };
-  if (/軽めにして$/.test(s)) return { text: s.replace(/軽めにして$/, '軽めにしました。'), care: false };
-  if (/(?:し|して)$/.test(s)) return { text: s.replace(/(?:し|して)$/, 'しました。'), care: false };
-  // 言い換えられない文は、書いたままにする(見出しや職員が整えた文を崩さない)
-  return { text: s === halfAlnum(raw).trim().replace(/[。．.!！、,]+$/, '') ? String(raw).trim() : s + '。', care: false };
+  if (/(体調不良|不調|すぐれ|優れ|だるさ|だるい|倦怠|気分不良|気分が悪)/.test(s)) add('unwell');
+  else if (/(良好|変わりな|変わらず|著変|特変|特記|異常な|問題な|元気|安定)/.test(s) && !/(フォーム|姿勢|歩行|ペース)/.test(s)) add('good');
+  if (/(BP|血圧)/.test(s) && /(高|↑|上昇)/.test(s)) add('bpHigh');
+  if (/(BP|血圧)/.test(s) && /(低|↓|低下)/.test(s)) add('bpLow');
+  var tempValue = /(KT|体温|検温)[^0-9]{0,3}(3[4-9](?:\.[0-9])?|4[0-2](?:\.[0-9])?)/.exec(s);
+  if (/(発熱|微熱|熱感|熱っぽ)/.test(s) || (/(KT|体温)/.test(s) && /(高|↑|上昇)/.test(s)) || (tempValue && Number(tempValue[2]) >= 37.5)) add('fever');
+  if (/(咳|せき|鼻水|くしゃみ|痰|喉|のど)/.test(s)) add('cold');
+  if (/(むくみ|浮腫|腫れ|腫脹)/.test(s)) add('swelling');
+  if (/(ふらつ|ふらふら|めまい|眩暈|よろけ)/.test(s)) add('dizzy');
+  if (/(疲|息切れ|息が上が|しんど|きつ)/.test(s)) add('tired');
+  if (/(傾眠|眠気|うとうと|眠そう|ウトウト)/.test(s)) add('sleepy');
+  if (/(軽め|軽く|控えめ|控え|減らし|下げ|少なめ)/.test(s) && !/(痛み|疲れ)?(が)?軽く(なっ|なる)/.test(s)) add('light');
+  if (/(休憩|休み休み|休みながら|休息)/.test(s)) add('rest');
+  if (/(中止|中断|見合わせ|見送|休止|できず|不可|拒否|お休み|欠席)/.test(s)) add('skip');
+  if (/(意欲|積極|頑張|がんば|集中|熱心|張り切|はりき|前向き)/.test(s)) add('eager');
+  if (/(笑顔|楽しそう|楽しまれ|楽しく|笑い|会話|談笑)/.test(s)) add('smile');
+  if (/(フォーム|姿勢)(が)?(良|よ|安定|きれい|綺麗)|スムーズ|上達|向上|回数(が)?(増|ふえ|アップ)|ペース(が)?安定/.test(s)) add('steady');
 }
 
-/** 「〜ため」の前半(理由)を整える。例: 右膝の痛みある → 右膝の痛みがある */
-function familyReason(raw) {
-  var original = String(raw || '').replace(/[、,\s]+$/, '');
-  var s = original.replace(/の$/, '');
-  var m;
-  if ((m = /^(.+?)(?:の訴え|訴え)?(?:が)?(?:あり|有り|有|ある|あった)$/.exec(s))) return (PAIN_RE.test(m[1]) ? painPhrase(m[1]) : m[1].replace(/の$/, '')) + 'がある';
-  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(?:高値|高め|高い)$/.exec(s))) return m[1] + 'が高めだった';
-  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(?:低値|低め|低い)$/.exec(s))) return m[1] + 'が低めだった';
-  if ((m = /^(.+?)(?:は)?(?:不良)$/.exec(s))) return m[1] + 'がすぐれない';
-  return original; // 言い換えないときは「の」も残す(「体温37.8℃のため」)
+/** 職員がすでにご家族向けの言葉で書いた文か(敬語の終わり方で、記録の略語がない) */
+function isFamilySentence(t) {
+  var s = String(t || '').replace(/[。！!\s]+$/, '');
+  if (/[A-Za-zＡ-Ｚａ-ｚ]/.test(s)) return false;
+  return /(され|られ|いただき|ござい|おり|まいり|参り)(ました|ます)$|ください$|でした$/.test(s) && /(され|られ|いただ|ござい|お過ごし|ご様子|おり|まいり|参り)/.test(s);
 }
 
-/** 文の終わりに句点がなければ足す(次の文とつながらないように) */
-function endWithPeriod(t) {
-  t = String(t || '');
-  return !t || /[。．.!！?？」』）)】]$/.test(t) ? t : t + '。';
+function familyPainLabel(p) {
+  return (p.part ? p.part + 'の' : '') + p.kind;
 }
 
-/** 「右膝の痛み」「右膝痛」「腰痛」をそのまま使い、「右膝の疼痛」は「右膝の痛み」に */
-function painPhrase(raw) {
-  return String(raw || '').replace(/の$/, '').replace(/疼痛/g, '痛み');
-}
-
-/** 文章全体を、文ごとにご家族向けの言葉へ整える。お見舞いのひとことは最初の該当文のあとに1回だけ */
-function familyFriendlyText(text) {
-  var src = halfAlnum(text);
-  var lines = src.split(/\n/);
-  var cared = /お大事に/.test(src);
-  return lines.map(function (line) {
-    // 句点で文に分け(「/」は血圧の値や日付に使うので区切らない)、「〜あり、」「〜なし、」のように記録の言い方で区切られた読点でも分ける
-    var sentences = line.replace(/([。．!！])/g, '$1\u0000')
-      .replace(/(あり|なし|有り|無し|実施|良好|中止|不可|見られず|みられず)[、,\s]/g, '$1\u0000')
-      .split(/\u0000|\s{2,}/).map(function (x) { return x.trim(); }).filter(Boolean);
-    return sentences.map(function (sentence, i) {
-      var r = familySentence(sentence);
-      // 次の文が続くときは句点で区切る(「早退」+「意欲的に…」がつながらないように)
-      var out = i < sentences.length - 1 ? endWithPeriod(r.text) : r.text;
-      if (r.care && !cared) { out += FAMILY_CARE_CLOSING; cared = true; }
-      return out;
-    }).join('');
-  }).join('\n');
+/**
+ * 記録の言葉の配列から、ご家族向けの文章を作る。読み取れた内容がなければ ''。
+ * 例: ['体調良好', '右膝の痛みあるため、負荷量軽めに運動行いました']
+ *   → 体調はお変わりなく過ごされました。右膝の痛みがあると伺いましたので、負荷を軽めにして、無理のない範囲で運動を行いました。お大事になさってください。
+ */
+function familyNotebookText(notes) {
+  var topics = {};
+  var kept = []; // 職員がご家族向けに書いた文(「〜過ごされました。」など)はそのまま使う
+  (notes || []).forEach(function (note) {
+    String(note || '').split(/\n/).forEach(function (line) {
+      line.replace(/([。！!])/g, '$1\u0000').split('\u0000').forEach(function (sentence) {
+        var t = sentence.trim();
+        if (!t) return;
+        if (isFamilySentence(t)) {
+          t = /[。！!]$/.test(t) ? t : t + '。';
+          if (kept.indexOf(t) < 0) kept.push(t);
+          return;
+        }
+        // 句点・読点・「/」などで区切って、区切りごとに読む(区切りの言葉は文章に写さない)
+        halfAlnum(t).split(/[。!！?？、,，\/／・;；]|\s{2,}/).forEach(function (clause) { familyTopicsOf(clause, topics); });
+      });
+    });
+  });
+  var out = [];
+  var care = false;
+  if (topics.unwell) { out.push('少し体調がすぐれないご様子でしたので、様子を見ながら無理のない範囲で過ごしていただきました。'); care = true; }
+  else if (topics.good) out.push('体調はお変わりなく過ごされました。');
+  if (topics.bpHigh) out.push('血圧が少し高めでしたので、時間をおいて測り直し、様子を見ながら過ごしていただきました。');
+  else if (topics.bpLow) out.push('血圧が少し低めでしたので、様子を見ながら過ごしていただきました。');
+  if (topics.fever) { out.push('体温が少し高めでしたので、様子を見ながら過ごしていただきました。'); care = true; }
+  var lightUsed = false;
+  if (topics.pain && topics.pain.length) {
+    var label = topics.pain.slice(0, 2).map(familyPainLabel).join('や');
+    if (topics.light) { out.push(label + 'があると伺いましたので、負荷を軽めにして、無理のない範囲で運動を行いました。'); lightUsed = true; }
+    else out.push(label + 'があると伺いました。');
+    care = true;
+  } else if (topics.painBetter) {
+    out.push(familyPainLabel(topics.painBetter) + 'は和らいできているとのことでした。');
+  } else if (topics.painNone) {
+    out.push(familyPainLabel(topics.painNone) + 'はないとのことでした。');
+  }
+  if (topics.cold) { out.push('咳などのかぜのような様子が少し見られました。'); care = true; }
+  if (topics.swelling) out.push('むくみが少し見られました。');
+  if (topics.dizzy) { out.push('ふらつきが見られたため、職員がそばで見守りながら安全に運動を行いました。'); care = true; }
+  if (topics.tired) {
+    if (topics.light && !lightUsed) { out.push('少しお疲れのご様子でしたので、負荷を軽めにして、無理のない範囲で取り組まれました。'); lightUsed = true; }
+    else if (topics.rest) { out.push('少しお疲れのご様子でしたので、途中で休憩をとりながら取り組まれました。'); topics.rest = false; }
+    else out.push('少しお疲れのご様子でしたので、ペースを調整しながら取り組まれました。');
+  }
+  if (topics.sleepy) out.push('少し眠そうなご様子も見られました。');
+  if (topics.light && !lightUsed) out.push('体調に合わせて負荷を軽めにし、無理のない範囲で運動を行いました。');
+  if (topics.rest) out.push('途中で休憩をとりながら取り組まれました。');
+  if (topics.skip) out.push('体調に合わせて、一部の運動はお休みしました。');
+  if (topics.eager) out.push('意欲的に取り組まれました。');
+  if (topics.smile) out.push('笑顔も見られ、楽しそうに過ごされました。');
+  if (topics.steady) out.push('安定した動きで取り組まれました。');
+  out = out.concat(kept);
+  if (care && !kept.some(function (t) { return /お大事に/.test(t); })) out.push(FAMILY_CARE_CLOSING);
+  return out.join('');
 }
 
 /**
@@ -3892,9 +3867,10 @@ function defaultNotebookComment(data, variant) {
   } else {
     parts.push(pick(NOTEBOOK_OPENINGS_REST));
   }
-  // 記録の言葉(「右膝の痛みあり」など)は、ご本人・ご家族に向けた言葉にしてから入れる(2026-11-04 現場要望)
-  var recordWords = conditionNotes.concat(notes).join('。');
-  if (recordWords) parts.push(familyFriendlyText(recordWords));
+  // 記録の言葉(「右膝の痛みあり」など)はそのまま写さず、ご家族向けの決まった文にして入れる(2026-11-06 原山さん)
+  var familyWords = familyNotebookText(conditionNotes.concat(notes));
+  if (parts[0].indexOf('意欲') >= 0) familyWords = familyWords.replace('意欲的に取り組まれました。', '');
+  if (familyWords) parts.push(familyWords);
   if (data.cognitiveRecords && data.cognitiveRecords.length) {
     parts.push('脳トレは「' + data.cognitiveRecords.map(function (r) { return r.activity; }).join('、') + '」を実施しました。');
   }
@@ -4037,7 +4013,6 @@ function renderCommunicationBook(app, renderId) {
       '<div class="notebook-tools no-print"><label class="btn-outline" id="notebook-photo-label">📷 端末ライブラリから写真を選ぶ<input type="file" accept="image/*" onchange="Actions.notebookPhoto(this.files[0],this)" hidden></label>' +
       (S.notebook.photo ? '<button class="btn-csv" onclick="Actions.notebookRemovePhoto()">写真を外す</button>' : '') +
       '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
-      '<button class="btn-csv" onclick="Actions.familyNotebookComment()">✎ ご家族向けの言葉に整える</button>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<span id="notebook-photo-status" role="status">' + notebookSavedLabel(S.notebook.entry) + '。黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 240 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div>' +
       notebookSheetHtml(data, S.notebook.comment, S.notebook.photo, { editable: true, staffName: S.staff });
@@ -4091,8 +4066,6 @@ function renderNotebookEntry(app, renderId) {
       '<div class="card"><span class="card-label">デイサービスセンター弐番館より(ひとこと)</span>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<textarea class="note-area" id="notebook-comment-input" maxlength="' + NOTEBOOK_COMMENT_MAX + '" rows="6" oninput="Actions.notebookComment(this.value)">' + esc(S.notebook.comment) + '</textarea>' +
-      '<button class="btn-outline notebook-family-btn" onclick="Actions.familyNotebookComment()">✎ ご家族向けの言葉に整える</button>' +
-      '<div class="section-note">「右膝の痛みあり」のような記録の言葉を「右膝の痛みがあると伺いました。」のように直します。直したあとも書き換えられます。</div>' +
       '<div class="btn-row" style="justify-content:space-between;"><button class="link-plain" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
       '<span id="notebook-count" class="notebook-count">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div></div>' +
       '<div class="section-note" id="notebook-saved">' + notebookSavedLabel(S.notebook.entry) + '</div>' +
@@ -5278,16 +5251,6 @@ var Actions = {
     S.notebook.comment = ((S.notebook.comment || '').trim() ? S.notebook.comment.trim() + '。' : '') + text;
     S.notebook.comment = S.notebook.comment.slice(0, NOTEBOOK_COMMENT_MAX);
     Actions.syncNotebookCommentBox(false);
-  },
-  /** 入力済みの文章の中の記録の言葉を、ご家族向けの言葉に直す(丁寧な文はそのまま) */
-  familyNotebookComment: function () {
-    var before = S.notebook.comment || '';
-    var after = familyFriendlyText(before).slice(0, NOTEBOOK_COMMENT_MAX);
-    if (after !== before) {
-      S.notebook.comment = after;
-      S.notebook.dirty = true;
-    }
-    Actions.syncNotebookCommentBox(after !== before);
   },
   resetNotebookComment: function () {
     if (!S.notebook.data) return;
