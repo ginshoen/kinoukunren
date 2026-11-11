@@ -27,7 +27,11 @@ var SHEETS = {
 
 var HEADERS = {
   staff: ['ID', '氏名', 'ふりがな', '職種', '権限', 'PINハッシュ', '有効', 'PINソルト', 'セッション世代'],
-  users: ['ID', '氏名', '年齢', '介護度', '利用曜日', '予定種目', 'QRコード', 'ふりがな', '個人目標', '既往歴', '運動禁止事項', '顔写真'],
+  // 13列目から右は 2026-11-10 原山さん「壱番館と同じ項目を弐番館にも」で足した列(USER_EXTRA_FIELDS と同じ順)。既存の列は動かさない
+  users: ['ID', '氏名', '年齢', '介護度', '利用曜日', '予定種目', 'QRコード', 'ふりがな', '個人目標', '既往歴', '運動禁止事項', '顔写真',
+    '性別', '生年月日', '利用区分', '備考', '曜日別の利用区分', 'アレルギー', '食事形態', '注意事項', '注意レベル', 'かかりつけ医',
+    '緊急連絡先氏名', '緊急連絡先続柄', '緊急連絡先電話番号', '住所', '居宅介護支援事業所', '担当ケアマネ', '担当ケアマネ連絡先',
+    '利用状況', '利用終了日'],
   // 有効=false の種目は記録画面のプルダウンに出さない(過去の記録の名前表示には使う)。2026-10-29 追加
   exercises: ['ID', '種目名', '短縮名', '選択肢ラベル', '選択肢', 'QRコード', '有効'],
   checkins: ['ID', '日付', '来苑時刻', '利用者ID', '帰苑時刻', '送迎区分', '記録者'],
@@ -151,6 +155,7 @@ var API_REGISTRY = {
   // 管理者(admin)のみ: マスタ編集・帳票
   apiAdminSaveUser: { fn: apiAdminSaveUser_, auth: 'admin' },
   apiAdminDeleteUser: { fn: apiAdminDeleteUser_, auth: 'admin' },
+  apiAdminImportUsers: { fn: apiAdminImportUsers_, auth: 'admin' },
   apiAdminGetStaff: { fn: apiAdminGetStaff_, auth: 'admin' },
   apiAdminSaveStaff: { fn: apiAdminSaveStaff_, auth: 'admin' },
   apiAdminDeleteStaff: { fn: apiAdminDeleteStaff_, auth: 'admin' },
@@ -254,11 +259,17 @@ function sheet_(key) {
   return sh;
 }
 
+/** シートの列数が足りなければ右端に空の列を足す(新しいシートは26列しかなく、利用者は31列使う) */
+function ensureColumns_(sh, width) {
+  var max = sh.getMaxColumns();
+  if (max < width) sh.insertColumnsAfter(max, width - max);
+}
+
 /**
  * 新しい記録項目を既存データベースへ安全に追加する。
  * 既存列は同じ順序のまま末尾へ拡張するため、過去データは失われない。
  */
-var SCHEMA_VERSION = '11';
+var SCHEMA_VERSION = '12';
 
 function ensureSchema_() {
   if (scriptProp_('SCHEMA_VERSION') === SCHEMA_VERSION) return;
@@ -287,6 +298,7 @@ function ensureSchema_() {
           }
         }
       }
+      ensureColumns_(sh, HEADERS[key].length);
       // 種目マスタに「有効」列がまだない(v10以前) → 列を足したあとで現場の運動一覧に合わせる
       var addExerciseActive = key === 'exercises' && sh.getLastRow() >= 2 && lastCol < HEADERS.exercises.length;
       sh.getRange(1, 1, Math.max(2, sh.getLastRow()), HEADERS[key].length).setNumberFormat('@');
@@ -493,7 +505,7 @@ function appendRowNoLock_(key, row) {
 // ---------------------------------------------------------------- 変換
 
 function toUser_(r) {
-  return {
+  var u = {
     id: String(r[0]), name: String(r[1]), age: Number(r[2]), careLevel: String(r[3]),
     scheduleLabel: String(r[4]), plan: splitCsv_(r[5]), qrCode: String(r[6]),
     kana: String(r[7] || ''), goal: String(r[8] || ''),
@@ -501,6 +513,73 @@ function toUser_(r) {
     // 写真本体は一覧に含めない(通信量とキャッシュ上限のため)。apiGetUserPhotos で別途取得する
     hasPhoto: String(r[11] || '') !== '',
   };
+  USER_EXTRA_FIELDS.forEach(function (f, i) { u[f[0]] = String(r[12 + i] == null ? '' : r[12 + i]); });
+  u.birthDate = dateStr_(r[13] == null ? '' : r[13]);
+  if (u.status !== '利用終了') u.status = '利用中';
+  // 生年月日があれば年齢は今日の時点で計算する(年齢の列は登録したときの値のまま)
+  var calc = ageFromBirth_(u.birthDate, todayStr_());
+  if (calc !== null) u.age = calc;
+  return u;
+}
+
+/**
+ * 利用者マスタの13列目から右の項目(壱番館と同じ項目。2026-11-10 原山さん)。[キー, 文字数の上限, 選べる値(空欄も可)]
+ * 並びはシートの列の順(HEADERS.users の13列目から)と同じにする。
+ */
+var USER_EXTRA_FIELDS = [
+  ['gender', 10, ['男性', '女性', 'その他']],
+  ['birthDate', 10],
+  ['userCategory', 20, ['ケアハウス入居者', '外部利用']],
+  ['note', 500],
+  ['weekdayUsage', 100],
+  ['allergies', 200],
+  ['mealForm', 100],
+  ['careNotes', 500],
+  ['alertLevel', 10, ['通常', '注意', '重要']],
+  ['primaryDoctor', 200],
+  ['emergencyName', 60],
+  ['emergencyRelation', 30],
+  ['emergencyPhone', 30],
+  ['address', 200],
+  ['careOffice', 100],
+  ['careManager', 60],
+  ['careManagerPhone', 30],
+  ['status', 10, ['利用中', '利用終了']],
+  ['endDate', 10],
+];
+
+/** 'yyyy-MM-dd' の生年月日から、today('yyyy-MM-dd')時点の満年齢。読めなければ null */
+function ageFromBirth_(birth, today) {
+  var b = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(birth || ''));
+  var t = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(today || ''));
+  if (!b || !t) return null;
+  var age = Number(t[1]) - Number(b[1]) - ((Number(t[2]) < Number(b[2]) || (t[2] === b[2] && Number(t[3]) < Number(b[3]))) ? 1 : 0);
+  return age >= 0 && age <= 130 ? age : null;
+}
+
+/**
+ * 13列目から右の項目を確かめて、シートに書く順の配列にする。
+ * 送られてこなかった項目(古い画面からの保存など)は before(今のシートの値)のまま残す。
+ */
+function userExtraRow_(u, before) {
+  u = u || {};
+  var out = USER_EXTRA_FIELDS.map(function (f, i) {
+    var given = u[f[0]];
+    if (given === undefined && before) return String(before[i] == null ? '' : dateStr_(before[i]));
+    var v = safeText_(String(given == null ? '' : given), f[1]);
+    if (v && f[2] && f[2].indexOf(v) < 0) throw new Error('「' + HEADERS.users[12 + USER_EXTRA_FIELDS.indexOf(f)] + '」の値が正しくありません');
+    return v;
+  });
+  var at = function (key) { for (var i = 0; i < USER_EXTRA_FIELDS.length; i++) if (USER_EXTRA_FIELDS[i][0] === key) return i; return -1; };
+  ['birthDate', 'endDate'].forEach(function (key) {
+    var v = out[at(key)];
+    if (v && (!/^\d{4}-\d{2}-\d{2}$/.test(v) || isNaN(new Date(v + 'T00:00:00').getTime()))) throw new Error((key === 'birthDate' ? '生年月日' : '利用終了日') + 'の形式が正しくありません');
+  });
+  var statusAt = at('status');
+  if (!out[statusAt]) out[statusAt] = '利用中';
+  if (out[statusAt] === '利用終了') { if (!out[at('endDate')]) out[at('endDate')] = todayStr_(); }
+  else out[at('endDate')] = '';
+  return out;
 }
 
 function toExercise_(r) {
@@ -728,7 +807,9 @@ function apiGetTodayCheckins_() {
 
 /** チェックイン登録。既存なら既存レコードを返す */
 function apiCheckin_(userId) {
-  if (!allUsers_().some(function (u) { return u.id === userId; })) throw new Error('利用者が見つかりません。');
+  var target = allUsers_().filter(function (u) { return u.id === userId; })[0];
+  if (!target) throw new Error('利用者が見つかりません。');
+  if (target.status === '利用終了') throw new Error(target.name + ' さんは利用終了になっています。受付するときは、管理画面の利用者の編集で「利用中」に戻してください。');
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
@@ -1228,8 +1309,6 @@ function apiPairDevice_(pin) {
 function apiAdminSaveUser_(u) {
   var name = String(u.name || '').trim();
   if (!name) throw new Error('氏名を入力してください');
-  var age = Number(u.age);
-  if (!isFinite(age) || age < 0 || age > 130) throw new Error('年齢が正しくありません');
   var photo = normalizePhoto_(u.photo); // null=変更なし / ''=削除 / dataURL=更新
 
   var lock = LockService.getScriptLock();
@@ -1237,16 +1316,25 @@ function apiAdminSaveUser_(u) {
   try {
     var sh = sheet_('users');
     var id = String(u.id || '').trim();
+    var idx = -1, before = null;
+    if (id) {
+      idx = findUserRowIndex_(sh, id);
+      if (idx < 0) throw new Error('対象の利用者が見つかりません');
+      before = sh.getRange(idx, 13, 1, USER_EXTRA_FIELDS.length).getValues()[0];
+    }
+    var extra = userExtraRow_(u, before);
+    // 生年月日があれば年齢はそこから計算する(年齢の欄は空でもよい)
+    var birthAge = ageFromBirth_(extra[1], todayStr_());
+    var age = birthAge !== null ? birthAge : (String(u.age == null ? '' : u.age).trim() === '' ? NaN : Number(u.age));
+    if (!isFinite(age) || age < 0 || age > 130) throw new Error(extra[1] ? '生年月日が正しくありません' : '年齢が正しくありません');
     // 予定種目(6列目)は個人別設定を廃止したため常に空欄で保存する
     var row = [
       '', name, String(age), String(u.careLevel || ''), String(u.scheduleLabel || ''),
       '', '', String(u.kana || '').trim(),
       safeText_(u.goal, 500), safeText_(u.medicalHistory, 500), safeText_(u.precautions, 500),
       '',
-    ];
+    ].concat(extra);
     if (id) {
-      var idx = findUserRowIndex_(sh, id);
-      if (idx < 0) throw new Error('対象の利用者が見つかりません');
       row[0] = id;
       row[6] = 'GSU:' + id;
       row[11] = photo === null ? String(sh.getRange(idx, 12).getValue() || '') : photo;
@@ -1287,6 +1375,52 @@ function apiGetUserPhotos_() {
     if (p) map[String(r[0])] = p;
   });
   return map;
+}
+
+/**
+ * 利用者の一括取り込み(管理者のみ・2026-11-09 原山さん「ワイズマンから抽出して運用開始」)。
+ * 画面でワイズマン等の一覧ファイルを読み取り、確認した行だけが届く。氏名・年齢は必須。
+ * 同じ氏名(空白を除く)の利用者がすでにいれば登録しない(二重登録を防ぐ。直すときは1人ずつ編集)。
+ */
+var IMPORT_CARE_LEVELS = ['要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
+var IMPORT_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
+function apiAdminImportUsers_(list) {
+  if (!Array.isArray(list) || !list.length) throw new Error('取り込む利用者がいません');
+  if (list.length > 300) throw new Error('一度に取り込めるのは300名までです');
+  function nameKey(v) { return String(v || '').replace(/[\s　]/g, ''); }
+  var rows = list.map(function (u, i) {
+    var name = String((u && u.name) || '').replace(/[\s　]+/g, ' ').trim();
+    if (!name || name.length > 60) throw new Error((i + 1) + '行目: 氏名が正しくありません');
+    var extra;
+    try { extra = userExtraRow_(u); } catch (e) { throw new Error((i + 1) + '行目(' + name + '): ' + e.message); }
+    var birthAge = ageFromBirth_(extra[1], todayStr_());
+    var age = birthAge !== null ? birthAge : Number(u.age);
+    if (birthAge === null && (String(u.age == null ? '' : u.age) === '' || !isFinite(age) || age !== Math.floor(age) || age < 0 || age > 130)) throw new Error((i + 1) + '行目(' + name + '): 年齢が正しくありません');
+    var care = String(u.careLevel || '');
+    if (care && IMPORT_CARE_LEVELS.indexOf(care) < 0) throw new Error((i + 1) + '行目(' + name + '): 介護度が正しくありません');
+    var days = String(u.scheduleLabel || '').split('/').filter(function (d) { return IMPORT_WEEKDAYS.indexOf(d) >= 0; });
+    return { name: name, kana: safeText_(String(u.kana || '').replace(/[\s　]+/g, ' '), 60), age: String(age), careLevel: care, scheduleLabel: days.join('/'), medicalHistory: safeText_(u.medicalHistory, 500), extra: extra };
+  });
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var existing = {};
+    rows_('users').forEach(function (r) { existing[nameKey(r[1])] = true; });
+    var added = [], skipped = [], out = [];
+    var base = Date.now().toString(36);
+    rows.forEach(function (u, i) {
+      var key = nameKey(u.name);
+      if (existing[key]) { skipped.push(u.name); return; }
+      existing[key] = true;
+      var id = 'u' + base + i.toString(36);
+      out.push([id, safeText_(u.name, 60), u.age, u.careLevel, u.scheduleLabel, '', 'GSU:' + id, u.kana, '', u.medicalHistory, '', ''].concat(u.extra));
+      added.push(u.name);
+    });
+    appendRowsNoLock_('users', out);
+    return { users: allUsers_(), added: added.length, skipped: skipped };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /** 利用者の削除(管理者のみ)。過去の記録は残る */
@@ -2413,6 +2547,7 @@ function setup_(withDemo) {
   Object.keys(SHEETS).forEach(function (key) {
     var name = SHEETS[key];
     var sh = ss.getSheetByName(name) || ss.insertSheet(name);
+    ensureColumns_(sh, HEADERS[key].length);
     if (sh.getLastRow() === 0) {
       // 日付・時刻が Date 型に自動変換されないよう全列テキスト書式にする
       sh.getRange(1, 1, sh.getMaxRows(), HEADERS[key].length).setNumberFormat('@');
