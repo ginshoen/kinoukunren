@@ -3606,4 +3606,15 @@ html.is-demo body::before {
 @media print {
   html.is-demo body::before { display: none; }
 }
+
+/* ---------- 利用者管理: 壱番館と同じ項目(2026-11-10) ---------- */
+details.user-extra { border: 1px solid var(--border); border-radius: 12px; padding: 0 12px; margin-top: 10px; background: #fff; }
+details.user-extra > summary { cursor: pointer; padding: 12px 0; font-weight: 700; color: var(--text-sub); min-height: 44px; box-sizing: border-box; }
+details.user-extra[open] > summary { border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+details.user-extra > .form-grid { padding-bottom: 12px; }
+.user-status-field label[hidden] { display: none; }
+.user-status-field .check-row label:not(.check-item) { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--text-sub); }
+.user-status-field .check-row label:not(.check-item) input { width: auto; margin-top: 0; }
+.gen-table tr.muted td { color: var(--text-aux); background: #f7f8fa; }
+#user-form .user-status-field .check-item:first-child { order: 0; } /* 曜日の「日」を後ろに回す指定を、利用状況には当てない */
 </style>
