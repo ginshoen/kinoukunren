@@ -3616,11 +3616,22 @@ html.is-demo body::before {
 @media print {
   html.is-demo body::before { display: none; }
 }
+
+/* ---------- 利用者管理: 壱番館と同じ項目(2026-11-10) ---------- */
+details.user-extra { border: 1px solid var(--border); border-radius: 12px; padding: 0 12px; margin-top: 10px; background: #fff; }
+details.user-extra > summary { cursor: pointer; padding: 12px 0; font-weight: 700; color: var(--text-sub); min-height: 44px; box-sizing: border-box; }
+details.user-extra[open] > summary { border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+details.user-extra > .form-grid { padding-bottom: 12px; }
+.user-status-field label[hidden] { display: none; }
+.user-status-field .check-row label:not(.check-item) { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 700; color: var(--text-sub); }
+.user-status-field .check-row label:not(.check-item) input { width: auto; margin-top: 0; }
+.gen-table tr.muted td { color: var(--text-aux); background: #f7f8fa; }
+#user-form .user-status-field .check-item:first-child { order: 0; } /* 曜日の「日」を後ろに回す指定を、利用状況には当てない */
 </style>
 
   </head>
   <body>
-<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261104-1548';window.APP_MOCK=false;window.APP_DEMO=true;</script>
+<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261111-2021';window.APP_MOCK=false;window.APP_DEMO=true;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -4232,6 +4243,100 @@ function currentUser() {
 function userById(id) {
   for (var i = 0; i < S.users.length; i++) if (S.users[i].id === id) return S.users[i];
   return null;
+}
+/** 利用中の方だけ(受付・利用者一覧・QRカードなど現場の画面に使う)。利用終了の方は過去の記録・管理画面だけに出す */
+function isEndedUser(u) { return !!u && u.status === '利用終了'; }
+function activeUsers() { return S.users.filter(function (u) { return !isEndedUser(u); }); }
+
+/**
+ * 利用者の13列目から右の項目(壱番館と同じ項目。2026-11-10 原山さん)。サーバーの USER_EXTRA_FIELDS と同じキー。
+ * [キー, 見出し, 入力の種類(text/textarea/date/tel/select), 選べる値, 文字数の上限, 例]
+ */
+var USER_EXTRA_GROUPS = [
+  ['基本', [
+    ['gender', '性別', 'select', ['男性', '女性', 'その他']],
+    ['birthDate', '生年月日', 'date'],
+    ['userCategory', '利用区分', 'select', ['ケアハウス入居者', '外部利用']],
+    ['weekdayUsage', '曜日別の利用区分', 'text', null, 100, '例: 月:1日,水:午前'],
+    ['note', '備考', 'textarea', null, 500, ''],
+  ]],
+  ['食事・体', [
+    ['allergies', 'アレルギー', 'text', null, 200, 'なしの場合は「なし」'],
+    ['mealForm', '食事形態', 'text', null, 100, '例: 常食、刻み食'],
+    ['alertLevel', '注意レベル', 'select', ['通常', '注意', '重要']],
+    ['careNotes', '注意事項', 'textarea', null, 500, '介助・見守りで気をつけること'],
+  ]],
+  ['医療', [
+    ['primaryDoctor', 'かかりつけ医', 'text', null, 200, '例: ○○医院 ○○先生 0261-00-0000'],
+  ]],
+  ['連絡先', [
+    ['emergencyName', '緊急連絡先 氏名', 'text', null, 60, ''],
+    ['emergencyRelation', '緊急連絡先 続柄', 'text', null, 30, '例: 長女'],
+    ['emergencyPhone', '緊急連絡先 電話', 'tel', null, 30, ''],
+    ['address', '住所', 'text', null, 200, ''],
+  ]],
+  ['ケアマネ', [
+    ['careOffice', '居宅介護支援事業所', 'text', null, 100, ''],
+    ['careManager', '担当ケアマネ', 'text', null, 60, ''],
+    ['careManagerPhone', 'ケアマネの連絡先', 'tel', null, 30, ''],
+  ]],
+];
+var USER_EXTRA_KEYS = ['status', 'endDate'];
+USER_EXTRA_GROUPS.forEach(function (g) { g[1].forEach(function (f) { USER_EXTRA_KEYS.push(f[0]); }); });
+
+/** 'yyyy-mm-dd' の生年月日から今日の満年齢。読めなければ '' */
+function ageFromBirthDate(value) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  if (!m) return '';
+  var t = new Date();
+  var age = t.getFullYear() - Number(m[1]) - ((t.getMonth() + 1 < Number(m[2]) || (t.getMonth() + 1 === Number(m[2]) && t.getDate() < Number(m[3]))) ? 1 : 0);
+  return age >= 0 && age <= 130 ? age : '';
+}
+
+/** 編集フォームの「その他の項目」(折りたたみ。「基本」と、入っている項目がある段は開いておく) */
+function userExtraFormHtml(u) {
+  return USER_EXTRA_GROUPS.map(function (g) {
+    var filled = g[1].some(function (f) { return String(u[f[0]] || '') !== ''; });
+    var fields = g[1].map(function (f) {
+      var id = 'fx-' + f[0], v = String(u[f[0]] || '');
+      var wide = f[2] === 'textarea' || f[0] === 'address' || f[0] === 'primaryDoctor' ? ' class="form-wide"' : '';
+      var control;
+      if (f[2] === 'select') {
+        control = '<select class="select-plain" id="' + id + '" style="min-height:44px;"><option value="">未設定</option>' +
+          f[3].map(function (c) { return '<option value="' + esc(c) + '"' + (v === c ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select>';
+      } else if (f[2] === 'textarea') {
+        control = '<textarea class="note-area" id="' + id + '" maxlength="' + f[4] + '" placeholder="' + esc(f[5] || '') + '">' + esc(v) + '</textarea>';
+      } else {
+        control = '<input class="note-area" id="' + id + '" type="' + f[2] + '"' + (f[4] ? ' maxlength="' + f[4] + '"' : '') +
+          (f[0] === 'birthDate' ? ' oninput="Actions.adminBirthChanged(this.value)" onchange="Actions.adminBirthChanged(this.value)"' : '') +
+          ' value="' + esc(v) + '" placeholder="' + esc(f[5] || '') + '" style="min-height:44px;">';
+      }
+      return '<label' + wide + '>' + esc(f[1]) + ' ' + control + '</label>';
+    }).join('');
+    return '<details class="user-extra"' + (filled || g[0] === '基本' ? ' open' : '') + '><summary>' + esc(g[0]) + '</summary><div class="form-grid">' + fields + '</div></details>';
+  }).join('');
+}
+
+/** 利用状況(利用中/利用終了と終了日) */
+function userStatusFormHtml(u) {
+  var ended = u.status === '利用終了';
+  return '<div class="form-wide user-status-field"><div>利用状況</div><div class="check-row">' +
+    '<label class="check-item"><input type="radio" name="f-status" value="利用中"' + (ended ? '' : ' checked') + ' onchange="Actions.adminStatusChanged()">利用中</label>' +
+    '<label class="check-item"><input type="radio" name="f-status" value="利用終了"' + (ended ? ' checked' : '') + ' onchange="Actions.adminStatusChanged()">利用終了</label>' +
+    '<label id="f-end-wrap"' + (ended ? '' : ' hidden') + '>終了日 <input class="note-area" id="fx-endDate" type="date" value="' + esc(u.endDate || '') + '" style="min-height:44px;"></label>' +
+    '</div><div class="section-note">利用終了にすると、受付・利用者一覧・QRカードに出なくなります。過去の記録は残り、いつでも「利用中」に戻せます。</div></div>';
+}
+
+/** 職員の画面に出す、ケアに使う項目(入っているものだけ) */
+function userCareInfoItems(user) {
+  var items = [];
+  if (user.careNotes) items.push(['注意事項' + (user.alertLevel && user.alertLevel !== '通常' ? '(' + user.alertLevel + ')' : ''), user.careNotes, user.alertLevel === '重要' || user.alertLevel === '注意']);
+  if (user.allergies) items.push(['アレルギー', user.allergies, user.allergies !== 'なし']);
+  if (user.mealForm) items.push(['食事形態', user.mealForm]);
+  if (user.primaryDoctor) items.push(['かかりつけ医', user.primaryDoctor]);
+  var contact = [user.emergencyName, user.emergencyRelation ? '(' + user.emergencyRelation + ')' : '', user.emergencyPhone].filter(Boolean).join(' ');
+  if (contact) items.push(['緊急連絡先', contact]);
+  return items;
 }
 
 // ---------------------------------------------------------------- 顔写真
@@ -5312,7 +5417,7 @@ function checkinStatusView() {
   S.users.forEach(function (u) { usersById[u.id] = u; });
   S.todayCheckins.forEach(function (c) { checkedIds[c.userId] = c.time; });
   var todayWeekday = WEEKDAYS[new Date().getDay()];
-  var scheduled = S.users.filter(function (u) { return String(u.scheduleLabel || '').indexOf(todayWeekday) >= 0; });
+  var scheduled = activeUsers().filter(function (u) { return String(u.scheduleLabel || '').indexOf(todayWeekday) >= 0; });
   var pending = scheduled.filter(function (u) { return !checkedIds[u.id]; });
   // 受付済みの行はタップで記録メニューへ(受付後はいつでも記録できる)
   var rows = S.todayCheckins.map(function (c) {
@@ -5422,6 +5527,11 @@ function renderCheckin(app) {
       render();
       return;
     }
+    if (isEndedUser(user)) {
+      S.toast = { type: 'error', title: user.name + ' さんは利用終了です', sub: '受付するときは、管理画面の利用者の編集で「利用中」に戻してください' };
+      render();
+      return;
+    }
     Actions.checkin(user.id);
   }, 'checkin');
 
@@ -5489,6 +5599,7 @@ function renderArrival(app, userId) {
     infoRow('利用曜日', user.scheduleLabel) +
     infoRow('個人目標', user.goal) +
     infoRow('既往歴', user.medicalHistory) +
+    userCareInfoItems(user).map(function (it) { return infoRow(esc(it[0]), it[1]); }).join('') +
     '</div></div>' +
     precautionHtml(user, false) +
     '<button class="btn-primary" style="flex:none;width:100%;" onclick="Actions.startSession(\'' + user.id + '\')">▶ バイタル・訓練を記録する</button>' +
@@ -6022,7 +6133,7 @@ function renderFitnessBatch(app, renderId) {
         saved[a.userId] = (saved[a.userId] ? saved[a.userId] + ' ' : '') + a.item.slice(3, 4) + ' ' + a.result;
       }
     });
-    var rows = S.users.map(function (u) {
+    var rows = activeUsers().map(function (u) {
       var entry = d.entries[u.id] || { result: '', detail: '' };
       var prior = saved[u.id];
       var uid = esc(u.id);
@@ -6143,7 +6254,7 @@ function renderUserList(app, renderId) {
 
     // かな行ごとにグループ化(かな未設定は「その他」)
     var groups = {};
-    S.users.forEach(function (u) {
+    activeUsers().forEach(function (u) {
       var g = kanaGyo(u.kana);
       (groups[g] = groups[g] || []).push(u);
     });
@@ -6297,6 +6408,9 @@ function renderUserDetail(app, userId, renderId) {
       '<div class="profile-item goal"><span>個人目標(リハビリ目標)</span><strong>' + esc(user.goal || '未登録') + '</strong></div>' +
       '<div class="profile-item"><span>既往歴</span><strong>' + esc(user.medicalHistory || '未登録') + '</strong></div>' +
       '<div class="profile-item caution"><span>運動の禁止事項・注意点</span><strong>' + esc(user.precautions || '未登録') + '</strong></div>' +
+      userCareInfoItems(user).map(function (it) {
+        return '<div class="profile-item' + (it[2] ? ' caution' : '') + '"><span>' + esc(it[0]) + '</span><strong>' + esc(it[1]) + '</strong></div>';
+      }).join('') +
       '</div>';
 
     var cognitiveRecords = res.cognitiveRecords || [];
@@ -6933,6 +7047,7 @@ function enhanceUserForm() {
   var form = document.getElementById('user-form');
   if (!form) return;
   GinPick.select(document.getElementById('f-care'));
+  ['fx-gender', 'fx-userCategory', 'fx-alertLevel'].forEach(function (id) { var el = document.getElementById(id); if (el) GinPick.select(el); });
   GinPick.stepper(document.getElementById('f-age'), { min: 40, max: 110, start: 80 });
   GinPick.phrases(document.getElementById('f-goal'), ['自宅内を安全に歩く', '転ばない体づくり', '外出を続ける', '入浴を自分で行う', '体力を維持する', '趣味の活動を続ける']);
   GinPick.phrases(document.getElementById('f-history'), ['高血圧', '糖尿病', '脳梗塞', '心疾患', '骨折', '変形性膝関節症', '腰痛症', '骨粗しょう症', '認知症', 'パーキンソン病']);
@@ -6940,6 +7055,7 @@ function enhanceUserForm() {
 }
 
 function renderAdminUsers(app, renderId) {
+  if (S.userImport) return renderAdminImport(app);
   ensurePhotos();
   var u = S.editingUser;
   var formHtml = '';
@@ -6967,13 +7083,16 @@ function renderAdminUsers(app, renderId) {
       '<div class="form-grid">' +
       '<label>氏名 <input class="note-area" id="f-name" value="' + esc(u.name || '') + '" placeholder="例: 田中 花子" style="min-height:44px;"></label>' +
       '<label>ふりがな <input class="note-area" id="f-kana" value="' + esc(u.kana || '') + '" placeholder="例: たなか はなこ" style="min-height:44px;"></label>' +
-      '<label>年齢 <input class="note-area" id="f-age" inputmode="numeric" value="' + (u.age || '') + '" style="min-height:44px;"></label>' +
+      '<label>年齢 <input class="note-area" id="f-age" inputmode="numeric" value="' + (u.age || '') + '" style="min-height:44px;"' + (u.birthDate ? ' readonly' : '') + '>' +
+      '<span class="section-note" id="f-age-note"' + (u.birthDate ? '' : ' hidden') + '>生年月日から自動で計算します</span></label>' +
       '<label>介護度 <select class="select-plain" id="f-care" style="min-height:44px;">' + careOpts + '</select></label>' +
       '<div>利用曜日<div class="check-row">' + wdChecks + '</div></div>' +
       '<label class="form-wide">個人目標(リハビリ目標)<textarea class="note-area" id="f-goal" maxlength="500" placeholder="生活上の目標と機能訓練の目標">' + esc(u.goal || '') + '</textarea></label>' +
       '<label class="form-wide">既往歴<textarea class="note-area" id="f-history" maxlength="500" placeholder="主な既往歴を入力">' + esc(u.medicalHistory || '') + '</textarea></label>' +
       '<label class="form-wide">運動の禁止事項・注意点<textarea class="note-area" id="f-precautions" maxlength="500" placeholder="疼痛、禁忌、転倒リスクなど">' + esc(u.precautions || '') + '</textarea></label>' +
+      (u.id ? userStatusFormHtml(u) : '') +
       '</div>' +
+      userExtraFormHtml(u) +
       '<div class="section-note" id="form-error" style="color:var(--alert-text);min-height:18px;"></div>' +
       '<div class="btn-row" style="margin-top:8px;">' +
       '<button class="btn-outline" onclick="Actions.adminCancelEdit()">キャンセル</button>' +
@@ -6981,10 +7100,12 @@ function renderAdminUsers(app, renderId) {
       '</div></div>';
   }
 
-  var rows = S.users.map(function (x) {
+  var endedCount = S.users.filter(isEndedUser).length;
+  var rows = S.users.filter(function (x) { return S.showEndedUsers || !isEndedUser(x); }).map(function (x) {
     return (
-      '<tr><td><div class="user-cell">' + avatarHtml(x, 'avatar-sm') +
-      '<div style="font-weight:700;">' + esc(x.name) + '<br><span class="section-note">' + esc(x.kana || '') + '</span></div></div></td>' +
+      '<tr' + (isEndedUser(x) ? ' class="muted"' : '') + '><td><div class="user-cell">' + avatarHtml(x, 'avatar-sm') +
+      '<div style="font-weight:700;">' + esc(x.name) + '<br><span class="section-note">' + esc(x.kana || '') + '</span>' +
+      (isEndedUser(x) ? '<br><span class="pill-badge">利用終了' + (x.endDate ? ' ' + esc(x.endDate) : '') + '</span>' : '') + '</div></div></td>' +
       '<td>' + x.age + '歳</td><td>' + esc(x.careLevel) + '</td><td>' + esc(x.scheduleLabel) + '</td>' +
       '<td style="white-space:nowrap;">' +
       '<button class="btn-csv" style="margin-right:6px;" onclick="Actions.adminEditUser(\'' + x.id + '\')">編集</button>' +
@@ -6995,17 +7116,293 @@ function renderAdminUsers(app, renderId) {
 
   app.innerHTML = adminShell('admin/users',
     '<div class="admin-page-head"><div><div class="breadcrumb">利用者管理</div>' +
-    '<div class="admin-h1">利用者の登録・編集 <span class="attrs">全' + S.users.length + '名</span></div></div>' +
+    '<div class="admin-h1">利用者の登録・編集 <span class="attrs">利用中 ' + (S.users.length - endedCount) + '名' + (endedCount ? '・利用終了 ' + endedCount + '名' : '') + '</span></div></div>' +
     '<div class="admin-actions">' +
     '<button class="btn-csv" onclick="Actions.adminNewUser()">+ 新規登録</button>' +
+    '<button class="btn-csv" onclick="Actions.adminImportOpen()">📥 一覧ファイルから取り込む</button>' +
     '</div></div>' +
     formHtml +
     '<div class="panel"><div style="overflow-x:auto;"><table class="gen-table"><thead><tr>' +
     '<th>氏名</th><th>年齢</th><th>介護度</th><th>利用曜日</th><th></th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<div class="section-note" style="margin-top:8px;">削除しても過去の記録は残ります。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
+    (endedCount ? '<button class="btn-outline" style="margin-top:8px;" onclick="Actions.adminToggleEnded()">' + (S.showEndedUsers ? '利用終了の方を隠す' : '利用終了の方も表示する(' + endedCount + '名)') + '</button>' : '') +
+    '<div class="section-note" style="margin-top:8px;">削除しても過去の記録は残ります。利用をやめた方は、削除ではなく編集の「利用終了」にすると、あとで戻せます。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
     '</div>');
   enhanceUserForm();
+}
+
+// ---------------------------------------------------------------- 管理: 利用者の一括取り込み
+/**
+ * ワイズマンなど介護ソフトから出した利用者一覧(CSV・Excel)を読み取り、確認してから登録する(2026-11-09 原山さん)。
+ * 読み取りはこの画面の中だけで行い、登録する行だけをサーバーに送る。読み取る項目: 氏名・ふりがな・年齢(または生年月日)・介護度・利用曜日。
+ * 列の並びはソフトによって違うため、見出しの言葉で列を探す。
+ */
+var IMPORT_ERAS = { M: 1867, T: 1911, S: 1925, H: 1988, R: 2018, '明': 1867, '大': 1911, '昭': 1925, '平': 1988, '令': 2018 };
+
+function importNfkc(v) {
+  var s = String(v == null ? '' : v);
+  return s.normalize ? s.normalize('NFKC') : s;
+}
+
+/** CSVの文字列を行・列に分ける(「"」で囲んだ値・値の中の改行やカンマに対応) */
+function importParseCsv(text) {
+  var rows = [], row = [], cell = '', quoted = false;
+  text = String(text || '').replace(/^﻿/, '');
+  for (var i = 0; i < text.length; i++) {
+    var c = text.charAt(i);
+    if (quoted) {
+      if (c === '"') {
+        if (text.charAt(i + 1) === '"') { cell += '"'; i++; } else quoted = false;
+      } else cell += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ',' || c === '\t') { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text.charAt(i + 1) === '\n') i++;
+      row.push(cell); rows.push(row); row = []; cell = '';
+    } else cell += c;
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+  return rows;
+}
+
+/** ファイルの中身(バイト列)を文字にする。UTF-8 でなければ Shift_JIS(Windows の CSV に多い) */
+function importDecode(buffer) {
+  try { return new TextDecoder('utf-8', { fatal: true }).decode(buffer); } catch (e) { /* UTF-8 ではない */ }
+  return new TextDecoder('shift_jis').decode(buffer);
+}
+
+/** 生年月日(1940/1/2、S15.1.2、昭和15年1月2日、19400102 など)を 'yyyy-mm-dd' に。読めなければ '' */
+function importBirthDate(value) {
+  var s = importNfkc(value).replace(/\s/g, '');
+  if (!s) return '';
+  var y, m, d, x;
+  if ((x = /^(明治|大正|昭和|平成|令和|[MTSHRmtshr])(元|\d{1,2})[年.\/\-](\d{1,2})[月.\/\-](\d{1,2})日?$/.exec(s))) {
+    var era = x[1].length === 2 ? x[1].charAt(0) : x[1].toUpperCase();
+    y = IMPORT_ERAS[era] + (x[2] === '元' ? 1 : Number(x[2])); m = Number(x[3]); d = Number(x[4]);
+  } else if ((x = /^(\d{4})[年.\/\-](\d{1,2})[月.\/\-](\d{1,2})日?/.exec(s))) {
+    y = Number(x[1]); m = Number(x[2]); d = Number(x[3]);
+  } else if ((x = /^(\d{4})(\d{2})(\d{2})$/.exec(s))) {
+    y = Number(x[1]); m = Number(x[2]); d = Number(x[3]);
+  } else return '';
+  if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1868) return '';
+  var dt = new Date(y, m - 1, d);
+  if (dt.getMonth() !== m - 1) return ''; // 2月30日など
+  return y + '-' + ('0' + m).slice(-2) + '-' + ('0' + d).slice(-2);
+}
+
+/** 生年月日(1940/1/2、S15.1.2、昭和15年1月2日、19400102 など)から、today 時点の満年齢。読めなければ null */
+function importAgeFromBirth(value, today) {
+  var s = importNfkc(value).replace(/\s/g, '');
+  if (!s) return null;
+  var y, m, d, x;
+  if ((x = /^(明治|大正|昭和|平成|令和|[MTSHRmtshr])(元|\d{1,2})[年.\/\-](\d{1,2})[月.\/\-](\d{1,2})日?$/.exec(s))) {
+    var era = x[1].length === 2 ? x[1].charAt(0) : x[1].toUpperCase();
+    y = IMPORT_ERAS[era] + (x[2] === '元' ? 1 : Number(x[2])); m = Number(x[3]); d = Number(x[4]);
+  } else if ((x = /^(\d{4})[年.\/\-](\d{1,2})[月.\/\-](\d{1,2})日?/.exec(s))) {
+    y = Number(x[1]); m = Number(x[2]); d = Number(x[3]);
+  } else if ((x = /^(\d{4})(\d{2})(\d{2})$/.exec(s))) {
+    y = Number(x[1]); m = Number(x[2]); d = Number(x[3]);
+  } else return null;
+  if (m < 1 || m > 12 || d < 1 || d > 31 || y < 1868) return null;
+  var t = today || new Date();
+  var age = t.getFullYear() - y - ((t.getMonth() + 1 < m || (t.getMonth() + 1 === m && t.getDate() < d)) ? 1 : 0);
+  return age >= 0 && age <= 130 ? age : null;
+}
+
+/** 介護度を画面の選択肢にそろえる。読めないときは ''(登録後に1人ずつ選ぶ) */
+function importCareLevel(value) {
+  var s = importNfkc(value).replace(/[\s()（）]/g, '');
+  var x = /(要?介護|要?支援)([1-5])/.exec(s);
+  if (!x) return '';
+  var kind = /支援/.test(x[1]) ? '要支援' : '要介護';
+  if (kind === '要支援' && Number(x[2]) > 2) return '';
+  return kind + x[2];
+}
+
+/** 利用曜日(「月・木」「月木」「月曜日、木曜日」など)を「月/木」の形に */
+function importWeekdays(value) {
+  var s = importNfkc(value).replace(/曜日?/g, ''); // 「月曜日」の「日」を日曜と読まない
+  return WEEKDAYS.filter(function (w) { return s.indexOf(w) >= 0; }).join('/');
+}
+
+/** ふりがなは、ひらがな・空白1つにそろえる(半角カナもそろう) */
+function importKana(value) {
+  return importNfkc(value).replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); })
+    .replace(/[\s　]+/g, ' ').trim();
+}
+
+function importName(value) {
+  return importNfkc(value).replace(/[\s　]+/g, ' ').trim();
+}
+
+/** 壱番館と同じ項目のうち、文字のまま取り込むもの(2026-11-10) */
+// 文字数の上限はサーバー(USER_EXTRA_FIELDS)と同じ。長いものは切って取り込む
+var IMPORT_EXTRA_MAX = { emergencyName: 60, emergencyRelation: 30, emergencyPhone: 30, careOffice: 100, careManager: 60, careManagerPhone: 30, mealForm: 100, medicalHistory: 500 };
+var IMPORT_EXTRA_TEXT = ['address', 'emergencyName', 'emergencyRelation', 'emergencyPhone', 'careOffice', 'careManager', 'careManagerPhone', 'primaryDoctor', 'allergies', 'mealForm', 'medicalHistory'];
+
+function importGender(value) {
+  var s = importNfkc(value).replace(/\s/g, '');
+  if (/^(男|男性|M|m|1)$/.test(s)) return '男性';
+  if (/^(女|女性|F|f|2)$/.test(s)) return '女性';
+  return '';
+}
+
+/** 見出しの行を探し、どの列が何かを返す。見つからなければ null */
+function importFindColumns(rows) {
+  var best = null;
+  for (var r = 0; r < Math.min(rows.length, 15); r++) {
+    var cols = { header: r };
+    var score = 0;
+    rows[r].forEach(function (h, i) {
+      var t = importNfkc(h).replace(/[\s　]/g, '');
+      if (!t) return;
+      // 壱番館と同じ項目(2026-11-10)。「緊急連絡先氏名」「ケアマネ電話」などを氏名・ふりがなと取り違えないよう先に見る
+      var extra = null;
+      if (/緊急|家族|連絡者/.test(t)) {
+        if (/続柄/.test(t)) extra = 'emergencyRelation';
+        else if (/(電話|TEL|Tel|携帯)/i.test(t)) extra = 'emergencyPhone';
+        else if (/(氏名|名前|連絡先)$/.test(t) && !/(フリガナ|ふりがな|カナ)/.test(t)) extra = 'emergencyName';
+        else return;
+      } else if (/^続柄$/.test(t)) extra = 'emergencyRelation';
+      else if (/(居宅介護支援|居宅事業所|支援事業所)/.test(t) && !/(電話|TEL|連絡先|担当|ケアマネ|専門員)/i.test(t)) extra = 'careOffice';
+      else if (/(ケアマネ|介護支援専門員|担当CM)/i.test(t)) {
+        if (/(電話|TEL|連絡先)/i.test(t)) extra = 'careManagerPhone';
+        else if (!/(フリガナ|ふりがな|カナ)/.test(t)) extra = 'careManager';
+        else return;
+      } else if (/(かかりつけ医|主治医|かかりつけ)/.test(t)) extra = 'primaryDoctor';
+      else if (/^(現)?住所(1)?$/.test(t)) extra = 'address';
+      else if (/^性別$/.test(t)) extra = 'gender';
+      else if (/アレルギー/.test(t)) extra = 'allergies';
+      else if (/食事形態|食形態/.test(t)) extra = 'mealForm';
+      else if (/(既往歴|既往症|既往)/.test(t)) extra = 'medicalHistory';
+      if (extra) {
+        if (cols[extra] == null) { cols[extra] = i; score++; }
+        return;
+      }
+      if (/^(セイ|せい)$/.test(t) && cols.kanaLast == null) cols.kanaLast = i;
+      else if (/^(メイ|めい)$/.test(t) && cols.kanaFirst == null) cols.kanaFirst = i;
+      else if (/(フリガナ|ふりがな|カナ|かな|よみ|ヨミ|読み)/.test(t)) {
+        if (/(姓|セイ|せい)/.test(t) && cols.kanaLast == null) cols.kanaLast = i;
+        else if (/(名|メイ|めい)$/.test(t) && !/氏名/.test(t) && cols.kanaFirst == null) cols.kanaFirst = i;
+        else if (cols.kana == null) cols.kana = i;
+      } else if (/^(利用者)?(氏名|利用者名|名前|お名前)$|^被保険者氏名$|^利用者氏名$/.test(t) && cols.name == null) cols.name = i;
+      else if (/^(姓|氏)$/.test(t) && cols.last == null) cols.last = i;
+      else if (/^名$/.test(t) && cols.first == null) cols.first = i;
+      else if (/生年月日|誕生日/.test(t) && cols.birth == null) cols.birth = i;
+      else if (/^年齢|^満年齢/.test(t) && cols.age == null) cols.age = i;
+      else if (/(要介護度|介護度|要介護状態区分|認定区分|要介護状態)/.test(t) && cols.care == null) cols.care = i;
+      else if (/(利用曜日|曜日)/.test(t) && cols.days == null) cols.days = i;
+      else return;
+      score++;
+    });
+    var hasName = cols.name != null || (cols.last != null && cols.first != null);
+    if (hasName && (!best || score > best.score)) { cols.score = score; best = cols; }
+  }
+  return best;
+}
+
+/** 一覧の各行を、登録する利用者の候補にする。problems があるものは登録しない */
+function importCandidates(rows, today, existingUsers) {
+  var cols = importFindColumns(rows);
+  if (!cols) return { error: '「氏名」の見出しが見つかりませんでした。1行目に「氏名」「フリガナ」「生年月日」「要介護度」などの見出しがある一覧を選んでください。' };
+  function cell(row, i) { return i == null ? '' : String(row[i] == null ? '' : row[i]).trim(); }
+  var known = {};
+  (existingUsers || []).forEach(function (u) { known[importName(u.name).replace(/\s/g, '')] = true; });
+  var seen = {};
+  var list = [];
+  rows.slice(cols.header + 1).forEach(function (row) {
+    var name = cols.name != null ? importName(cell(row, cols.name)) : importName(cell(row, cols.last) + ' ' + cell(row, cols.first));
+    if (!name) return;
+    var kana = cols.kana != null ? importKana(cell(row, cols.kana)) : importKana(cell(row, cols.kanaLast) + ' ' + cell(row, cols.kanaFirst));
+    var ageText = importNfkc(cell(row, cols.age)).replace(/[^0-9]/g, '');
+    var age = ageText ? Number(ageText) : importAgeFromBirth(cell(row, cols.birth), today);
+    var careRaw = cell(row, cols.care);
+    var c = {
+      name: name, kana: kana, age: age == null ? '' : age, careLevel: importCareLevel(careRaw),
+      scheduleLabel: importWeekdays(cell(row, cols.days)), problems: [], notes: [],
+      birthDate: importBirthDate(cell(row, cols.birth)), extra: {},
+    };
+    IMPORT_EXTRA_TEXT.forEach(function (k) {
+      var v = importNfkc(cell(row, cols[k])).replace(/[\s　]+/g, ' ').trim();
+      if (v) c.extra[k] = v.slice(0, IMPORT_EXTRA_MAX[k] || 200);
+    });
+    var g = importGender(cell(row, cols.gender));
+    if (g) c.extra.gender = g;
+    if (c.birthDate) c.extra.birthDate = c.birthDate;
+    c.extraCount = Object.keys(c.extra).filter(function (k) { return k !== 'birthDate'; }).length;
+    var key = name.replace(/\s/g, '');
+    if (known[key]) c.problems.push('登録済み');
+    else if (seen[key]) c.problems.push('一覧の中で重複');
+    if (c.age === '' || c.age > 130) c.problems.push(cols.birth == null && cols.age == null ? '年齢・生年月日の列がありません' : '年齢が読めません');
+    if (careRaw && !c.careLevel) c.notes.push('介護度「' + careRaw + '」は選択肢にないため空欄(登録後に選ぶ)');
+    seen[key] = true;
+    list.push(c);
+  });
+  return { list: list, columns: cols };
+}
+
+function renderAdminImport(app) {
+  var st = S.userImport || {};
+  var body;
+  if (st.result) {
+    body = '<div class="panel"><div class="panel-title">取り込みが終わりました</div>' +
+      '<p>' + st.result.added + '名を登録しました。' + (st.result.skipped.length ? 'すでに登録済みの ' + st.result.skipped.length + '名は登録しませんでした。' : '') + '</p>' +
+      '<div class="section-note">一覧になかった項目(介護度・利用曜日・注意事項など)と、個人目標・運動の注意点・顔写真は、利用者の一覧の「編集」から入れてください。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
+      '<div class="btn-row" style="margin-top:12px;"><button class="btn-primary" onclick="Actions.adminImportClose()">利用者の一覧へ</button></div></div>';
+  } else if (st.list) {
+    var ok = st.list.filter(function (c) { return !c.problems.length; }).length;
+    var rows = st.list.map(function (c, i) {
+      var can = !c.problems.length;
+      return '<tr' + (can ? '' : ' class="muted"') + '><td><input type="checkbox" data-import="' + i + '"' + (can && c.checked !== false ? ' checked' : '') + (can ? '' : ' disabled') + ' onchange="Actions.adminImportToggle(' + i + ', this.checked)"></td>' +
+        '<td><b>' + esc(c.name) + '</b><br><span class="section-note">' + esc(c.kana) + '</span></td>' +
+        '<td>' + (c.age === '' ? '—' : c.age + '歳') + '</td><td>' + esc(c.careLevel || '—') + '</td><td>' + esc(c.scheduleLabel || '—') + '</td>' +
+        '<td>' + esc(c.problems.concat(c.notes).join('・') || 'OK') +
+        (c.extraCount ? '<br><span class="section-note">住所・連絡先などほかに' + c.extraCount + '項目</span>' : '') + '</td></tr>';
+    }).join('');
+    body = '<div class="panel"><div class="panel-title">読み取った内容を確かめてください(' + esc(st.fileName || '') + ')</div>' +
+      '<div class="section-note">' + st.list.length + '名を読み取りました。登録できるのは ' + ok + '名です。印を外した人は登録しません。年齢は生年月日から今日の時点で計算しています(自動では増えません)。</div>' +
+      '<div style="overflow-x:auto;margin-top:8px;"><table class="gen-table"><thead><tr><th></th><th>氏名</th><th>年齢</th><th>介護度</th><th>利用曜日</th><th>確認</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="section-note" id="import-error" style="color:var(--alert-text);min-height:18px;"></div>' +
+      '<div class="btn-row" style="margin-top:8px;"><button class="btn-outline" onclick="Actions.adminImportReset()">別のファイルを選ぶ</button>' +
+      '<button class="btn-primary" id="import-save" onclick="Actions.adminImportSave()">印の付いた人を登録する</button></div></div>';
+  } else {
+    body = '<div class="panel"><div class="panel-title">介護ソフトの利用者一覧から登録する</div>' +
+      '<p>ワイズマンなどから出した利用者の一覧(CSV または Excel)を選んでください。氏名・ふりがな・生年月日(または年齢)・介護度・利用曜日のほか、見出しがあれば性別・住所・緊急連絡先・ケアマネ・かかりつけ医・既往歴・アレルギー・食事形態も読み取ります。</p>' +
+      '<div class="section-note">この画面で読み取り、確かめてから登録します。ファイルそのものはどこにも送りません。すでに同じ氏名の利用者がいる場合は登録しません。</div>' +
+      '<label class="btn-primary" style="display:inline-flex;margin-top:12px;cursor:pointer;">📂 一覧のファイルを選ぶ' +
+      '<input type="file" accept=".csv,.txt,.xlsx,.xls" onchange="Actions.adminImportFile(this.files[0]);this.value=\'\'" hidden></label>' +
+      '<div class="section-note" id="import-error" style="color:var(--alert-text);min-height:18px;margin-top:8px;">' + esc(st.error || '') + '</div>' +
+      '<div class="btn-row" style="margin-top:8px;"><button class="btn-outline" onclick="Actions.adminImportClose()">利用者の一覧へ戻る</button></div></div>';
+  }
+  app.innerHTML = adminShell('admin/users',
+    '<div class="admin-page-head"><div><div class="breadcrumb">利用者管理 › 一括取り込み</div>' +
+    '<div class="admin-h1">利用者の一括取り込み</div></div></div>' + body);
+}
+
+/** 選んだファイルを行・列の表にする(Excel は必要なときだけ読み込む部品で開く) */
+function importReadFile(file) {
+  var isExcel = /\.(xlsx|xls)$/i.test(file.name);
+  return new Promise(function (resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function () { resolve(reader.result); };
+    reader.onerror = function () { reject(new Error('ファイルを読み込めませんでした')); };
+    reader.readAsArrayBuffer(file);
+  }).then(function (buffer) {
+    if (!isExcel) return importParseCsv(importDecode(buffer));
+    return loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js', 'XLSX').catch(function () {
+      return loadScriptOnce('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js', 'XLSX');
+    }).then(function (X) {
+      // 日付のセルは表示の形(「1/1/35」など年が2桁のこともある)ではなく日付として受け取り、年/月/日にする
+      var wb = X.read(new Uint8Array(buffer), { type: 'array', cellDates: true });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      return X.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' }).map(function (row) {
+        return row.map(function (v) {
+          if (v instanceof Date) return isNaN(v.getTime()) ? '' : v.getFullYear() + '/' + (v.getMonth() + 1) + '/' + v.getDate();
+          return v == null ? '' : String(v);
+        });
+      });
+    });
+  });
 }
 
 // ---------------------------------------------------------------- 管理: 本日の記録一覧
@@ -7114,7 +7511,7 @@ function renderAdminHandoffs(app, renderId) {
 
 function renderAdminMaster(app, renderId) {
   // 利用者カードは 氏名・利用曜日 を券面に印字する(介護度は載せない。QRの中身は GSU:<ID> のみ)
-  var userCards = S.users.map(function (u) {
+  var userCards = activeUsers().map(function (u) {
     var meta = '';
     if (u.scheduleLabel) meta += '<div class="qr-meta"><span class="qr-meta-key">利用曜日</span>' +
       '<span class="qr-meta-val">' + esc(u.scheduleLabel) + '</span></div>';
@@ -7312,176 +7709,151 @@ function notebookDateLabel(date) {
 }
 
 /**
- * 記録の言葉(「右膝の痛みあり」「負荷軽め」など)を、連絡帳でご本人・ご家族に向けた言葉にする(2026-11-04 現場要望)。
- * 外部には送らず、この画面の中だけで決まった言い換えをする。言い換えられない文はそのまま残す(職員が印刷前に直せる)。
- * すでに「〜ました」「〜です」で終わる文は変えない。
+ * 連絡帳「弐番館より」の文章に入れる、記録(バイタルの体調・運動の特記事項)のご家族向けの言葉(2026-11-06 原山さん)。
+ * 記録の言葉をそのまま写さず、読み取れた内容(体調・痛み・休憩・負荷を軽めに など)ごとに、決まったご家族向けの文を入れる。
+ * 読み取れない言葉や、数値・お体の傷などの細かな内容は入れない(職員が文章欄に書き足せる)。外部には送らない。
  */
-var FAMILY_EXACT = {
-  '体調良好': '体調はお変わりなく、お元気に過ごされました。',
-  '良好': '体調はお変わりなく、お元気に過ごされました。',
-  '体調変わらず': '体調はお変わりなく過ごされました。',
-  '変わりなし': 'お変わりなく過ごされました。',
-  '著変なし': 'お変わりなく過ごされました。',
-  '特変なし': 'お変わりなく過ごされました。',
-  '特記なし': 'お変わりなく過ごされました。',
-  '異常なし': 'お変わりなく過ごされました。',
-  '問題なし': 'お変わりなく過ごされました。',
-  '体調不良': '体調がすぐれないご様子でした。',
-  '体調不良あり': '体調がすぐれないご様子でした。',
-  '体調不良の訴えあり': '体調がすぐれないとのお話がありました。',
-  '様子観察': '引き続き様子を見てまいります。',
-  '経過観察': '引き続き様子を見てまいります。',
-  '意欲高い': '意欲的に取り組まれました。',
-  '意欲的': '意欲的に取り組まれました。',
-  '意欲あり': '意欲的に取り組まれました。',
-  '意欲低下': '少しお疲れのご様子でした。',
-  '傾眠': 'うとうとされるご様子がありました。',
-  '傾眠傾向': 'うとうとされるご様子がありました。',
-  '食欲不振': '食欲があまりないご様子でした。',
-  '休憩あり': '途中で休憩をとりながら過ごされました。',
-  '疲労の訴えあり': '少しお疲れのご様子でした。',
-  '疲労感あり': '少しお疲れのご様子でした。',
-  '疲れあり': '少しお疲れのご様子でした。',
-  '疲労あり': '少しお疲れのご様子でした。',
-  '休憩しながら実施': '途中で休憩をとりながら取り組まれました。',
-  'フォーム良好': 'よい姿勢で取り組まれました。',
-  'ペース安定': '安定したペースで取り組まれました。',
-  '笑顔あり': '笑顔も見られました。',
-  '笑顔多い': '笑顔が多く見られました。',
-};
-// 痛み・体調不良などのあとには、お見舞いのひとことを1回だけ添える
 var FAMILY_CARE_CLOSING = 'お大事になさってください。';
-// 記録の略語を一般の言葉に
-var FAMILY_WORDS = [
-  // 略語は前後が英字でないときだけ(「BPM」「PTSD」などを崩さない)
-  [/(^|[^A-Za-z])BP(?![A-Za-z])/g, '$1血圧'], [/(^|[^A-Za-z])KT(?![A-Za-z])/g, '$1体温'], [/(^|[^A-Za-z])Ns(?![A-Za-z])/g, '$1看護師'],
-  [/(^|[^A-Za-z])Dr(?![A-Za-z])/g, '$1医師'], [/(^|[^A-Za-z])PT(?![A-Za-z])/g, '$1機能訓練指導員'],
-  [/疼痛/g, '痛み'], [/再検/g, '再測定'], [/下肢/g, '脚'], [/上肢/g, '腕'], [/浮腫/g, 'むくみ'], [/↑/g, '高め'], [/↓/g, '低め'],
-  [/負荷量?(?:を)?軽め(?:(?:に|で)(?:して)?)?(?![にでし])/g, '負荷を軽めにして'],
-  [/(運動|体操|歩行|訓練|練習|マッサージ|足浴|ストレッチ|測定|再測定|休憩|入浴)(?:を)?(行い|行っ|行う|行った|実施し|実施|施行し|施行)/g, function (m, a, b) {
-    var verb = /^(行い|実施し|施行し)$/.test(b) ? '行い' : /^(行っ)$/.test(b) ? '行っ' : /^(行った)$/.test(b) ? '行いました' : '行いました';
-    return a + 'を' + verb;
-  }],
+// 体の部位(「右膝」「R膝」「腰痛」の「腰」など)。言い換えが必要なものは2つめに一般の言葉
+var FAMILY_BODY_PARTS = [
+  ['股関節'], ['手首'], ['足首'], ['ふくらはぎ'], ['太もも'], ['大腿', '太もも'], ['下腿', 'すね'], ['臀部', 'お尻'], ['お尻'],
+  ['背中'], ['腹部', 'お腹'], ['お腹'], ['首'], ['肩'], ['肘'], ['ひじ', '肘'], ['膝'], ['ひざ', '膝'], ['腕'], ['手指', '指'], ['指'],
+  ['腰'], ['胸'], ['頭'], ['脚'], ['足'], ['手'],
 ];
-// 症状などは「〜が見られました」に
-var FAMILY_SYMPTOMS = ['ふらつき', '咳', 'せき', '鼻水', 'くしゃみ', 'むくみ', '息切れ', 'しびれ', '震え', 'めまい', '眠気', '疲労感', '疲れ',
-  '発赤', '内出血', '痰', 'かゆみ', '微熱', '吐き気', '嘔気', '下痢', '便秘', '腫れ', '熱感', '冷感', 'あくび', '笑顔'];
-var PAIN_RE = /(痛み|痛|疼痛|しびれ|違和感|張り)/;
+var FAMILY_NEGATION_RE = /(なし|無し|ない|無い|なく|無く|みられず|見られず|認めず|消失|\(-\)|（-）)/;
 
 /** 全角の英数字だけ半角にする(記号・句読点はそのまま) */
 function halfAlnum(s) {
   return String(s || '').replace(/[Ａ-Ｚａ-ｚ０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); });
 }
 
-function isPoliteSentence(s) {
-  return /(ます|ました|ません|でした|です|ください|ませ|でしょう|ましょう)$/.test(s);
+/** 文の中の部位を一般の言葉で返す(「右膝」「左肩」「両膝」)。見つからなければ '' */
+function familyBodyPart(clause) {
+  var s = String(clause || '');
+  var found = [];
+  for (var i = 0; i < FAMILY_BODY_PARTS.length; i++) {
+    var word = FAMILY_BODY_PARTS[i][0];
+    var at = s.indexOf(word);
+    if (at < 0) continue;
+    var before = s.slice(Math.max(0, at - 3), at);
+    var side = /(右|Rt|R)\s*(の)?$/.test(before) ? '右' : /(左|Lt|L)\s*(の)?$/.test(before) ? '左' : /両\s*(の)?$/.test(before) ? '両' : '';
+    var name = side + (FAMILY_BODY_PARTS[i][1] || word);
+    if (found.indexOf(name) < 0) found.push(name);
+    s = s.slice(0, at) + '＿'.repeat(word.length) + s.slice(at + word.length); // 「手首」のあとに「手」を二重に拾わない
+    if (found.length >= 2) break;
+  }
+  return found.join('や');
 }
 
-/** 文の終わりを、ご家族向けの「〜ました」の形にする。changed=false なら言い換えられなかった */
-function familySentence(raw) {
-  var s = halfAlnum(raw).replace(/^[\s・\-]+|[\s。．.!！、,]+$/g, '');
-  if (!s) return { text: '', care: false };
-  var exact = FAMILY_EXACT[s.replace(/\s/g, '')];
-  if (exact) return { text: exact, care: /体調不良|すぐれない/.test(exact) };
-  FAMILY_WORDS.forEach(function (w) { s = s.replace(w[0], w[1]); });
-  exact = FAMILY_EXACT[s.replace(/\s/g, '')];
-  if (exact) return { text: exact, care: /体調不良|すぐれない/.test(exact) };
-  var m;
-  // 「右膝の痛みあるため、負荷を軽めにして運動を行いました」→ 理由と本文に分けて、それぞれ整える
-  if ((m = /^(.+?)(ため|ので)[、,]?\s*(.+)$/.exec(s))) {
-    var reason = familyReason(m[1]);
-    var main = familySentence(m[3]);
-    var joint = /(ました|でした|です|ます)$/.test(reason) || m[2] === 'ので' ? 'ので、' : 'ため、';
-    return { text: reason + joint + endWithPeriod(main.text), care: false };
+/** 記録の1つの区切り(「右膝の痛みあり」など)から、読み取れた内容を topics に足す */
+function familyTopicsOf(clause, topics) {
+  var s = halfAlnum(clause).replace(/\s+/g, '');
+  if (!s) return;
+  var negative = FAMILY_NEGATION_RE.test(s.replace(/無理(なく|のない|せず)/g, ''));
+  function add(key, value) { if (!topics[key]) topics[key] = value || true; }
+  if (/(痛|疼痛|しびれ|痺れ|違和感)/.test(s)) {
+    var part = familyBodyPart(s);
+    var kind = /痛/.test(s) ? '痛み' : /(しびれ|痺れ)/.test(s) ? 'しびれ' : '違和感';
+    if (/(軽減|軽快|和らい|やわらい|楽になっ|改善|軽くなっ|軽くなる)/.test(s)) add('painBetter', { part: part, kind: kind });
+    else if (negative) add('painNone', { part: part, kind: kind });
+    else {
+      var list = topics.pain || (topics.pain = []);
+      if (!list.some(function (p) { return p.part === part && p.kind === kind; })) list.push({ part: part, kind: kind });
+    }
   }
-  if (isPoliteSentence(s)) return { text: s + '。', care: false };
-  // 「腰が痛いとの訴えあり」→ とのお話がありました
-  if ((m = /^(.+?)との(?:訴え|こと|話)(?:が)?(?:あり|有り|有|ある)?$/.exec(s))) {
-    return { text: m[1] + 'とのお話がありました。', care: PAIN_RE.test(m[1]) || /痛/.test(m[1]) };
+  if (negative) {
+    if (/(体調|著変|特変|特記|異常|問題|変わり|変化)/.test(s)) add('good');
+    return; // 「ふらつきなし」「咳なし」などは書かない
   }
-  // 読点が残る文(「右膝の痛み、少しあり」など)は言い換えると不自然になるため、下の「あり/なし」の言い換えをしない
-  if (/[、,]/.test(s)) return { text: endWithPeriod(s), care: false };
-  // 「右膝の痛みあり」「腰痛の訴えあり」→ 伺いました + お大事に
-  if ((m = /^(.+?)(?:の訴え|訴え)?(?:が)?(?:あり|有り|有|ある|みられる|見られる|出現)$/.exec(s)) && PAIN_RE.test(m[1])) {
-    return { text: painPhrase(m[1]) + 'があると伺いました。', care: true };
-  }
-  // 「〜の訴えなし」「左膝の痛み訴えなし」→ ないとのことでした
-  if ((m = /^(.+?)(?:の訴え|訴え)(?:は)?(?:なし|無し|無)$/.exec(s))) {
-    return { text: m[1].replace(/の$/, '') + 'はないとのことでした。', care: false };
-  }
-  if ((m = /^(.+?)(?:は)?(?:なし|無し|無|見られず|みられず)$/.exec(s))) {
-    return { text: m[1].replace(/の$/, '') + 'はありませんでした。', care: false };
-  }
-  // 「疲労の訴えあり」→ お話がありました
-  if ((m = /^(.+?)(?:の訴え|訴え)(?:が)?(?:あり|有り|有|ある)$/.exec(s))) {
-    return { text: m[1].replace(/の$/, '') + 'があるとのお話がありました。', care: /体調|不良|疲/.test(m[1]) };
-  }
-  if ((m = /^(.+?)(?:が)?(?:あり|有り|有|ある|みられる|見られる|出現)$/.exec(s))) {
-    var what = m[1].replace(/の$/, '');
-    var symptom = FAMILY_SYMPTOMS.some(function (w) { return what.indexOf(w) >= 0; });
-    return { text: what + (symptom ? 'が見られました。' : 'がありました。'), care: false };
-  }
-  if ((m = /^(.+?)(?:は)?(?:良好|よい|良い)$/.exec(s))) return { text: m[1].replace(/の$/, '') + 'も良好でした。', care: false };
-  if ((m = /^(.+?)(?:は)?(?:中止|中断)$/.exec(s))) return { text: m[1] + 'は今回お休みしました。', care: false };
-  if ((m = /^(.+?)(?:は)?(?:見合わせ|見送り)$/.exec(s))) return { text: m[1] + 'は今回見合わせました。', care: false };
-  if ((m = /^(.+?)(?:は)?(?:拒否|拒否あり)$/.exec(s))) return { text: m[1] + 'は今回お休みされました。', care: false };
-  if ((m = /^(.+?)(?:は)?(?:不可|できず)$/.exec(s))) return { text: m[1] + 'は今回難しいご様子でした。', care: false };
-  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(高値|高め|高い)$/.exec(s))) return { text: m[1] + 'が高めでした。', care: false };
-  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(低値|低め|低い)$/.exec(s))) return { text: m[1] + 'が低めでした。', care: false };
-  if ((m = /^(.+?)(して|にて|で)(?:実施|施行)$/.exec(s))) return { text: m[1] + (m[2] === 'して' ? 'して' : 'で') + '行いました。', care: false };
-  if ((m = /^(.+?機)(?:を)?(?:実施|施行|使用)$/.exec(s))) return { text: m[1] + 'を使いました。', care: false };
-  if ((m = /^(.+?)(?:を)?(?:実施|施行)$/.exec(s))) return { text: m[1] + 'を行いました。', care: false };
-  if ((m = /^(血圧|体温|脈拍|SpO2|体重|握力)(?:の)?(再測定|測定)$/.exec(s))) return { text: m[1] + 'を' + m[2] + 'しました。', care: false };
-  if (/^(再測定|測定|休憩|確認|調整|対応|介助|中断)$/.test(s) || /(再測定|休憩)$/.test(s)) return { text: s + 'しました。', care: false };
-  if (/行い$|行っ$/.test(s)) return { text: s.replace(/行い$|行っ$/, '行いました。'), care: false };
-  if (/(行う|行った)$/.test(s)) return { text: s.replace(/(行う|行った)$/, '行いました。'), care: false };
-  if (/軽めにして$/.test(s)) return { text: s.replace(/軽めにして$/, '軽めにしました。'), care: false };
-  if (/(?:し|して)$/.test(s)) return { text: s.replace(/(?:し|して)$/, 'しました。'), care: false };
-  // 言い換えられない文は、書いたままにする(見出しや職員が整えた文を崩さない)
-  return { text: s === halfAlnum(raw).trim().replace(/[。．.!！、,]+$/, '') ? String(raw).trim() : s + '。', care: false };
+  if (/(体調不良|不調|すぐれ|優れ|だるさ|だるい|倦怠|気分不良|気分が悪)/.test(s)) add('unwell');
+  else if (/(良好|変わりな|変わらず|著変|特変|特記|異常な|問題な|元気|安定)/.test(s) && !/(フォーム|姿勢|歩行|ペース)/.test(s)) add('good');
+  if (/(BP|血圧)/.test(s) && /(高|↑|上昇)/.test(s)) add('bpHigh');
+  if (/(BP|血圧)/.test(s) && /(低|↓|低下)/.test(s)) add('bpLow');
+  var tempValue = /(KT|体温|検温)[^0-9]{0,3}(3[4-9](?:\.[0-9])?|4[0-2](?:\.[0-9])?)/.exec(s);
+  if (/(発熱|微熱|熱感|熱っぽ)/.test(s) || (/(KT|体温)/.test(s) && /(高|↑|上昇)/.test(s)) || (tempValue && Number(tempValue[2]) >= 37.5)) add('fever');
+  if (/(咳|せき|鼻水|くしゃみ|痰|喉|のど)/.test(s)) add('cold');
+  if (/(むくみ|浮腫|腫れ|腫脹)/.test(s)) add('swelling');
+  if (/(ふらつ|ふらふら|めまい|眩暈|よろけ)/.test(s)) add('dizzy');
+  if (/(疲|息切れ|息が上が|しんど|きつ)/.test(s)) add('tired');
+  if (/(傾眠|眠気|うとうと|眠そう|ウトウト)/.test(s)) add('sleepy');
+  if (/(軽め|軽く|控えめ|控え|減らし|下げ|少なめ)/.test(s) && !/(痛み|疲れ)?(が)?軽く(なっ|なる)/.test(s)) add('light');
+  if (/(休憩|休み休み|休みながら|休息)/.test(s)) add('rest');
+  if (/(中止|中断|見合わせ|見送|休止|できず|不可|拒否|お休み|欠席)/.test(s)) add('skip');
+  if (/(意欲|積極|頑張|がんば|集中|熱心|張り切|はりき|前向き)/.test(s)) add('eager');
+  if (/(笑顔|楽しそう|楽しまれ|楽しく|笑い|会話|談笑)/.test(s)) add('smile');
+  if (/(フォーム|姿勢)(が)?(良|よ|安定|きれい|綺麗)|スムーズ|上達|向上|回数(が)?(増|ふえ|アップ)|ペース(が)?安定/.test(s)) add('steady');
 }
 
-/** 「〜ため」の前半(理由)を整える。例: 右膝の痛みある → 右膝の痛みがある */
-function familyReason(raw) {
-  var original = String(raw || '').replace(/[、,\s]+$/, '');
-  var s = original.replace(/の$/, '');
-  var m;
-  if ((m = /^(.+?)(?:の訴え|訴え)?(?:が)?(?:あり|有り|有|ある|あった)$/.exec(s))) return (PAIN_RE.test(m[1]) ? painPhrase(m[1]) : m[1].replace(/の$/, '')) + 'がある';
-  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(?:高値|高め|高い)$/.exec(s))) return m[1] + 'が高めだった';
-  if ((m = /^(血圧|体温|脈拍|脈|SpO2)(?:が|は)?(?:低値|低め|低い)$/.exec(s))) return m[1] + 'が低めだった';
-  if ((m = /^(.+?)(?:は)?(?:不良)$/.exec(s))) return m[1] + 'がすぐれない';
-  return original; // 言い換えないときは「の」も残す(「体温37.8℃のため」)
+/** 職員がすでにご家族向けの言葉で書いた文か(敬語の終わり方で、記録の略語がない) */
+function isFamilySentence(t) {
+  var s = String(t || '').replace(/[。！!\s]+$/, '');
+  if (/[A-Za-zＡ-Ｚａ-ｚ]/.test(s)) return false;
+  return /(され|られ|いただき|ござい|おり|まいり|参り)(ました|ます)$|ください$|でした$/.test(s) && /(され|られ|いただ|ござい|お過ごし|ご様子|おり|まいり|参り)/.test(s);
 }
 
-/** 文の終わりに句点がなければ足す(次の文とつながらないように) */
-function endWithPeriod(t) {
-  t = String(t || '');
-  return !t || /[。．.!！?？」』）)】]$/.test(t) ? t : t + '。';
+function familyPainLabel(p) {
+  return (p.part ? p.part + 'の' : '') + p.kind;
 }
 
-/** 「右膝の痛み」「右膝痛」「腰痛」をそのまま使い、「右膝の疼痛」は「右膝の痛み」に */
-function painPhrase(raw) {
-  return String(raw || '').replace(/の$/, '').replace(/疼痛/g, '痛み');
-}
-
-/** 文章全体を、文ごとにご家族向けの言葉へ整える。お見舞いのひとことは最初の該当文のあとに1回だけ */
-function familyFriendlyText(text) {
-  var src = halfAlnum(text);
-  var lines = src.split(/\n/);
-  var cared = /お大事に/.test(src);
-  return lines.map(function (line) {
-    // 句点で文に分け(「/」は血圧の値や日付に使うので区切らない)、「〜あり、」「〜なし、」のように記録の言い方で区切られた読点でも分ける
-    var sentences = line.replace(/([。．!！])/g, '$1\u0000')
-      .replace(/(あり|なし|有り|無し|実施|良好|中止|不可|見られず|みられず)[、,\s]/g, '$1\u0000')
-      .split(/\u0000|\s{2,}/).map(function (x) { return x.trim(); }).filter(Boolean);
-    return sentences.map(function (sentence, i) {
-      var r = familySentence(sentence);
-      // 次の文が続くときは句点で区切る(「早退」+「意欲的に…」がつながらないように)
-      var out = i < sentences.length - 1 ? endWithPeriod(r.text) : r.text;
-      if (r.care && !cared) { out += FAMILY_CARE_CLOSING; cared = true; }
-      return out;
-    }).join('');
-  }).join('\n');
+/**
+ * 記録の言葉の配列から、ご家族向けの文章を作る。読み取れた内容がなければ ''。
+ * 例: ['体調良好', '右膝の痛みあるため、負荷量軽めに運動行いました']
+ *   → 体調はお変わりなく過ごされました。右膝の痛みがあると伺いましたので、負荷を軽めにして、無理のない範囲で運動を行いました。お大事になさってください。
+ */
+function familyNotebookText(notes) {
+  var topics = {};
+  var kept = []; // 職員がご家族向けに書いた文(「〜過ごされました。」など)はそのまま使う
+  (notes || []).forEach(function (note) {
+    String(note || '').split(/\n/).forEach(function (line) {
+      line.replace(/([。！!])/g, '$1\u0000').split('\u0000').forEach(function (sentence) {
+        var t = sentence.trim();
+        if (!t) return;
+        if (isFamilySentence(t)) {
+          t = /[。！!]$/.test(t) ? t : t + '。';
+          if (kept.indexOf(t) < 0) kept.push(t);
+          return;
+        }
+        // 句点・読点・「/」などで区切って、区切りごとに読む(区切りの言葉は文章に写さない)
+        halfAlnum(t).split(/[。!！?？、,，\/／・;；]|\s{2,}/).forEach(function (clause) { familyTopicsOf(clause, topics); });
+      });
+    });
+  });
+  var out = [];
+  var care = false;
+  if (topics.unwell) { out.push('少し体調がすぐれないご様子でしたので、様子を見ながら無理のない範囲で過ごしていただきました。'); care = true; }
+  else if (topics.good) out.push('体調はお変わりなく過ごされました。');
+  if (topics.bpHigh) out.push('血圧が少し高めでしたので、時間をおいて測り直し、様子を見ながら過ごしていただきました。');
+  else if (topics.bpLow) out.push('血圧が少し低めでしたので、様子を見ながら過ごしていただきました。');
+  if (topics.fever) { out.push('体温が少し高めでしたので、様子を見ながら過ごしていただきました。'); care = true; }
+  var lightUsed = false;
+  if (topics.pain && topics.pain.length) {
+    var label = topics.pain.slice(0, 2).map(familyPainLabel).join('や');
+    if (topics.light) { out.push(label + 'があると伺いましたので、負荷を軽めにして、無理のない範囲で運動を行いました。'); lightUsed = true; }
+    else out.push(label + 'があると伺いました。');
+    care = true;
+  } else if (topics.painBetter) {
+    out.push(familyPainLabel(topics.painBetter) + 'は和らいできているとのことでした。');
+  } else if (topics.painNone) {
+    out.push(familyPainLabel(topics.painNone) + 'はないとのことでした。');
+  }
+  if (topics.cold) { out.push('咳などのかぜのような様子が少し見られました。'); care = true; }
+  if (topics.swelling) out.push('むくみが少し見られました。');
+  if (topics.dizzy) { out.push('ふらつきが見られたため、職員がそばで見守りながら安全に運動を行いました。'); care = true; }
+  if (topics.tired) {
+    if (topics.light && !lightUsed) { out.push('少しお疲れのご様子でしたので、負荷を軽めにして、無理のない範囲で取り組まれました。'); lightUsed = true; }
+    else if (topics.rest) { out.push('少しお疲れのご様子でしたので、途中で休憩をとりながら取り組まれました。'); topics.rest = false; }
+    else out.push('少しお疲れのご様子でしたので、ペースを調整しながら取り組まれました。');
+  }
+  if (topics.sleepy) out.push('少し眠そうなご様子も見られました。');
+  if (topics.light && !lightUsed) out.push('体調に合わせて負荷を軽めにし、無理のない範囲で運動を行いました。');
+  if (topics.rest) out.push('途中で休憩をとりながら取り組まれました。');
+  if (topics.skip) out.push('体調に合わせて、一部の運動はお休みしました。');
+  if (topics.eager) out.push('意欲的に取り組まれました。');
+  if (topics.smile) out.push('笑顔も見られ、楽しそうに過ごされました。');
+  if (topics.steady) out.push('安定した動きで取り組まれました。');
+  out = out.concat(kept);
+  if (care && !kept.some(function (t) { return /お大事に/.test(t); })) out.push(FAMILY_CARE_CLOSING);
+  return out.join('');
 }
 
 /**
@@ -7520,9 +7892,10 @@ function defaultNotebookComment(data, variant) {
   } else {
     parts.push(pick(NOTEBOOK_OPENINGS_REST));
   }
-  // 記録の言葉(「右膝の痛みあり」など)は、ご本人・ご家族に向けた言葉にしてから入れる(2026-11-04 現場要望)
-  var recordWords = conditionNotes.concat(notes).join('。');
-  if (recordWords) parts.push(familyFriendlyText(recordWords));
+  // 記録の言葉(「右膝の痛みあり」など)はそのまま写さず、ご家族向けの決まった文にして入れる(2026-11-06 原山さん)
+  var familyWords = familyNotebookText(conditionNotes.concat(notes));
+  if (parts[0].indexOf('意欲') >= 0) familyWords = familyWords.replace('意欲的に取り組まれました。', '');
+  if (familyWords) parts.push(familyWords);
   if (data.cognitiveRecords && data.cognitiveRecords.length) {
     parts.push('脳トレは「' + data.cognitiveRecords.map(function (r) { return r.activity; }).join('、') + '」を実施しました。');
   }
@@ -7665,7 +8038,6 @@ function renderCommunicationBook(app, renderId) {
       '<div class="notebook-tools no-print"><label class="btn-outline" id="notebook-photo-label">📷 端末ライブラリから写真を選ぶ<input type="file" accept="image/*" onchange="Actions.notebookPhoto(this.files[0],this)" hidden></label>' +
       (S.notebook.photo ? '<button class="btn-csv" onclick="Actions.notebookRemovePhoto()">写真を外す</button>' : '') +
       '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
-      '<button class="btn-csv" onclick="Actions.familyNotebookComment()">✎ ご家族向けの言葉に整える</button>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<span id="notebook-photo-status" role="status">' + notebookSavedLabel(S.notebook.entry) + '。黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 240 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div>' +
       notebookSheetHtml(data, S.notebook.comment, S.notebook.photo, { editable: true, staffName: S.staff });
@@ -7719,8 +8091,6 @@ function renderNotebookEntry(app, renderId) {
       '<div class="card"><span class="card-label">デイサービスセンター弐番館より(ひとこと)</span>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<textarea class="note-area" id="notebook-comment-input" maxlength="' + NOTEBOOK_COMMENT_MAX + '" rows="6" oninput="Actions.notebookComment(this.value)">' + esc(S.notebook.comment) + '</textarea>' +
-      '<button class="btn-outline notebook-family-btn" onclick="Actions.familyNotebookComment()">✎ ご家族向けの言葉に整える</button>' +
-      '<div class="section-note">「右膝の痛みあり」のような記録の言葉を「右膝の痛みがあると伺いました。」のように直します。直したあとも書き換えられます。</div>' +
       '<div class="btn-row" style="justify-content:space-between;"><button class="link-plain" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
       '<span id="notebook-count" class="notebook-count">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div></div>' +
       '<div class="section-note" id="notebook-saved">' + notebookSavedLabel(S.notebook.entry) + '</div>' +
@@ -7943,7 +8313,7 @@ var Actions = {
     var checkedIds = {};
     S.todayCheckins.forEach(function (c) { checkedIds[c.userId] = true; });
     var weekday = WEEKDAYS[new Date().getDay()];
-    var notChecked = S.users.filter(function (u) { return !checkedIds[u.id]; });
+    var notChecked = activeUsers().filter(function (u) { return !checkedIds[u.id]; });
     var scheduled = notChecked.filter(function (u) { return String(u.scheduleLabel || '').indexOf(weekday) >= 0; });
     var others = notChecked.filter(function (u) { return String(u.scheduleLabel || '').indexOf(weekday) < 0; });
     function pickerRow(u) {
@@ -8356,7 +8726,7 @@ var Actions = {
       el.setAttribute('aria-pressed', String(selected));
     });
     var count = document.getElementById('user-result-count');
-    if (count) count.textContent = visible + '名を表示 / 全' + S.users.length + '名';
+    if (count) count.textContent = visible + '名を表示 / 全' + activeUsers().length + '名';
     var clear = document.getElementById('user-search-clear');
     if (clear) clear.hidden = !q;
   },
@@ -8651,8 +9021,48 @@ var Actions = {
   },
 
   // --- 利用者管理(管理者専用) ---
+  adminImportOpen: function () { S.editingUser = null; S.userImport = {}; render(); },
+  adminImportClose: function () { S.userImport = null; render(); },
+  adminImportReset: function () { S.userImport = {}; render(); },
+  adminImportFile: function (file) {
+    if (!file) return;
+    var err = document.getElementById('import-error');
+    if (err) err.textContent = '読み取っています…';
+    importReadFile(file).then(function (rows) {
+      var res = importCandidates(rows, new Date(), S.users);
+      S.userImport = res.error ? { error: res.error } : { list: res.list, fileName: file.name };
+      render();
+    }).catch(function (e) {
+      S.userImport = { error: (e && e.message) || 'ファイルを読み取れませんでした' };
+      render();
+    });
+  },
+  adminImportToggle: function (i, on) {
+    var c = S.userImport && S.userImport.list && S.userImport.list[i];
+    if (c) c.checked = on;
+  },
+  adminImportSave: function () {
+    var st = S.userImport;
+    if (!st || !st.list) return;
+    var picked = st.list.filter(function (c) { return !c.problems.length && c.checked !== false; });
+    var err = document.getElementById('import-error');
+    if (!picked.length) { if (err) err.textContent = '登録する人に印を付けてください'; return; }
+    var btn = document.getElementById('import-save');
+    if (btn) { btn.disabled = true; btn.textContent = '登録しています…'; }
+    rpc('apiAdminImportUsers', picked.map(function (c) {
+      return Object.assign({ name: c.name, kana: c.kana, age: c.age, careLevel: c.careLevel, scheduleLabel: c.scheduleLabel }, c.extra || {});
+    })).then(function (res) {
+      S.users = res.users;
+      S.userImport = { result: { added: res.added, skipped: res.skipped || [] } };
+      render();
+    }).catch(function (e) {
+      if (err) err.textContent = (e && e.message) || '登録できませんでした';
+      if (btn) { btn.disabled = false; btn.textContent = '印の付いた人を登録する'; }
+    });
+  },
   adminNewUser: function () {
     S.editingUser = { id: '', name: '', kana: '', age: '', careLevel: CARE_LEVELS[0], scheduleLabel: '', goal: '', medicalHistory: '', precautions: '', photo: '', hasPhoto: false };
+    USER_EXTRA_KEYS.forEach(function (k) { S.editingUser[k] = ''; });
     render();
   },
   adminEditUser: function (id) {
@@ -8661,6 +9071,26 @@ var Actions = {
     if (!u) return;
     // photo=null は「登録済みの写真を変更しない」。選択・削除したときだけ文字列になる
     S.editingUser = { id: u.id, name: u.name, kana: u.kana, age: u.age, careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, goal: u.goal || '', medicalHistory: u.medicalHistory || '', precautions: u.precautions || '', photo: null, hasPhoto: !!(u.hasPhoto || S.photos[u.id]) };
+    USER_EXTRA_KEYS.forEach(function (k) { S.editingUser[k] = u[k] == null ? '' : String(u[k]); });
+    render();
+  },
+  /** 生年月日を入れたら年齢を自動で入れる(年齢の欄は直せなくする) */
+  adminBirthChanged: function (value) {
+    var age = document.getElementById('f-age');
+    var note = document.getElementById('f-age-note');
+    var calc = ageFromBirthDate(value);
+    if (age) { age.readOnly = calc !== ''; if (calc !== '') age.value = calc; }
+    if (note) note.hidden = calc === '';
+  },
+  adminStatusChanged: function () {
+    var ended = !!document.querySelector('input[name="f-status"][value="利用終了"]:checked');
+    var wrap = document.getElementById('f-end-wrap');
+    var end = document.getElementById('fx-endDate');
+    if (wrap) wrap.hidden = !ended;
+    if (ended && end && !end.value) end.value = S.today || new Date().toISOString().slice(0, 10);
+  },
+  adminToggleEnded: function () {
+    S.showEndedUsers = !S.showEndedUsers;
     render();
   },
   adminCancelEdit: function () {
@@ -8683,8 +9113,15 @@ var Actions = {
       precautions: document.getElementById('f-precautions').value.trim(),
       photo: S.editingUser.photo, // null=変更なし / ''=削除 / dataURL=新しい写真
     };
+    USER_EXTRA_KEYS.forEach(function (k) {
+      var el = document.getElementById('fx-' + k);
+      payload[k] = el ? el.value.trim() : String(S.editingUser[k] || '');
+    });
+    var statusEl = document.querySelector('input[name="f-status"]:checked');
+    payload.status = statusEl ? statusEl.value : (S.editingUser.status || '利用中');
+    if (payload.status !== '利用終了') payload.endDate = '';
     if (!payload.name) { if (err) err.textContent = '氏名を入力してください'; return; }
-    if (!payload.age || !isFinite(Number(payload.age))) { if (err) err.textContent = '年齢を数字で入力してください'; return; }
+    if (!payload.birthDate && (!payload.age || !isFinite(Number(payload.age)))) { if (err) err.textContent = '年齢を数字で入力するか、生年月日を入れてください'; return; }
     var btn = document.getElementById('f-save');
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
     rpc('apiAdminSaveUser', payload).then(function (res) {
@@ -8906,16 +9343,6 @@ var Actions = {
     S.notebook.comment = ((S.notebook.comment || '').trim() ? S.notebook.comment.trim() + '。' : '') + text;
     S.notebook.comment = S.notebook.comment.slice(0, NOTEBOOK_COMMENT_MAX);
     Actions.syncNotebookCommentBox(false);
-  },
-  /** 入力済みの文章の中の記録の言葉を、ご家族向けの言葉に直す(丁寧な文はそのまま) */
-  familyNotebookComment: function () {
-    var before = S.notebook.comment || '';
-    var after = familyFriendlyText(before).slice(0, NOTEBOOK_COMMENT_MAX);
-    if (after !== before) {
-      S.notebook.comment = after;
-      S.notebook.dirty = true;
-    }
-    Actions.syncNotebookCommentBox(after !== before);
   },
   resetNotebookComment: function () {
     if (!S.notebook.data) return;
@@ -9737,11 +10164,17 @@ var Mock = (function () {
             x.name = u.name; x.kana = u.kana; x.age = Number(u.age);
             x.careLevel = u.careLevel; x.scheduleLabel = u.scheduleLabel;
             x.goal = u.goal || ''; x.medicalHistory = u.medicalHistory || ''; x.precautions = u.precautions || '';
+            USER_EXTRA_KEYS.forEach(function (k) { if (u[k] !== undefined) x[k] = u[k]; });
+            if (x.birthDate) x.age = ageFromBirthDate(x.birthDate);
           }
         });
       } else {
         id = 'u' + Date.now().toString(36);
-        db.users.push({ id: id, name: u.name, kana: u.kana, age: Number(u.age), careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, plan: [], qrCode: 'GSU:' + id, goal: u.goal || '', medicalHistory: u.medicalHistory || '', precautions: u.precautions || '' });
+        var nu = { id: id, name: u.name, kana: u.kana, age: Number(u.age), careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, plan: [], qrCode: 'GSU:' + id, goal: u.goal || '', medicalHistory: u.medicalHistory || '', precautions: u.precautions || '' };
+        USER_EXTRA_KEYS.forEach(function (k) { nu[k] = u[k] || ''; });
+        if (!nu.status) nu.status = '利用中';
+        if (nu.birthDate) nu.age = ageFromBirthDate(nu.birthDate);
+        db.users.push(nu);
       }
       if (typeof u.photo === 'string') {
         if (u.photo) db.photos[id] = u.photo;
@@ -9754,6 +10187,25 @@ var Mock = (function () {
     apiGetUserPhotos: function () {
       var db = load();
       return db.photos || {};
+    },
+    apiAdminImportUsers: function (list) {
+      var db = load();
+      var names = {};
+      db.users.forEach(function (x) { names[String(x.name).replace(/\s/g, '')] = true; });
+      var added = 0, skipped = [];
+      list.forEach(function (u, i) {
+        var key = String(u.name).replace(/\s/g, '');
+        if (names[key]) { skipped.push(u.name); return; }
+        names[key] = true;
+        var nu = { id: 'ui' + Date.now().toString(36) + i, name: u.name, kana: u.kana, age: Number(u.age), careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, goal: '', medicalHistory: u.medicalHistory || '', precautions: '' };
+        USER_EXTRA_KEYS.forEach(function (k) { nu[k] = u[k] || ''; });
+        nu.status = '利用中';
+        if (nu.birthDate) nu.age = ageFromBirthDate(nu.birthDate);
+        db.users.push(nu);
+        added++;
+      });
+      save(db);
+      return { users: sortUsersKana(db.users), added: added, skipped: skipped };
     },
     apiAdminDeleteUser: function (id) {
       var db = load();
