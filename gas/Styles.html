@@ -2252,38 +2252,92 @@ textarea {
     height: 55mm !important;
     box-sizing: border-box !important;
     aspect-ratio: auto !important;
-    padding: 4mm !important;
-    grid-template-columns: 40mm minmax(0, 1fr) !important;
-    gap: 4mm !important;
-    border: .2mm solid #aeb8b1 !important;
-    border-radius: 0 !important;
     box-shadow: none !important;
-    background: #fff !important;
+    zoom: 1 !important;
     break-inside: avoid;
     page-break-inside: avoid;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .qr-print-page .qr-code {
-    width: 40mm !important;
-    height: 40mm !important;
-    max-width: none !important;
-  }
-  .qr-print-page .qr-name {
-    font-size: 16pt !important;
-    line-height: 1.4 !important;
-  }
-  .qr-print-page .qr-sub {
-    margin-top: 2mm;
-    font-size: 9pt !important;
-    line-height: 1.35 !important;
-  }
-  .qr-print-page .qr-meta {
-    margin-top: 1.5mm !important;
-    gap: 2mm !important;
-    font-size: 10pt !important;
-  }
-  .qr-print-page .qr-meta-key { font-size: 8pt !important; }
+}
+
+
+/* ===== 利用者QRカード: 壱番館の名札と同じデザイン(2026-11-12)。男性=紺と青 / 女性=ピンクの花柄 / 未設定=やさしい緑 =====
+   画面でも印刷と同じ名刺サイズ(91×55mm)で見せる。QRの周りは白地と余白を残して読み取りやすさを保つ */
+.qr-grid.qr-sheet {
+  grid-template-columns: repeat(auto-fill, 91mm);
+  gap: 14px;
+  justify-content: start;
+}
+.qr-card.badge {
+  position: relative;
+  box-sizing: border-box;
+  width: 91mm;
+  height: 55mm;
+  aspect-ratio: auto;
+  padding: 0;
+  gap: 0;
+  border: 0.35mm solid var(--badge-line);
+  border-radius: 3.5mm;
+  background: var(--badge-paper);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "band band" "body qr";
+  align-items: stretch;
+  text-align: left;
+  overflow: hidden;
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  color: var(--badge-ink);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.qr-card.badge.theme-cool { --badge-line: #1e3a5f; --badge-paper: #ffffff; --badge-ink: #0f2747; --badge-band: linear-gradient(115deg, #0f2747 0%, #1d4ed8 62%, #38bdf8 100%); --badge-accent: #1d4ed8; --badge-chip: #e0ecff; font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; }
+.qr-card.badge.theme-cute { --badge-line: #f19bbd; --badge-paper: #fffafc; --badge-ink: #8a1c4a; --badge-band: linear-gradient(100deg, #ffb6cf 0%, #ffd3e2 55%, #ffe9c7 100%); --badge-accent: #e0457b; --badge-chip: #ffe4ee; }
+.qr-card.badge.theme-calm { --badge-line: #5f9e8a; --badge-paper: #ffffff; --badge-ink: #134e43; --badge-band: linear-gradient(110deg, #0f766e 0%, #34a28f 60%, #a7e3c8 100%); --badge-accent: #0f766e; --badge-chip: #dcf3ea; }
+.qr-card.badge .badge-band { grid-area: band; position: relative; height: 9.5mm; display: flex; align-items: center; gap: 1.6mm; padding: 0 3.5mm; background: var(--badge-band); overflow: hidden; }
+.qr-card.badge .badge-facility { position: relative; z-index: 1; font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; white-space: nowrap; }
+.qr-card.badge.theme-cool .badge-facility,
+.qr-card.badge.theme-calm .badge-facility { color: #fff; }
+.qr-card.badge.theme-cute .badge-facility { color: #8a1c4a; }
+.qr-card.badge .badge-motif { position: absolute; right: 0; top: 0; height: 100%; width: 40mm; }
+.qr-card.badge .badge-motif svg { width: 100%; height: 100%; display: block; }
+.qr-card.badge .badge-logo { position: relative; z-index: 1; width: 5.4mm; height: 5.4mm; flex: none; }
+.qr-card.badge .badge-body { grid-area: body; display: flex; flex-direction: column; justify-content: center; gap: 1.4mm; padding: 2mm 1.5mm 3mm 4mm; min-width: 0; }
+.qr-card.badge .qr-kana { font-size: 8.5pt; color: var(--badge-accent); font-weight: 700; letter-spacing: .12em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qr-card.badge .qr-name { font-size: 28pt; font-weight: 800; line-height: 1.1; letter-spacing: .03em; color: var(--badge-ink); white-space: nowrap; }
+.qr-card.badge .qr-name.len-m { font-size: 23pt; }
+.qr-card.badge .qr-name.len-l { font-size: 18pt; }
+.qr-card.badge .qr-name.len-xl { font-size: 14pt; white-space: normal; }
+.qr-card.badge .qr-sama { margin-left: .25em; font-size: 10pt; font-weight: 700; letter-spacing: 0; }
+.qr-card.badge .badge-days { display: flex; flex-wrap: wrap; gap: 1mm; }
+.qr-card.badge .badge-day { display: inline-grid; place-items: center; min-width: 6.2mm; height: 6.2mm; padding: 0 .8mm; border-radius: 999px; background: var(--badge-chip); color: var(--badge-ink); font-size: 9pt; font-weight: 800; line-height: 1; }
+.qr-card.badge.theme-cool .badge-day { border-radius: 1.4mm; }
+/* 午前=黄色・午後=水色(弐番館は必ず午前か午後の半日利用。2026-11-12 原山さん) */
+.qr-card.badge .badge-day.part { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: .4mm; height: auto; min-width: 8.6mm; min-height: 6.2mm; padding: .7mm 1.1mm; border-radius: 1.6mm; font-size: 9.5pt; }
+.qr-card.badge .badge-day.part.am { background: #fff1c2; color: #7a4100; box-shadow: inset 0 0 0 .35mm #f0a020; }
+.qr-card.badge .badge-day.part.pm { background: #dff1ff; color: #0b4a7a; box-shadow: inset 0 0 0 .35mm #3b9be0; }
+.qr-card.badge .badge-day small { display: block; font-size: 7pt; font-weight: 900; line-height: 1; letter-spacing: .04em; }
+.qr-card.badge .badge-part { position: absolute; top: 1.3mm; right: 2.2mm; z-index: 2; padding: .9mm 2.8mm; border-radius: 999px; font-size: 9.5pt; font-weight: 900; letter-spacing: .06em; line-height: 1.2; box-shadow: 0 .4mm 0 rgba(0,0,0,.18); }
+.qr-card.badge .badge-part.am { background: #ffd23f; color: #5a3300; }
+.qr-card.badge .badge-part.pm { background: #8fd0ff; color: #08365c; }
+.qr-card.badge.theme-cool .badge-part { border-radius: 1.2mm; }
+/* 利用者の編集: 曜日ごとの午前・午後(押して選ぶ) */
+.day-part-picker .gin-chip.day-part-am[aria-pressed="true"] { background: #ffe9a8; border-color: #f0a020; color: #5a3300; }
+.day-part-picker .gin-chip.day-part-pm[aria-pressed="true"] { background: #cfeaff; border-color: #3b9be0; color: #08365c; }
+/* 下の縁取り(男性=青のライン / 女性=水玉 / 未設定=緑のライン) */
+.qr-card.badge::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1.6mm; background: var(--badge-band); opacity: .9; }
+.qr-card.badge.theme-cute::after { height: 2.2mm; background: radial-gradient(circle at 1.1mm 1.1mm, #ffb6cf .75mm, transparent .8mm) 0 0 / 3.2mm 2.2mm repeat-x; opacity: 1; }
+.qr-card.badge .badge-qr { grid-area: qr; display: grid; place-items: center; padding: 1.2mm 3mm 3mm 1mm; }
+/* QRは白地で囲む(周りの白い余白=読み取りに必要な「静かな部分」) */
+.qr-card.badge .qr-code { width: 34mm; height: 34mm; max-width: none; box-sizing: border-box; padding: 2.4mm; background: #fff; border: 0.3mm solid var(--badge-line); border-radius: 1.6mm; }
+/* スマホの細い画面では券面ごと縮めて横にはみ出さないようにする(印刷は原寸) */
+@media (max-width: 420px) {
+  .qr-grid.qr-sheet { grid-template-columns: 1fr; justify-items: center; }
+  .qr-card.badge { zoom: .86; }
+}
+@media (max-width: 360px) {
+  .qr-card.badge { zoom: .78; }
 }
 
 
