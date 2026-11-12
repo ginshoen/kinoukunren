@@ -194,6 +194,7 @@ function apiCall(fnName, args, session, facility) {
   if (fnName === 'apiGetStaffList' || fnName === 'apiLogin') requireFacilityCode_(facility);
   ensureSchema_();
   seedDemoEnvironment_(); // デモのスプレッドシートだけ初回に架空のデータを入れる(本番では何もしない)
+  removeSampleDataOnce_(); // 最初の動作確認用の見本データを1回だけ消す(2026-11-12。消し終えたら何もしない)
   return dispatch_(fnName, args, session);
 }
 
@@ -228,6 +229,7 @@ function doPost(e) {
     requireSameEnvironment_(body.env);
     ensureSchema_();
     seedDemoEnvironment_(); // デモのスプレッドシートだけ初回に架空のデータを入れる(本番では何もしない)
+    removeSampleDataOnce_(); // 最初の動作確認用の見本データを1回だけ消す(2026-11-12。消し終えたら何もしない)
     result = { ok: true, data: dispatch_(requestedFn, body.args, body.session) };
   } catch (err) {
     result = { ok: false, error: String((err && err.message) || err) };
@@ -2514,6 +2516,117 @@ function seedDemoRecords_() {
   appendRowsNoLock_('records', records);
   appendRowsNoLock_('cognitive', cognitive);
   appendRowsNoLock_('assessments', assessments);
+}
+
+// ---------------------------------------------------------------- 見本データの削除(2026-11-12)
+// 2026-11-12 原山さん「デモデータが残っているので消して」。本番には、最初の動作確認(setupWithDemoData)で入れた
+// 見本の利用者 u01〜u12 と、その方々に職員が試しに付けた記録、試しに作った職員「テスト」が残っていた。
+// 了承を得た範囲(見本の12名・その記録・職員「テスト」)だけを、反映後の最初の通信で1回だけ消す。
+// - 見本の12名は ID と氏名(seedData_ と同じ)が両方一致したときだけ消す。1人でも違えば何も消さない
+// - 記録は「利用者ID」の列が見本の12名のものだけ消す。実在の利用者の記録・種目や定型文などの設定には触れない
+// - 職員は ID・氏名・権限がすべて一致したときだけ消す
+// - 結果はスクリプトプロパティ SAMPLE_DATA_REMOVED_20261112 に残し、2回目からは何もしない(失敗しても繰り返さない)
+// - デモ環境では何もしない
+var SAMPLE_PURGE_PROP_ = 'SAMPLE_DATA_REMOVED_20261112';
+var SAMPLE_USER_NAMES_ = {
+  u01: '田中 花子', u02: '佐藤 一郎', u03: '鈴木 良子', u04: '高橋 正夫', u05: '伊藤 幸子', u06: '渡辺 茂',
+  u07: '山本 静江', u08: '中村 勝', u09: '小林 富美', u10: '加藤 秀雄', u11: '吉田 春江', u12: '佐々木 実',
+};
+var SAMPLE_STAFF_ = { id: 'smv4rajdk', name: 'テスト', role: 'staff' };
+// 「利用者ID」の列を持つ記録のシート。見出しが「利用者ID」でなければ何も消さずに止める
+var SAMPLE_RECORD_SHEETS_ = ['checkins', 'vitals', 'records', 'cognitive', 'assessments', 'dailyStatus', 'handoffs', 'goals', 'notebooks'];
+
+function removeSampleDataOnce_() {
+  if (scriptProp_(SAMPLE_PURGE_PROP_) || isDemoEnvironment_()) return;
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(20000)) return; // ほかの保存中なら次の通信で行う
+  try {
+    if (PropertiesService.getScriptProperties().getProperty(SAMPLE_PURGE_PROP_)) return;
+    var result;
+    try {
+      result = removeSampleData_();
+    } catch (e) {
+      result = { error: String((e && e.message) || e) };
+    }
+    result.at = new Date().toISOString();
+    setScriptProp_(SAMPLE_PURGE_PROP_, JSON.stringify(result));
+    Logger.log('見本データの削除: ' + JSON.stringify(result));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** シートの行(1始まりの行番号)を下からまとめて消す。シートの行を全部消すとエラーになるため、足りなければ空行を足す */
+function deleteRowNumbers_(sh, rowNumbers) {
+  if (!rowNumbers.length) return 0;
+  var rows = rowNumbers.slice().sort(function (a, b) { return b - a; });
+  if (sh.getMaxRows() <= rows[0]) sh.insertRowsAfter(sh.getMaxRows(), 1);
+  var i = 0;
+  while (i < rows.length) {
+    var end = rows[i], start = end;
+    while (i + 1 < rows.length && rows[i + 1] === start - 1) { i++; start--; }
+    sh.deleteRows(start, end - start + 1);
+    i++;
+  }
+  return rows.length;
+}
+
+function removeSampleData_() {
+  var result = { users: 0, staff: 0, records: {} };
+  var ids = Object.keys(SAMPLE_USER_NAMES_);
+  // 1) 見本の利用者: ID と氏名が両方一致するか確かめる(1人でも違えば何も消さない)
+  var shU = sheet_('users');
+  var lastU = shU.getLastRow();
+  var userRows = [];
+  if (lastU >= 2) {
+    var head = shU.getRange(1, 1, 1, 2).getValues()[0];
+    if (String(head[0]) !== 'ID' || String(head[1]) !== '氏名') return { skipped: '利用者マスタの列の並びが想定と違うため止めました' };
+    var vals = shU.getRange(2, 1, lastU - 1, 2).getValues();
+    for (var r = 0; r < vals.length; r++) {
+      var id = String(vals[r][0]).trim();
+      if (!Object.prototype.hasOwnProperty.call(SAMPLE_USER_NAMES_, id)) continue;
+      if (String(vals[r][1]).replace(/[\s　]+/g, ' ').trim() !== SAMPLE_USER_NAMES_[id]) {
+        return { skipped: id + ' の氏名が見本と違うため、何も消さずに止めました' };
+      }
+      userRows.push(r + 2);
+    }
+  }
+  // 2) 記録: 先に全シートの列を確かめて消す行を決めてから消す(途中で止まって一部だけ消えることを防ぐ)
+  var plan = [];
+  SAMPLE_RECORD_SHEETS_.forEach(function (key) {
+    var col = HEADERS[key].indexOf('利用者ID') + 1;
+    var sh = sheet_(key);
+    var last = sh.getLastRow();
+    if (col < 1 || last < 2) return;
+    if (String(sh.getRange(1, col).getValue()) !== '利用者ID') throw new Error(SHEETS[key] + ' の列の並びが想定と違うため止めました');
+    var rows = [];
+    sh.getRange(2, col, last - 1, 1).getValues().forEach(function (v, i) {
+      if (ids.indexOf(String(v[0]).trim()) >= 0) rows.push(i + 2);
+    });
+    if (rows.length) plan.push({ key: key, sh: sh, rows: rows });
+  });
+  plan.forEach(function (p) {
+    result.records[p.key] = deleteRowNumbers_(p.sh, p.rows);
+    invalidateRequestRows_(p.key);
+  });
+  result.users = deleteRowNumbers_(shU, userRows);
+  invalidateRequestRows_('users');
+  CacheService.getScriptCache().remove('master-v4-users');
+  // 3) 試しに作った職員「テスト」: ID・氏名・権限がすべて一致したときだけ
+  var shS = sheet_('staff');
+  var lastS = shS.getLastRow();
+  if (lastS >= 2) {
+    var sv = shS.getRange(2, 1, lastS - 1, 5).getValues();
+    for (var k = 0; k < sv.length; k++) {
+      if (String(sv[k][0]).trim() === SAMPLE_STAFF_.id && String(sv[k][1]).trim() === SAMPLE_STAFF_.name &&
+          String(sv[k][4]).trim() === SAMPLE_STAFF_.role) {
+        result.staff = deleteRowNumbers_(shS, [k + 2]);
+        break;
+      }
+    }
+  }
+  invalidateRequestRows_('staff');
+  return result;
 }
 
 // ---------------------------------------------------------------- セットアップ
