@@ -3631,7 +3631,7 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261111-2022';window.APP_MOCK=false;window.APP_DEMO=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261112-1136';window.APP_MOCK=false;window.APP_DEMO=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -6952,7 +6952,8 @@ function buildDays(res) {
 
 // ---------------------------------------------------------------- 管理: 利用者管理(管理者PIN必須)
 
-var CARE_LEVELS = ['要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
+// 事業対象者は 11/11 追加(ワイズマンの一覧にいるため。壱番館と同じ)
+var CARE_LEVELS = ['事業対象者', '要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
 
 /** 職員管理(管理者のみ): 職員の登録・権限設定・PIN再設定・削除 */
 function renderAdminStaff(app, renderId) {
@@ -7212,6 +7213,7 @@ function importAgeFromBirth(value, today) {
 /** 介護度を画面の選択肢にそろえる。読めないときは ''(登録後に1人ずつ選ぶ) */
 function importCareLevel(value) {
   var s = importNfkc(value).replace(/[\s()（）]/g, '');
+  if (/事業対象者/.test(s)) return '事業対象者';
   var x = /(要?介護|要?支援)([1-5])/.exec(s);
   if (!x) return '';
   var kind = /支援/.test(x[1]) ? '要支援' : '要介護';
@@ -7258,12 +7260,19 @@ function importFindColumns(rows) {
       if (!t) return;
       // 壱番館と同じ項目(2026-11-10)。「緊急連絡先氏名」「ケアマネ電話」などを氏名・ふりがなと取り違えないよう先に見る
       var extra = null;
-      if (/緊急|家族|連絡者/.test(t)) {
+      // ワイズマンの「利用者台帳抽出」は 関係者 氏名/電話番号1、介護支援事業者 関連機関名/担当者名/電話番号(11/11)
+      if (/緊急|家族|連絡者|関係者/.test(t)) {
         if (/続柄/.test(t)) extra = 'emergencyRelation';
         else if (/(電話|TEL|Tel|携帯)/i.test(t)) extra = 'emergencyPhone';
         else if (/(氏名|名前|連絡先)$/.test(t) && !/(フリガナ|ふりがな|カナ)/.test(t)) extra = 'emergencyName';
         else return;
       } else if (/^続柄$/.test(t)) extra = 'emergencyRelation';
+      else if (/介護支援事業者/.test(t)) {
+        if (/(電話)/.test(t)) extra = 'careManagerPhone';
+        else if (/担当者/.test(t)) extra = 'careManager';
+        else if (/(関連機関名|事業所名|事業者名|名称)$/.test(t)) extra = 'careOffice';
+        else return; // 所在地・FAX は取り込まない
+      }
       else if (/(居宅介護支援|居宅事業所|支援事業所)/.test(t) && !/(電話|TEL|連絡先|担当|ケアマネ|専門員)/i.test(t)) extra = 'careOffice';
       else if (/(ケアマネ|介護支援専門員|担当CM)/i.test(t)) {
         if (/(電話|TEL|連絡先)/i.test(t)) extra = 'careManagerPhone';
@@ -7335,6 +7344,7 @@ function importCandidates(rows, today, existingUsers) {
     else if (seen[key]) c.problems.push('一覧の中で重複');
     if (c.age === '' || c.age > 130) c.problems.push(cols.birth == null && cols.age == null ? '年齢・生年月日の列がありません' : '年齢が読めません');
     if (careRaw && !c.careLevel) c.notes.push('介護度「' + careRaw + '」は選択肢にないため空欄(登録後に選ぶ)');
+    else if (/暫/.test(careRaw)) c.notes.push('介護度は暫定');
     seen[key] = true;
     list.push(c);
   });
@@ -9061,7 +9071,7 @@ var Actions = {
     });
   },
   adminNewUser: function () {
-    S.editingUser = { id: '', name: '', kana: '', age: '', careLevel: CARE_LEVELS[0], scheduleLabel: '', goal: '', medicalHistory: '', precautions: '', photo: '', hasPhoto: false };
+    S.editingUser = { id: '', name: '', kana: '', age: '', careLevel: '要支援1', scheduleLabel: '', goal: '', medicalHistory: '', precautions: '', photo: '', hasPhoto: false };
     USER_EXTRA_KEYS.forEach(function (k) { S.editingUser[k] = ''; });
     render();
   },
