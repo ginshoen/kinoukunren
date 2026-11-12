@@ -1382,7 +1382,7 @@ function apiGetUserPhotos_() {
  * 画面でワイズマン等の一覧ファイルを読み取り、確認した行だけが届く。氏名・年齢は必須。
  * 同じ氏名(空白を除く)の利用者がすでにいれば登録しない(二重登録を防ぐ。直すときは1人ずつ編集)。
  */
-var IMPORT_CARE_LEVELS = ['要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
+var IMPORT_CARE_LEVELS = ['事業対象者', '要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
 var IMPORT_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 function apiAdminImportUsers_(list) {
   if (!Array.isArray(list) || !list.length) throw new Error('取り込む利用者がいません');
