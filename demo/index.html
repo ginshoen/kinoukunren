@@ -2262,38 +2262,92 @@ textarea {
     height: 55mm !important;
     box-sizing: border-box !important;
     aspect-ratio: auto !important;
-    padding: 4mm !important;
-    grid-template-columns: 40mm minmax(0, 1fr) !important;
-    gap: 4mm !important;
-    border: .2mm solid #aeb8b1 !important;
-    border-radius: 0 !important;
     box-shadow: none !important;
-    background: #fff !important;
+    zoom: 1 !important;
     break-inside: avoid;
     page-break-inside: avoid;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .qr-print-page .qr-code {
-    width: 40mm !important;
-    height: 40mm !important;
-    max-width: none !important;
-  }
-  .qr-print-page .qr-name {
-    font-size: 16pt !important;
-    line-height: 1.4 !important;
-  }
-  .qr-print-page .qr-sub {
-    margin-top: 2mm;
-    font-size: 9pt !important;
-    line-height: 1.35 !important;
-  }
-  .qr-print-page .qr-meta {
-    margin-top: 1.5mm !important;
-    gap: 2mm !important;
-    font-size: 10pt !important;
-  }
-  .qr-print-page .qr-meta-key { font-size: 8pt !important; }
+}
+
+
+/* ===== 利用者QRカード: 壱番館の名札と同じデザイン(2026-11-12)。男性=紺と青 / 女性=ピンクの花柄 / 未設定=やさしい緑 =====
+   画面でも印刷と同じ名刺サイズ(91×55mm)で見せる。QRの周りは白地と余白を残して読み取りやすさを保つ */
+.qr-grid.qr-sheet {
+  grid-template-columns: repeat(auto-fill, 91mm);
+  gap: 14px;
+  justify-content: start;
+}
+.qr-card.badge {
+  position: relative;
+  box-sizing: border-box;
+  width: 91mm;
+  height: 55mm;
+  aspect-ratio: auto;
+  padding: 0;
+  gap: 0;
+  border: 0.35mm solid var(--badge-line);
+  border-radius: 3.5mm;
+  background: var(--badge-paper);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "band band" "body qr";
+  align-items: stretch;
+  text-align: left;
+  overflow: hidden;
+  font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  color: var(--badge-ink);
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.qr-card.badge.theme-cool { --badge-line: #1e3a5f; --badge-paper: #ffffff; --badge-ink: #0f2747; --badge-band: linear-gradient(115deg, #0f2747 0%, #1d4ed8 62%, #38bdf8 100%); --badge-accent: #1d4ed8; --badge-chip: #e0ecff; font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; }
+.qr-card.badge.theme-cute { --badge-line: #f19bbd; --badge-paper: #fffafc; --badge-ink: #8a1c4a; --badge-band: linear-gradient(100deg, #ffb6cf 0%, #ffd3e2 55%, #ffe9c7 100%); --badge-accent: #e0457b; --badge-chip: #ffe4ee; }
+.qr-card.badge.theme-calm { --badge-line: #5f9e8a; --badge-paper: #ffffff; --badge-ink: #134e43; --badge-band: linear-gradient(110deg, #0f766e 0%, #34a28f 60%, #a7e3c8 100%); --badge-accent: #0f766e; --badge-chip: #dcf3ea; }
+.qr-card.badge .badge-band { grid-area: band; position: relative; height: 9.5mm; display: flex; align-items: center; gap: 1.6mm; padding: 0 3.5mm; background: var(--badge-band); overflow: hidden; }
+.qr-card.badge .badge-facility { position: relative; z-index: 1; font-size: 7.5pt; font-weight: 700; letter-spacing: .08em; white-space: nowrap; }
+.qr-card.badge.theme-cool .badge-facility,
+.qr-card.badge.theme-calm .badge-facility { color: #fff; }
+.qr-card.badge.theme-cute .badge-facility { color: #8a1c4a; }
+.qr-card.badge .badge-motif { position: absolute; right: 0; top: 0; height: 100%; width: 40mm; }
+.qr-card.badge .badge-motif svg { width: 100%; height: 100%; display: block; }
+.qr-card.badge .badge-logo { position: relative; z-index: 1; width: 5.4mm; height: 5.4mm; flex: none; }
+.qr-card.badge .badge-body { grid-area: body; display: flex; flex-direction: column; justify-content: center; gap: 1.4mm; padding: 2mm 1.5mm 3mm 4mm; min-width: 0; }
+.qr-card.badge .qr-kana { font-size: 8.5pt; color: var(--badge-accent); font-weight: 700; letter-spacing: .12em; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qr-card.badge .qr-name { font-size: 28pt; font-weight: 800; line-height: 1.1; letter-spacing: .03em; color: var(--badge-ink); white-space: nowrap; }
+.qr-card.badge .qr-name.len-m { font-size: 23pt; }
+.qr-card.badge .qr-name.len-l { font-size: 18pt; }
+.qr-card.badge .qr-name.len-xl { font-size: 14pt; white-space: normal; }
+.qr-card.badge .qr-sama { margin-left: .25em; font-size: 10pt; font-weight: 700; letter-spacing: 0; }
+.qr-card.badge .badge-days { display: flex; flex-wrap: wrap; gap: 1mm; }
+.qr-card.badge .badge-day { display: inline-grid; place-items: center; min-width: 6.2mm; height: 6.2mm; padding: 0 .8mm; border-radius: 999px; background: var(--badge-chip); color: var(--badge-ink); font-size: 9pt; font-weight: 800; line-height: 1; }
+.qr-card.badge.theme-cool .badge-day { border-radius: 1.4mm; }
+/* 午前=黄色・午後=水色(弐番館は必ず午前か午後の半日利用。2026-11-12 原山さん) */
+.qr-card.badge .badge-day.part { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: .4mm; height: auto; min-width: 8.6mm; min-height: 6.2mm; padding: .7mm 1.1mm; border-radius: 1.6mm; font-size: 9.5pt; }
+.qr-card.badge .badge-day.part.am { background: #fff1c2; color: #7a4100; box-shadow: inset 0 0 0 .35mm #f0a020; }
+.qr-card.badge .badge-day.part.pm { background: #dff1ff; color: #0b4a7a; box-shadow: inset 0 0 0 .35mm #3b9be0; }
+.qr-card.badge .badge-day small { display: block; font-size: 7pt; font-weight: 900; line-height: 1; letter-spacing: .04em; }
+.qr-card.badge .badge-part { position: absolute; top: 1.3mm; right: 2.2mm; z-index: 2; padding: .9mm 2.8mm; border-radius: 999px; font-size: 9.5pt; font-weight: 900; letter-spacing: .06em; line-height: 1.2; box-shadow: 0 .4mm 0 rgba(0,0,0,.18); }
+.qr-card.badge .badge-part.am { background: #ffd23f; color: #5a3300; }
+.qr-card.badge .badge-part.pm { background: #8fd0ff; color: #08365c; }
+.qr-card.badge.theme-cool .badge-part { border-radius: 1.2mm; }
+/* 利用者の編集: 曜日ごとの午前・午後(押して選ぶ) */
+.day-part-picker .gin-chip.day-part-am[aria-pressed="true"] { background: #ffe9a8; border-color: #f0a020; color: #5a3300; }
+.day-part-picker .gin-chip.day-part-pm[aria-pressed="true"] { background: #cfeaff; border-color: #3b9be0; color: #08365c; }
+/* 下の縁取り(男性=青のライン / 女性=水玉 / 未設定=緑のライン) */
+.qr-card.badge::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 1.6mm; background: var(--badge-band); opacity: .9; }
+.qr-card.badge.theme-cute::after { height: 2.2mm; background: radial-gradient(circle at 1.1mm 1.1mm, #ffb6cf .75mm, transparent .8mm) 0 0 / 3.2mm 2.2mm repeat-x; opacity: 1; }
+.qr-card.badge .badge-qr { grid-area: qr; display: grid; place-items: center; padding: 1.2mm 3mm 3mm 1mm; }
+/* QRは白地で囲む(周りの白い余白=読み取りに必要な「静かな部分」) */
+.qr-card.badge .qr-code { width: 34mm; height: 34mm; max-width: none; box-sizing: border-box; padding: 2.4mm; background: #fff; border: 0.3mm solid var(--badge-line); border-radius: 1.6mm; }
+/* スマホの細い画面では券面ごと縮めて横にはみ出さないようにする(印刷は原寸) */
+@media (max-width: 420px) {
+  .qr-grid.qr-sheet { grid-template-columns: 1fr; justify-items: center; }
+  .qr-card.badge { zoom: .86; }
+}
+@media (max-width: 360px) {
+  .qr-card.badge { zoom: .78; }
 }
 
 
@@ -3631,7 +3685,7 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 
   </head>
   <body>
-<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261112-1136';window.APP_MOCK=false;window.APP_DEMO=true;</script>
+<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261112-1301';window.APP_MOCK=false;window.APP_DEMO=true;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -4257,7 +4311,8 @@ var USER_EXTRA_GROUPS = [
     ['gender', '性別', 'select', ['男性', '女性', 'その他']],
     ['birthDate', '生年月日', 'date'],
     ['userCategory', '利用区分', 'select', ['ケアハウス入居者', '外部利用']],
-    ['weekdayUsage', '曜日別の利用区分', 'text', null, 100, '例: 月:1日,水:午前'],
+    // 弐番館は必ず午前か午後の半日利用(2026-11-12 原山さん)。値の形は壱番館と同じ「月:午前,木:午後」。画面では押して選ぶ
+    ['weekdayUsage', '曜日ごとの午前・午後', 'text', null, 100, '例: 月:午前,木:午後'],
     ['note', '備考', 'textarea', null, 500, ''],
   ]],
   ['食事・体', [
@@ -7049,10 +7104,70 @@ function enhanceUserForm() {
   if (!form) return;
   GinPick.select(document.getElementById('f-care'));
   ['fx-gender', 'fx-userCategory', 'fx-alertLevel'].forEach(function (id) { var el = document.getElementById(id); if (el) GinPick.select(el); });
+  dayPartPicker(document.getElementById('fx-weekdayUsage'));
   GinPick.stepper(document.getElementById('f-age'), { min: 40, max: 110, start: 80 });
   GinPick.phrases(document.getElementById('f-goal'), ['自宅内を安全に歩く', '転ばない体づくり', '外出を続ける', '入浴を自分で行う', '体力を維持する', '趣味の活動を続ける']);
   GinPick.phrases(document.getElementById('f-history'), ['高血圧', '糖尿病', '脳梗塞', '心疾患', '骨折', '変形性膝関節症', '腰痛症', '骨粗しょう症', '認知症', 'パーキンソン病']);
   GinPick.phrases(document.getElementById('f-precautions'), ['転倒注意', '血圧に注意', '息切れに注意', '膝に負担をかけない', '腰をひねらない', '長時間の立位を避ける', '痛みが出たら中止']);
+}
+
+/**
+ * 曜日ごとの午前・午後を押して選ぶ(2026-11-12 原山さん「弐番館は必ず午前か午後の半日利用」)。
+ * 上の利用曜日(チェック)で選んだ曜日だけ行を出す。元の入力欄(fx-weekdayUsage)は隠して「月:午前,木:午後」の形で書き込む。
+ * 共通UIの GinPick.dayUsage は未設定の曜日を先頭の候補が選ばれているように見せるため、ここでは使わない(未設定は何も押されていない)
+ */
+var DAY_PARTS = ['午前', '午後'];
+function dayPartPicker(el) {
+  if (!el) return;
+  var wrap = document.createElement('div');
+  wrap.className = 'gin-day-usage day-part-picker';
+  function checkedDays() {
+    var out = [];
+    document.querySelectorAll('input[name="wd"]').forEach(function (c) { if (c.checked) out.push(c.value); });
+    return WEEKDAYS.filter(function (w) { return out.indexOf(w) >= 0; });
+  }
+  function parse() {
+    var map = {};
+    String(el.value || '').split(/[,、，\/\s]+/).forEach(function (part) {
+      var p = part.split(/[:：]/);
+      if (p.length >= 2) map[p[0].replace(/曜日?/g, '').trim()] = p[1].trim();
+    });
+    return map;
+  }
+  function write(map) {
+    el.value = checkedDays().filter(function (d) { return map[d]; }).map(function (d) { return d + ':' + map[d]; }).join(',');
+  }
+  function sync() {
+    var map = parse(), days = checkedDays();
+    if (!days.length) { wrap.innerHTML = '<p class="gin-pick-note">先に上の「利用曜日」を選んでください</p>'; return; }
+    var rows = days.map(function (d) {
+      return '<div class="gin-day-usage-row"><span class="gin-day-usage-day">' + d + '</span><div class="gin-chips" role="group">' +
+        DAY_PARTS.map(function (v) {
+          return '<button type="button" class="gin-chip day-part-' + (v === '午前' ? 'am' : 'pm') + '" data-day="' + d + '" data-value="' + v + '" aria-pressed="' + (map[d] === v) + '">' + v + '</button>';
+        }).join('') + '</div></div>';
+    }).join('');
+    var missing = days.filter(function (d) { return DAY_PARTS.indexOf(map[d]) < 0; }).length;
+    wrap.innerHTML = rows +
+      (days.length > 1 ? '<div class="gin-chips" role="group">' +
+      '<button type="button" class="gin-chip" data-all="午前">全部を午前に</button><button type="button" class="gin-chip" data-all="午後">全部を午後に</button></div>' : '') +
+      (missing ? '<p class="gin-pick-note">午前・午後が決まっていない曜日が' + missing + 'つあります(QRカードに表示されません)</p>' : '');
+  }
+  wrap.addEventListener('click', function (e) {
+    var c = e.target.closest('.gin-chip');
+    if (!c) return;
+    e.preventDefault();
+    var map = parse();
+    if (c.getAttribute('data-all')) checkedDays().forEach(function (d) { map[d] = c.getAttribute('data-all'); });
+    else map[c.getAttribute('data-day')] = c.getAttribute('data-value');
+    write(map);
+    sync();
+  });
+  document.querySelectorAll('input[name="wd"]').forEach(function (c) {
+    c.addEventListener('change', function () { write(parse()); sync(); });
+  });
+  el.classList.add('gin-pick-hidden');
+  el.insertAdjacentElement('afterend', wrap);
+  sync();
 }
 
 function renderAdminUsers(app, renderId) {
@@ -7519,18 +7634,97 @@ function renderAdminHandoffs(app, renderId) {
 
 // ---------------------------------------------------------------- 管理: 種目マスタ / QR発行
 
-function renderAdminMaster(app, renderId) {
-  // 利用者カードは 氏名・利用曜日 を券面に印字する(介護度は載せない。QRの中身は GSU:<ID> のみ)
-  var userCards = activeUsers().map(function (u) {
-    var meta = '';
-    if (u.scheduleLabel) meta += '<div class="qr-meta"><span class="qr-meta-key">利用曜日</span>' +
-      '<span class="qr-meta-val">' + esc(u.scheduleLabel) + '</span></div>';
-    return (
-      '<div class="qr-card qr-card-user"><div class="qr-code" id="qr-' + u.id + '"></div>' +
-      '<div class="qr-card-copy"><div class="qr-name">' + esc(u.name) + ' 様</div>' +
-      meta + '</div></div>'
-    );
+// ---- 利用者QRカード(壱番館の名札と同じデザイン。2026-11-12 原山さん「殺風景なので壱番館のようなカードに」) ----
+// 男性=紺と青 / 女性=ピンクの花柄 / 未設定・その他=やさしい緑。QRの周りは白地のまま残し、読み取りやすさは変えない
+var BADGE_WEEKDAYS = ['月', '火', '水', '木', '金', '土', '日'];
+var BADGE_MOTIFS = {
+  cool: '<svg viewBox="0 0 160 36" preserveAspectRatio="xMaxYMid slice" aria-hidden="true"><g fill="#fff"><path d="M70 36 92 0h10L80 36z" opacity=".10"/><path d="M88 36 110 0h18l-22 36z" opacity=".16"/><path d="M114 36 136 0h6l-22 36z" opacity=".22"/><path d="M128 36 150 0h10v8l-17 28z" opacity=".12"/></g><path d="m146 9 2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z" fill="#fde68a"/></svg>',
+  cute: '<svg viewBox="0 0 160 36" preserveAspectRatio="xMaxYMid slice" aria-hidden="true"><g fill="#fff" opacity=".85"><circle cx="78" cy="30" r="3"/><circle cx="96" cy="7" r="2.2"/><circle cx="118" cy="31" r="2"/></g><g transform="translate(138 18)"><g fill="#ff7aa8"><circle cy="-6.5" r="5"/><circle cx="6.2" cy="-2" r="5"/><circle cx="3.8" cy="5.3" r="5"/><circle cx="-3.8" cy="5.3" r="5"/><circle cx="-6.2" cy="-2" r="5"/></g><circle r="3.6" fill="#ffe08a"/></g><g transform="translate(108 13) scale(.55)"><g fill="#fff"><circle cy="-6.5" r="5"/><circle cx="6.2" cy="-2" r="5"/><circle cx="3.8" cy="5.3" r="5"/><circle cx="-3.8" cy="5.3" r="5"/><circle cx="-6.2" cy="-2" r="5"/></g><circle r="3.6" fill="#ffb3cb"/></g><path d="M88 22c-2-3.2-6.5-1.4-5 2.2 1 2.3 5 4.8 5 4.8s4-2.5 5-4.8c1.5-3.6-3-5.4-5-2.2z" fill="#ff8fb3"/></svg>',
+  calm: '<svg viewBox="0 0 160 36" preserveAspectRatio="xMaxYMid slice" aria-hidden="true"><g fill="#fff"><path d="M120 30c0-14 12-24 30-24-1 15-12 24-30 24z" opacity=".35"/><path d="M98 32c0-9 8-16 19-16-1 10-8 16-19 16z" opacity=".22"/></g><path d="M121 29c8-6 15-12 26-20" stroke="#fff" stroke-width="1.4" fill="none" opacity=".6"/></svg>'
+};
+var BADGE_LOGOS = {
+  cool: '<svg class="badge-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 20 6v6c0 5-3.4 8.3-8 9.5C7.4 20.3 4 17 4 12V6z" fill="#fff" opacity=".95"/><path d="m12 7.5 1.4 2.9 3.2.5-2.3 2.2.5 3.2-2.8-1.5-2.8 1.5.5-3.2-2.3-2.2 3.2-.5z" fill="#1d4ed8"/></svg>',
+  cute: '<svg class="badge-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-8-4.9-8-10.4A4.4 4.4 0 0 1 12 7.6a4.4 4.4 0 0 1 8 2.5c0 5.5-8 10.4-8 10.4z" fill="#ff5c93"/></svg>',
+  calm: '<svg class="badge-logo" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19C4 10 10 4 20 4c0 10-6 16-16 15z" fill="#fff" opacity=".95"/><path d="M5 18c4-4 8-7 12-10" stroke="#0f766e" stroke-width="1.6" fill="none"/></svg>'
+};
+
+function badgeTheme(gender) {
+  var t = String(gender || '').trim();
+  if (t === '男性' || t === '男') return 'cool';
+  if (t === '女性' || t === '女') return 'cute';
+  return 'calm';
+}
+
+/** ふりがなをひらがなにそろえる(カタカナ・半角カナで入っていても券面はひらがな) */
+function badgeHiragana(text) {
+  var s = String(text || '');
+  if (s.normalize) s = s.normalize('NFKC');
+  return s.replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); });
+}
+
+/**
+ * 利用曜日(例 月/水/金)と曜日ごとの午前・午後(例 月:午前,水:午後)から、券面の曜日を作る。
+ * 弐番館は必ず午前か午後の半日利用。午前は黄色・午後は水色の札で曜日の下に出す(1日・未設定は曜日だけ)
+ */
+function badgeWeekdays(u) {
+  var usage = {};
+  String(u.weekdayUsage || '').split(/[,、，\/\s]+/).forEach(function (part) {
+    var pair = part.split(/[:：]/);
+    if (pair.length < 2) return;
+    var day = String(pair[0]).replace(/曜日?/g, '').trim().charAt(0);
+    var value = String(pair[1]).trim();
+    if (BADGE_WEEKDAYS.indexOf(day) >= 0 && value) usage[day] = value;
   });
+  var listed = String(u.scheduleLabel || '');
+  return BADGE_WEEKDAYS.filter(function (d) { return listed.indexOf(d) >= 0 || usage[d]; }).map(function (d) {
+    var v = usage[d] || '';
+    var part = /午前/.test(v) ? '午前' : /午後/.test(v) ? '午後' : '';
+    return { day: d, part: part };
+  });
+}
+
+/** 名前が長い方ほど文字を小さくして1行に収める(空白は半文字、英数字は0.6文字。後ろの小さな「様」を1文字として数える) */
+function badgeNameSizeClass(name) {
+  var len = 1;
+  String(name || '').trim().split('').forEach(function (c) { len += /[\s　]/.test(c) ? 0.5 : (/[ -~]/.test(c) ? 0.6 : 1); });
+  if (len <= 4.5) return '';
+  if (len <= 5.5) return 'len-m';
+  if (len <= 6.5) return 'len-l';
+  return 'len-xl';
+}
+
+function qrBadgeCardHtml(u) {
+  var theme = badgeTheme(u.gender);
+  var days = badgeWeekdays(u);
+  var chips = days.map(function (d) {
+    return '<span class="badge-day' + (d.part ? ' part ' + (d.part === '午前' ? 'am' : 'pm') : '') + '">' + d.day + (d.part ? '<small>' + d.part + '</small>' : '') + '</span>';
+  }).join('');
+  // どの曜日も同じ(全部午前・全部午後)なら、右上に「午前利用」「午後利用」と大きく出す
+  var parts = days.map(function (d) { return d.part; });
+  var one = parts.length && parts.every(function (p) { return p && p === parts[0]; }) ? parts[0] : '';
+  var ribbon = one ? '<span class="badge-part ' + (one === '午前' ? 'am' : 'pm') + '">' + one + '利用</span>' : '';
+  return (
+    '<div class="qr-card qr-card-user badge theme-' + theme + '">' +
+    '<div class="badge-band">' + BADGE_LOGOS[theme] + '<span class="badge-facility">デイサービスセンター弐番館</span>' +
+    '<span class="badge-motif">' + BADGE_MOTIFS[theme] + '</span></div>' + ribbon +
+    '<div class="badge-body">' +
+    (u.kana ? '<div class="qr-kana">' + esc(badgeHiragana(u.kana)) + '</div>' : '') +
+    '<div class="qr-name ' + badgeNameSizeClass(u.name) + '">' + esc(u.name) + '<span class="qr-sama">様</span></div>' +
+    (chips ? '<div class="badge-days" aria-label="利用曜日">' + chips + '</div>' : '') +
+    '</div>' +
+    '<div class="badge-qr"><div class="qr-code" id="qr-' + u.id + '"></div></div></div>'
+  );
+}
+
+function renderAdminMaster(app, renderId) {
+  // 利用者カードは 壱番館の名札と同じデザイン(2026-11-12 原山さん)。性別で色柄、ふりがな(ひらがな)、大きな氏名、利用曜日。
+  // 介護度は載せない。QRの中身は従来どおり GSU:<ID> のみ(配ったカードもそのまま読める)
+  var userCards = activeUsers().map(qrBadgeCardHtml);
+  // 午前・午後が決まっていない方(利用曜日が空・曜日の午前午後が空)は、カードに午前・午後が出ないので知らせる
+  var partMissing = activeUsers().filter(function (u) {
+    var ds = badgeWeekdays(u);
+    return !ds.length || ds.some(function (d) { return !d.part; });
+  }).length;
   // A4縦1枚に名刺サイズ(91×55mm)を2列×5段=10枚。印刷時に用紙ごとに区切るため10枚ずつまとめる
   var qrSheets = '';
   for (var qi = 0; qi < userCards.length; qi += 10) {
@@ -7577,7 +7771,8 @@ function renderAdminMaster(app, renderId) {
     '<div class="admin-h1">利用者QRカード発行 <span class="attrs">印刷して来所受付カードに使用</span></div></div>' +
     '<div class="admin-actions"><button class="btn-csv" onclick="Actions.printQrCards(\'users\')">利用者カードを印刷</button></div></div>' +
     '<div class="panel qr-user-panel"><div class="panel-title">利用者QRカード ' +
-    '<span class="sub">名刺サイズ(91×55mm)・A4縦に10枚・氏名/利用曜日を印字</span></div>' +
+    '<span class="sub">名刺サイズ(91×55mm)・A4縦に10枚・ふりがな/氏名/利用曜日を印字。色は性別で変わります(男性=青・女性=ピンク・未設定=緑)</span></div>' +
+    (partMissing ? '<div class="section-note no-print qr-part-missing">利用曜日か午前・午後が入っていない方が' + partMissing + '名います。「利用者管理」の編集で入れると、カードに曜日と午前・午後が出ます。</div>' : '') +
     (qrSheets || '<div class="empty-note">利用者が登録されていません</div>') + '</div>' +
     '<div class="panel qr-exercise-list no-print"><div class="panel-title">実施した運動(機能訓練のプルダウン) ' +
     '<span class="sub">ここで追加・停止・並べ替えができます。停止した運動は選べなくなりますが、過去の記録には残ります</span></div>' +
@@ -9879,6 +10074,9 @@ var Mock = (function () {
       return {
         id: r[0], name: r[1], age: r[2], careLevel: r[3], scheduleLabel: r[4], plan: r[5],
         qrCode: 'GSU:' + r[0], kana: r[6] || '',
+        // QRカードの色(性別)と曜日ごとの午前・午後の確認用。u04 は性別を入れず緑、u04・u08・u11・u12 は午前・午後が未設定
+        gender: { u01: '女性', u02: '男性', u03: '女性', u05: '女性', u06: '男性', u07: '女性', u08: '男性', u09: '女性', u10: '男性', u11: '女性', u12: '男性' }[r[0]] || '',
+        weekdayUsage: { u01: '月:午前,木:午前', u02: '月:午後,水:午後', u03: '月:午前,金:午後', u05: '月:午前,水:午前', u06: '月:午後,金:午後', u07: '月:午前,木:午前', u09: '月:午後,金:午後', u10: '月:午前,木:午後' }[r[0]] || '',
         goal: r[0] === 'u01' ? '屋内を安全に歩き、日常生活の活動量を保つ' : '体力を維持し、安全に在宅生活を続ける',
         medicalHistory: r[0] === 'u01' ? '高血圧、変形性膝関節症' : '',
         precautions: r[0] === 'u01' ? '左膝の痛みに注意。疼痛時は歩行負荷を調整する' : '',
