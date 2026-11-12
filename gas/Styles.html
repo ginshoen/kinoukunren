@@ -3681,17 +3681,26 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 .user-directory .search-status { min-height: 20px; margin: 10px 2px 0; font-size: 14px; color: var(--gin-text-sub); }
 .user-directory .ended-toggle { margin-top: 10px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--gin-line-strong); border-radius: var(--gin-pill); background: #fff; color: var(--gin-text-sub); font-size: 14px; font-weight: 600; cursor: pointer; }
 .user-directory .ended-toggle[aria-pressed="true"] { background: var(--gin-surface-2); }
-.kana-index { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 16px 0; }
-.kana-index-btn { min-height: 64px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  border: 1px solid var(--gin-line-strong); border-radius: 14px; background: #fff; color: var(--gin-text-aux); cursor: pointer;
-  transition: background .15s ease, border-color .15s ease, transform .1s ease; }
-.kana-index-btn:hover { background: var(--gin-surface-2); }
-.kana-index-btn:active { transform: scale(.97); }
-.kana-index-btn .kana-label { font-size: 19px; font-weight: 700; color: var(--gin-text); }
-.kana-index-btn small { font-size: 12px; }
-.kana-index-btn[aria-expanded="true"] { background: var(--gin-primary-soft); border: 2px solid var(--gin-primary); color: var(--gin-primary-ink); }
-.kana-index-btn[aria-expanded="true"] .kana-label { color: var(--gin-primary-ink); }
-.kana-results-head { margin: 4px 2px 10px; font-size: 15px; font-weight: 700; color: var(--gin-text-sub); }
+.kana-accordion { display: grid; gap: 8px; margin: 14px 0 4px; }
+.kana-acc { border: 1px solid var(--gin-line-strong); border-radius: 14px; background: #fff; overflow: hidden; }
+.kana-acc.open { border-color: var(--gin-primary); box-shadow: 0 0 0 1px var(--gin-primary); }
+.kana-acc-head { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 8px 16px; border: 0; background: transparent;
+  color: var(--gin-text); text-align: left; cursor: pointer; scroll-margin-top: 84px; transition: background .15s ease; }
+.kana-acc-head:hover { background: var(--gin-surface-2); }
+.kana-acc.open .kana-acc-head { background: var(--gin-primary-soft); color: var(--gin-primary-ink); }
+.kana-acc-head .kana-label { font-size: 18px; font-weight: 700; }
+.kana-acc-head .kana-count { font-size: 14px; color: var(--gin-text-aux); }
+.kana-acc.open .kana-acc-head .kana-count { color: var(--gin-primary-ink); }
+.kana-chev { margin-left: auto; width: 10px; height: 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); transition: transform .18s ease; opacity: .7; }
+.kana-acc.open .kana-chev { transform: rotate(-135deg) translate(-2px, -2px); }
+.kana-acc-body { padding: 8px; border-top: 1px solid var(--gin-line); background: var(--gin-surface-2); }
+/* 現場の「利用者」タブ: 検索・絞り込み中は全部開いたままにし、見出しは押せない見た目にする */
+.kana-group.kana-acc { margin: 0; }
+.kana-group.kana-acc + .kana-group.kana-acc { margin-top: 8px; }
+.kana-group.kana-acc .row-list.kana-acc-body { display: grid; gap: 8px; }
+.kana-group.kana-acc .row-list.kana-acc-body[hidden] { display: none !important; }
+.kana-group.expanded-all .kana-acc-head { cursor: default; background: var(--gin-surface-2); min-height: 44px; }
+.kana-group.expanded-all .kana-chev { display: none; }
 .adm-user-list { display: grid; gap: 8px; }
 .adm-user-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px;
   border: 1px solid var(--gin-line); border-radius: 14px; background: #fff; animation: admUserIn .18s ease; }
@@ -3700,17 +3709,22 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 .adm-user-name { font-size: 17px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
 .adm-user-sub { font-size: 13px; color: var(--gin-text-aux); line-height: 1.5; overflow-wrap: anywhere; }
 .adm-user-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.adm-user-actions button { min-height: 44px; }
+.adm-user-actions button { min-height: 44px; white-space: nowrap; flex: none; width: auto; }
 .user-directory .empty-state { padding: 24px 18px; text-align: center; border: 1px dashed var(--gin-line-strong); border-radius: 16px; background: var(--gin-surface-2); color: var(--gin-text-sub); }
 .user-directory .empty-state strong { display: block; font-size: 16px; color: var(--gin-text); margin-bottom: 4px; }
 .user-directory .empty-state p { margin: 4px 0 10px; font-size: 14px; }
 @keyframes admUserIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .adm-user-row { animation: none; } .kana-index-btn { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .adm-user-row { animation: none; } }
 @media (max-width: 560px) {
-  .kana-index { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .kana-index-btn { min-height: 58px; border-radius: 11px; }
-  .adm-user-row { gap: 10px; padding: 10px 12px; }
-  .adm-user-actions { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
-  .adm-user-actions button { min-width: 68px; padding: 0 10px; }
+  .kana-acc-head { min-height: 50px; padding: 6px 14px; }
+  .adm-user-list { gap: 6px; }
+  .kana-acc-body { padding: 6px; }
+  .adm-user-row { gap: 8px; padding: 8px 10px; border-radius: 12px; }
+  .adm-user-row .avatar-sm { width: 34px; height: 34px; font-size: 14px; }
+  .adm-user-name { font-size: 16px; line-height: 1.35; }
+  .adm-user-sub { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .adm-user-actions { flex-wrap: nowrap; gap: 4px; }
+  .adm-user-actions button { min-width: 0; padding: 0 10px; font-size: 13px; white-space: nowrap; }
 }
+@media (prefers-reduced-motion: reduce) { .kana-chev, .kana-acc-head { transition: none; } }
 </style>
