@@ -3524,19 +3524,6 @@ function renderAdminUsers(app, renderId) {
   }
 
   var endedCount = S.users.filter(isEndedUser).length;
-  var rows = S.users.filter(function (x) { return S.showEndedUsers || !isEndedUser(x); }).map(function (x) {
-    return (
-      '<tr' + (isEndedUser(x) ? ' class="muted"' : '') + '><td><div class="user-cell">' + avatarHtml(x, 'avatar-sm') +
-      '<div style="font-weight:700;">' + esc(x.name) + '<br><span class="section-note">' + esc(x.kana || '') + '</span>' +
-      (isEndedUser(x) ? '<br><span class="pill-badge">利用終了' + (x.endDate ? ' ' + esc(x.endDate) : '') + '</span>' : '') + '</div></div></td>' +
-      '<td>' + x.age + '歳</td><td>' + esc(x.careLevel) + '</td><td>' + esc(x.scheduleLabel) + '</td>' +
-      '<td style="white-space:nowrap;">' +
-      '<button class="btn-csv" style="margin-right:6px;" onclick="Actions.adminEditUser(\'' + x.id + '\')">編集</button>' +
-      '<button class="btn-danger" data-del="' + x.id + '" onclick="Actions.adminDeleteUser(\'' + x.id + '\', this)">削除</button>' +
-      '</td></tr>'
-    );
-  }).join('');
-
   app.innerHTML = adminShell('admin/users',
     '<div class="admin-page-head"><div><div class="breadcrumb">利用者管理</div>' +
     '<div class="admin-h1">利用者の登録・編集 <span class="attrs">利用中 ' + (S.users.length - endedCount) + '名' + (endedCount ? '・利用終了 ' + endedCount + '名' : '') + '</span></div></div>' +
@@ -3545,13 +3532,97 @@ function renderAdminUsers(app, renderId) {
     '<button class="btn-csv" onclick="Actions.adminImportOpen()">📥 一覧ファイルから取り込む</button>' +
     '</div></div>' +
     formHtml +
-    '<div class="panel"><div style="overflow-x:auto;"><table class="gen-table"><thead><tr>' +
-    '<th>氏名</th><th>年齢</th><th>介護度</th><th>利用曜日</th><th></th>' +
-    '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    (endedCount ? '<button class="btn-outline" style="margin-top:8px;" onclick="Actions.adminToggleEnded()">' + (S.showEndedUsers ? '利用終了の方を隠す' : '利用終了の方も表示する(' + endedCount + '名)') + '</button>' : '') +
-    '<div class="section-note" style="margin-top:8px;">削除しても過去の記録は残ります。利用をやめた方は、削除ではなく編集の「利用終了」にすると、あとで戻せます。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
+    '<div class="panel user-directory">' +
+    '<div class="search-box">' + uiIcon('search') +
+    '<input id="admin-user-search" type="search" autocomplete="off" aria-label="利用者を検索" placeholder="名前・ふりがなで検索" value="' + esc(S.adminUserQuery || '') + '" oninput="Actions.adminUserSearch(this.value)">' +
+    '<button class="search-clear" id="admin-user-search-clear" aria-label="検索の文字を消す" onclick="Actions.adminUserSearchClear()"' + (S.adminUserQuery ? '' : ' hidden') + '>' + uiIcon('close') + '</button></div>' +
+    '<p class="search-status" id="admin-user-status" role="status" aria-live="polite"></p>' +
+    '<div id="admin-user-dir"></div>' +
+    '<div class="section-note" style="margin-top:12px;">削除しても過去の記録は残ります。利用をやめた方は、削除ではなく編集の「利用終了」にすると、あとで戻せます。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
     '</div>');
+  drawAdminUserDirectory();
   enhanceUserForm();
+}
+
+// 利用者管理の一覧(2026-11-12 原山さん「壱番館みたいに検索できるように」)。壱番館の利用者管理と同じ作り:
+// ふだんは五十音の行を押して絞り込み、名前・ふりがなを入れるとその場で探す(利用終了の方も出る)。
+// 検索の文字を打つたびに一覧の部分だけ書き換える(日本語入力が途切れないよう、検索欄は作り直さない)
+var ADMIN_KANA_ROWS = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ', 'その他'];
+
+function adminUserMatches(u, query) {
+  return normalizeUserSearch((u.name || '') + (u.kana || '')).indexOf(query) >= 0;
+}
+
+function adminUserRowHtml(x) {
+  var ended = isEndedUser(x);
+  var sub = [x.kana || '', x.careLevel || '', x.scheduleLabel ? x.scheduleLabel.split('/').join('・') : '利用曜日 未設定']
+    .filter(function (t) { return t; }).map(esc).join(' · ');
+  return (
+    '<div class="adm-user-row' + (ended ? ' is-ended' : '') + '">' + avatarHtml(x, 'avatar-sm') +
+    '<div class="adm-user-main"><div class="adm-user-name">' + esc(x.name) +
+    (ended ? ' <span class="pill-badge">利用終了' + (x.endDate ? ' ' + esc(x.endDate) : '') + '</span>' : '') + '</div>' +
+    '<div class="adm-user-sub">' + sub + '</div></div>' +
+    '<div class="adm-user-actions">' +
+    '<button class="btn-csv" onclick="Actions.adminEditUser(\'' + x.id + '\')">編集</button>' +
+    '<button class="btn-danger" data-del="' + x.id + '" onclick="Actions.adminDeleteUser(\'' + x.id + '\', this)">削除</button>' +
+    '</div></div>'
+  );
+}
+
+/** 編集欄を開いたとき・閉じたときに、その場所までページを動かす(一覧が長くても迷わないように) */
+function scrollAdminUserArea(id) {
+  var el = document.getElementById(id);
+  if (!el || !el.scrollIntoView) return;
+  try { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) { el.scrollIntoView(true); }
+}
+
+function drawAdminUserDirectory() {
+  var box = document.getElementById('admin-user-dir');
+  var status = document.getElementById('admin-user-status');
+  if (!box) return;
+  var raw = S.adminUserQuery || '';
+  var query = normalizeUserSearch(raw);
+  var clear = document.getElementById('admin-user-search-clear');
+  if (clear) clear.hidden = !raw;
+  if (!S.users.length) {
+    if (status) status.textContent = '';
+    box.innerHTML = '<div class="empty-state"><strong>利用者が登録されていません</strong><p>「+ 新規登録」か「一覧ファイルから取り込む」から登録してください。</p></div>';
+    return;
+  }
+  var endedCount = S.users.filter(isEndedUser).length;
+  // 利用終了の方はふだん出さない。名前で検索したとき・「表示する」を押したときだけ出す
+  var users = sortUsersKana(S.users.filter(function (u) {
+    if (query) return adminUserMatches(u, query);
+    return S.showEndedUsers || !isEndedUser(u);
+  }));
+  if (status) {
+    status.textContent = query ? users.length + '名が見つかりました'
+      : (S.showEndedUsers ? '全' + users.length + '名(利用終了' + endedCount + '名を含む)' : '利用中 ' + users.length + '名');
+  }
+  var toggle = (!query && endedCount)
+    ? '<button class="ended-toggle" aria-pressed="' + (S.showEndedUsers ? 'true' : 'false') + '" onclick="Actions.adminToggleEnded()">' +
+      (S.showEndedUsers ? '利用終了の方を隠す' : '利用終了の方も表示する(' + endedCount + '名)') + '</button>'
+    : '';
+  if (query) {
+    box.innerHTML = users.length
+      ? '<div class="adm-user-list">' + users.map(adminUserRowHtml).join('') + '</div>'
+      : '<div class="empty-state"><strong>該当する利用者がいません</strong><p>名前やふりがなを変えてお試しください。</p>' +
+        '<button class="btn-outline" onclick="Actions.adminUserSearchClear()">検索の文字を消す</button></div>';
+    return;
+  }
+  var groups = {};
+  users.forEach(function (u) { var g = kanaGyo(u.kana); (groups[g] = groups[g] || []).push(u); });
+  var picked = groups[S.adminKanaGroup] ? S.adminKanaGroup : '';
+  var label = function (g) { return g === 'その他' ? g : g + '行'; };
+  box.innerHTML = toggle +
+    '<div class="kana-index" role="group" aria-label="五十音から探す">' +
+    ADMIN_KANA_ROWS.filter(function (g) { return groups[g]; }).map(function (g) {
+      return '<button class="kana-index-btn" aria-expanded="' + (picked === g ? 'true' : 'false') + '" aria-controls="admin-kana-results" onclick="Actions.adminKanaGroup(\'' + g + '\')">' +
+        '<span class="kana-label">' + label(g) + '</span><small>' + groups[g].length + '名</small></button>';
+    }).join('') + '</div>' +
+    (picked
+      ? '<div id="admin-kana-results"><div class="kana-results-head">' + label(picked) + 'の利用者</div><div class="adm-user-list">' + groups[picked].map(adminUserRowHtml).join('') + '</div></div>'
+      : '<div id="admin-kana-results" class="empty-state"><strong>五十音を選んでください</strong><p>編集する利用者を絞り込めます。上の検索欄に名前を入れても探せます。</p></div>');
 }
 
 // ---------------------------------------------------------------- 管理: 利用者の一括取り込み
@@ -5576,6 +5647,7 @@ var Actions = {
     S.editingUser = { id: '', name: '', kana: '', age: '', careLevel: '要支援1', scheduleLabel: '', goal: '', medicalHistory: '', precautions: '', photo: '', hasPhoto: false };
     USER_EXTRA_KEYS.forEach(function (k) { S.editingUser[k] = ''; });
     render();
+    scrollAdminUserArea('user-form');
   },
   adminEditUser: function (id) {
     var u = null;
@@ -5585,6 +5657,7 @@ var Actions = {
     S.editingUser = { id: u.id, name: u.name, kana: u.kana, age: u.age, careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, goal: u.goal || '', medicalHistory: u.medicalHistory || '', precautions: u.precautions || '', photo: null, hasPhoto: !!(u.hasPhoto || S.photos[u.id]) };
     USER_EXTRA_KEYS.forEach(function (k) { S.editingUser[k] = u[k] == null ? '' : String(u[k]); });
     render();
+    scrollAdminUserArea('user-form');
   },
   /** 生年月日を入れたら年齢を自動で入れる(年齢の欄は直せなくする) */
   adminBirthChanged: function (value) {
@@ -5603,11 +5676,28 @@ var Actions = {
   },
   adminToggleEnded: function () {
     S.showEndedUsers = !S.showEndedUsers;
-    render();
+    drawAdminUserDirectory();
+  },
+  adminUserSearch: function (value) {
+    S.adminUserQuery = String(value || '');
+    drawAdminUserDirectory();
+  },
+  adminUserSearchClear: function () {
+    S.adminUserQuery = '';
+    var input = document.getElementById('admin-user-search');
+    if (input) { input.value = ''; input.focus(); }
+    drawAdminUserDirectory();
+  },
+  adminKanaGroup: function (g) {
+    S.adminKanaGroup = S.adminKanaGroup === g ? '' : g;
+    drawAdminUserDirectory();
+    var btn = document.querySelector('.kana-index-btn[aria-expanded="true"]');
+    if (btn) btn.focus({ preventScroll: true });
   },
   adminCancelEdit: function () {
     S.editingUser = null;
     render();
+    scrollAdminUserArea('admin-user-dir');
   },
   adminSaveUser: function () {
     var err = document.getElementById('form-error');
@@ -5644,6 +5734,7 @@ var Actions = {
       }
       S.editingUser = null;
       render();
+      scrollAdminUserArea('admin-user-dir');
     }).catch(function (e) {
       if (err) err.textContent = (e && e.message) || '保存できませんでした';
       if (btn) { btn.disabled = false; btn.textContent = '保存する'; }
