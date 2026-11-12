@@ -3691,17 +3691,26 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 .user-directory .search-status { min-height: 20px; margin: 10px 2px 0; font-size: 14px; color: var(--gin-text-sub); }
 .user-directory .ended-toggle { margin-top: 10px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--gin-line-strong); border-radius: var(--gin-pill); background: #fff; color: var(--gin-text-sub); font-size: 14px; font-weight: 600; cursor: pointer; }
 .user-directory .ended-toggle[aria-pressed="true"] { background: var(--gin-surface-2); }
-.kana-index { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 16px 0; }
-.kana-index-btn { min-height: 64px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  border: 1px solid var(--gin-line-strong); border-radius: 14px; background: #fff; color: var(--gin-text-aux); cursor: pointer;
-  transition: background .15s ease, border-color .15s ease, transform .1s ease; }
-.kana-index-btn:hover { background: var(--gin-surface-2); }
-.kana-index-btn:active { transform: scale(.97); }
-.kana-index-btn .kana-label { font-size: 19px; font-weight: 700; color: var(--gin-text); }
-.kana-index-btn small { font-size: 12px; }
-.kana-index-btn[aria-expanded="true"] { background: var(--gin-primary-soft); border: 2px solid var(--gin-primary); color: var(--gin-primary-ink); }
-.kana-index-btn[aria-expanded="true"] .kana-label { color: var(--gin-primary-ink); }
-.kana-results-head { margin: 4px 2px 10px; font-size: 15px; font-weight: 700; color: var(--gin-text-sub); }
+.kana-accordion { display: grid; gap: 8px; margin: 14px 0 4px; }
+.kana-acc { border: 1px solid var(--gin-line-strong); border-radius: 14px; background: #fff; overflow: hidden; }
+.kana-acc.open { border-color: var(--gin-primary); box-shadow: 0 0 0 1px var(--gin-primary); }
+.kana-acc-head { width: 100%; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 8px 16px; border: 0; background: transparent;
+  color: var(--gin-text); text-align: left; cursor: pointer; scroll-margin-top: 84px; transition: background .15s ease; }
+.kana-acc-head:hover { background: var(--gin-surface-2); }
+.kana-acc.open .kana-acc-head { background: var(--gin-primary-soft); color: var(--gin-primary-ink); }
+.kana-acc-head .kana-label { font-size: 18px; font-weight: 700; }
+.kana-acc-head .kana-count { font-size: 14px; color: var(--gin-text-aux); }
+.kana-acc.open .kana-acc-head .kana-count { color: var(--gin-primary-ink); }
+.kana-chev { margin-left: auto; width: 10px; height: 10px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translate(-2px, -2px); transition: transform .18s ease; opacity: .7; }
+.kana-acc.open .kana-chev { transform: rotate(-135deg) translate(-2px, -2px); }
+.kana-acc-body { padding: 8px; border-top: 1px solid var(--gin-line); background: var(--gin-surface-2); }
+/* 現場の「利用者」タブ: 検索・絞り込み中は全部開いたままにし、見出しは押せない見た目にする */
+.kana-group.kana-acc { margin: 0; }
+.kana-group.kana-acc + .kana-group.kana-acc { margin-top: 8px; }
+.kana-group.kana-acc .row-list.kana-acc-body { display: grid; gap: 8px; }
+.kana-group.kana-acc .row-list.kana-acc-body[hidden] { display: none !important; }
+.kana-group.expanded-all .kana-acc-head { cursor: default; background: var(--gin-surface-2); min-height: 44px; }
+.kana-group.expanded-all .kana-chev { display: none; }
 .adm-user-list { display: grid; gap: 8px; }
 .adm-user-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px;
   border: 1px solid var(--gin-line); border-radius: 14px; background: #fff; animation: admUserIn .18s ease; }
@@ -3710,24 +3719,29 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 .adm-user-name { font-size: 17px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
 .adm-user-sub { font-size: 13px; color: var(--gin-text-aux); line-height: 1.5; overflow-wrap: anywhere; }
 .adm-user-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.adm-user-actions button { min-height: 44px; }
+.adm-user-actions button { min-height: 44px; white-space: nowrap; flex: none; width: auto; }
 .user-directory .empty-state { padding: 24px 18px; text-align: center; border: 1px dashed var(--gin-line-strong); border-radius: 16px; background: var(--gin-surface-2); color: var(--gin-text-sub); }
 .user-directory .empty-state strong { display: block; font-size: 16px; color: var(--gin-text); margin-bottom: 4px; }
 .user-directory .empty-state p { margin: 4px 0 10px; font-size: 14px; }
 @keyframes admUserIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .adm-user-row { animation: none; } .kana-index-btn { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .adm-user-row { animation: none; } }
 @media (max-width: 560px) {
-  .kana-index { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-  .kana-index-btn { min-height: 58px; border-radius: 11px; }
-  .adm-user-row { gap: 10px; padding: 10px 12px; }
-  .adm-user-actions { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
-  .adm-user-actions button { min-width: 68px; padding: 0 10px; }
+  .kana-acc-head { min-height: 50px; padding: 6px 14px; }
+  .adm-user-list { gap: 6px; }
+  .kana-acc-body { padding: 6px; }
+  .adm-user-row { gap: 8px; padding: 8px 10px; border-radius: 12px; }
+  .adm-user-row .avatar-sm { width: 34px; height: 34px; font-size: 14px; }
+  .adm-user-name { font-size: 16px; line-height: 1.35; }
+  .adm-user-sub { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .adm-user-actions { flex-wrap: nowrap; gap: 4px; }
+  .adm-user-actions button { min-width: 0; padding: 0 10px; font-size: 13px; white-space: nowrap; }
 }
+@media (prefers-reduced-motion: reduce) { .kana-chev, .kana-acc-head { transition: none; } }
 </style>
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261112-1554';window.APP_MOCK=false;window.APP_DEMO=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261112-1617';window.APP_MOCK=false;window.APP_DEMO=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -6367,8 +6381,13 @@ function renderUserList(app, renderId) {
           return userRowHtml(u, state, checkedTime[u.id], alerts[u.id])
             .replace('<button ', '<button' + attr + ' ');
         }).join('');
-      return '<div class="kana-group"><div class="kana-head">' + g +
-        (g === 'その他' ? '' : '行') + '</div><div class="row-list">' + rows + '</div></div>';
+      // 五十音の行ごとに畳み、見出しを押すとその行の方だけ開く(2026-11-12 原山さん「スクロール量を減らしたい」)。
+      // 名前で検索したとき・「本日来所」「要確認」で絞ったときは畳まずに出す(applyUserFilters)
+      return '<div class="kana-group kana-acc" data-kana="' + g + '">' +
+        '<button class="kana-acc-head" aria-expanded="false" onclick="Actions.userKanaToggle(\'' + g + '\')">' +
+        '<span class="kana-label">' + g + (g === 'その他' ? '' : '行') + '</span><span class="kana-count"></span>' +
+        '<span class="kana-chev" aria-hidden="true"></span></button>' +
+        '<div class="row-list kana-acc-body">' + rows + '</div></div>';
     }).join('');
 
     app.innerHTML =
@@ -7304,6 +7323,20 @@ function adminUserRowHtml(x) {
   );
 }
 
+/** 開いた五十音の見出しを、上に固定された部分(見出し・検索欄)の下に来るまで動かす */
+function scrollKanaHeadIntoView(head) {
+  if (!head) return;
+  var covered = 0;
+  document.querySelectorAll('.phone-header, .list-controls, .admin-topbar').forEach(function (el) {
+    var st = window.getComputedStyle(el);
+    if (st.position !== 'sticky' && st.position !== 'fixed') return;
+    var top = parseFloat(st.top);
+    covered = Math.max(covered, (isFinite(top) ? top : 0) + el.getBoundingClientRect().height);
+  });
+  var y = window.pageYOffset + head.getBoundingClientRect().top - covered - 8;
+  try { window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' }); } catch (e) { window.scrollTo(0, Math.max(0, y)); }
+}
+
 /** 編集欄を開いたとき・閉じたときに、その場所までページを動かす(一覧が長くても迷わないように) */
 function scrollAdminUserArea(id) {
   var el = document.getElementById(id);
@@ -7349,15 +7382,18 @@ function drawAdminUserDirectory() {
   users.forEach(function (u) { var g = kanaGyo(u.kana); (groups[g] = groups[g] || []).push(u); });
   var picked = groups[S.adminKanaGroup] ? S.adminKanaGroup : '';
   var label = function (g) { return g === 'その他' ? g : g + '行'; };
+  // 五十音の行ごとに畳んでおき、押した行だけ開く(2026-11-12 原山さん「あ行で畳んで、開くとあ行の方が一覧で出るように。スクロール量を減らしたい」)
   box.innerHTML = toggle +
-    '<div class="kana-index" role="group" aria-label="五十音から探す">' +
+    '<div class="kana-accordion" role="list" aria-label="五十音から探す">' +
     ADMIN_KANA_ROWS.filter(function (g) { return groups[g]; }).map(function (g) {
-      return '<button class="kana-index-btn" aria-expanded="' + (picked === g ? 'true' : 'false') + '" aria-controls="admin-kana-results" onclick="Actions.adminKanaGroup(\'' + g + '\')">' +
-        '<span class="kana-label">' + label(g) + '</span><small>' + groups[g].length + '名</small></button>';
-    }).join('') + '</div>' +
-    (picked
-      ? '<div id="admin-kana-results"><div class="kana-results-head">' + label(picked) + 'の利用者</div><div class="adm-user-list">' + groups[picked].map(adminUserRowHtml).join('') + '</div></div>'
-      : '<div id="admin-kana-results" class="empty-state"><strong>五十音を選んでください</strong><p>編集する利用者を絞り込めます。上の検索欄に名前を入れても探せます。</p></div>');
+      var open = picked === g;
+      return '<div class="kana-acc' + (open ? ' open' : '') + '" role="listitem" data-kana="' + g + '">' +
+        '<button class="kana-acc-head" aria-expanded="' + (open ? 'true' : 'false') + '" onclick="Actions.adminKanaGroup(\'' + g + '\')">' +
+        '<span class="kana-label">' + label(g) + '</span><span class="kana-count">' + groups[g].length + '名</span>' +
+        '<span class="kana-chev" aria-hidden="true"></span></button>' +
+        (open ? '<div class="adm-user-list kana-acc-body">' + groups[g].map(adminUserRowHtml).join('') + '</div>' : '') +
+        '</div>';
+    }).join('') + '</div>';
 }
 
 // ---------------------------------------------------------------- 管理: 利用者の一括取り込み
@@ -9017,6 +9053,13 @@ var Actions = {
     S.userFilterMode = mode;
     Actions.applyUserFilters();
   },
+  userKanaToggle: function (g) {
+    if (S.userQuery || (S.userFilterMode || 'all') !== 'all') return; // 検索・絞り込み中は全部開いたまま
+    S.userKanaOpen = S.userKanaOpen === g ? '' : g;
+    Actions.applyUserFilters();
+    var head = document.querySelector('.kana-group[data-kana="' + g + '"] .kana-acc-head');
+    if (head && S.userKanaOpen === g) scrollKanaHeadIntoView(head);
+  },
   applyUserFilters: function () {
     var q = S.userQuery || '';
     var mode = S.userFilterMode || 'all';
@@ -9030,11 +9073,21 @@ var Actions = {
       el.hidden = !show;
       if (show) visible++;
     });
-    // 空になったかなグループの見出しも隠す
+    // 空になったかなグループの見出しも隠す。検索も絞り込みもしていないときは、開いた行だけ中身を出す(ほかは畳む)
+    var collapsed = !q && mode === 'all';
     document.querySelectorAll('.kana-group').forEach(function (g) {
-      var any = false;
-      g.querySelectorAll('.person-row.tappable').forEach(function (el) { if (!el.hidden) any = true; });
-      g.hidden = !any;
+      var n = 0;
+      g.querySelectorAll('.person-row.tappable').forEach(function (el) { if (!el.hidden) n++; });
+      g.hidden = !n;
+      var open = !collapsed || S.userKanaOpen === g.getAttribute('data-kana');
+      g.classList.toggle('open', collapsed && open);
+      g.classList.toggle('expanded-all', !collapsed);
+      var body = g.querySelector('.kana-acc-body');
+      if (body) body.hidden = !open;
+      var head = g.querySelector('.kana-acc-head');
+      if (head) head.setAttribute('aria-expanded', String(open));
+      var cnt = g.querySelector('.kana-count');
+      if (cnt) cnt.textContent = n + '名';
     });
     var empty = document.getElementById('user-empty');
     if (empty) empty.hidden = visible > 0;
@@ -9426,8 +9479,13 @@ var Actions = {
   adminKanaGroup: function (g) {
     S.adminKanaGroup = S.adminKanaGroup === g ? '' : g;
     drawAdminUserDirectory();
-    var btn = document.querySelector('.kana-index-btn[aria-expanded="true"]');
-    if (btn) btn.focus({ preventScroll: true });
+    // 開いた行の見出しを画面の上に合わせる(前に開いていた行が閉じて位置がずれても見失わない)
+    var item = document.querySelector('.kana-acc[data-kana="' + g + '"]');
+    var head = item && item.querySelector('.kana-acc-head');
+    if (head) {
+      head.focus({ preventScroll: true });
+      if (S.adminKanaGroup === g) scrollKanaHeadIntoView(head);
+    }
   },
   adminCancelEdit: function () {
     S.editingUser = null;
