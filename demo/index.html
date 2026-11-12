@@ -3681,11 +3681,53 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 .user-status-field .check-row label:not(.check-item) input { width: auto; margin-top: 0; }
 .gen-table tr.muted td { color: var(--text-aux); background: #f7f8fa; }
 #user-form .user-status-field .check-item:first-child { order: 0; } /* 曜日の「日」を後ろに回す指定を、利用状況には当てない */
+
+/* ---------- 利用者管理の一覧: 壱番館と同じ「検索＋五十音」(2026-11-12) ---------- */
+.user-directory .search-box { min-height: 52px; border-radius: 14px; background: #fff; border-color: var(--gin-line-strong); }
+.user-directory .search-box:focus-within { border-color: var(--gin-primary); box-shadow: 0 0 0 2px var(--gin-primary-soft-2); }
+.user-directory .search-box input { min-width: 0; flex: 1; font-size: 16px; }
+.user-directory .search-clear { width: 44px; height: 44px; margin-right: -8px; display: grid; place-items: center; flex: none; border: 0; border-radius: 50%; background: transparent; color: var(--gin-text-sub); cursor: pointer; }
+.user-directory .search-clear:hover { background: var(--gin-primary-soft); }
+.user-directory .search-status { min-height: 20px; margin: 10px 2px 0; font-size: 14px; color: var(--gin-text-sub); }
+.user-directory .ended-toggle { margin-top: 10px; min-height: 44px; padding: 8px 16px; border: 1px solid var(--gin-line-strong); border-radius: var(--gin-pill); background: #fff; color: var(--gin-text-sub); font-size: 14px; font-weight: 600; cursor: pointer; }
+.user-directory .ended-toggle[aria-pressed="true"] { background: var(--gin-surface-2); }
+.kana-index { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 16px 0; }
+.kana-index-btn { min-height: 64px; padding: 8px 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 1px solid var(--gin-line-strong); border-radius: 14px; background: #fff; color: var(--gin-text-aux); cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .1s ease; }
+.kana-index-btn:hover { background: var(--gin-surface-2); }
+.kana-index-btn:active { transform: scale(.97); }
+.kana-index-btn .kana-label { font-size: 19px; font-weight: 700; color: var(--gin-text); }
+.kana-index-btn small { font-size: 12px; }
+.kana-index-btn[aria-expanded="true"] { background: var(--gin-primary-soft); border: 2px solid var(--gin-primary); color: var(--gin-primary-ink); }
+.kana-index-btn[aria-expanded="true"] .kana-label { color: var(--gin-primary-ink); }
+.kana-results-head { margin: 4px 2px 10px; font-size: 15px; font-weight: 700; color: var(--gin-text-sub); }
+.adm-user-list { display: grid; gap: 8px; }
+.adm-user-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px;
+  border: 1px solid var(--gin-line); border-radius: 14px; background: #fff; animation: admUserIn .18s ease; }
+.adm-user-row.is-ended { background: #f7f8fa; }
+.adm-user-row.is-ended .adm-user-name { color: var(--gin-text-aux); }
+.adm-user-name { font-size: 17px; font-weight: 700; line-height: 1.45; overflow-wrap: anywhere; }
+.adm-user-sub { font-size: 13px; color: var(--gin-text-aux); line-height: 1.5; overflow-wrap: anywhere; }
+.adm-user-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.adm-user-actions button { min-height: 44px; }
+.user-directory .empty-state { padding: 24px 18px; text-align: center; border: 1px dashed var(--gin-line-strong); border-radius: 16px; background: var(--gin-surface-2); color: var(--gin-text-sub); }
+.user-directory .empty-state strong { display: block; font-size: 16px; color: var(--gin-text); margin-bottom: 4px; }
+.user-directory .empty-state p { margin: 4px 0 10px; font-size: 14px; }
+@keyframes admUserIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .adm-user-row { animation: none; } .kana-index-btn { transition: none; } }
+@media (max-width: 560px) {
+  .kana-index { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .kana-index-btn { min-height: 58px; border-radius: 11px; }
+  .adm-user-row { gap: 10px; padding: 10px 12px; }
+  .adm-user-actions { flex-direction: column; flex-wrap: nowrap; gap: 6px; }
+  .adm-user-actions button { min-width: 68px; padding: 0 10px; }
+}
 </style>
 
   </head>
   <body>
-<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261112-1301';window.APP_MOCK=false;window.APP_DEMO=true;</script>
+<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261112-1553';window.APP_MOCK=false;window.APP_DEMO=true;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -7217,19 +7259,6 @@ function renderAdminUsers(app, renderId) {
   }
 
   var endedCount = S.users.filter(isEndedUser).length;
-  var rows = S.users.filter(function (x) { return S.showEndedUsers || !isEndedUser(x); }).map(function (x) {
-    return (
-      '<tr' + (isEndedUser(x) ? ' class="muted"' : '') + '><td><div class="user-cell">' + avatarHtml(x, 'avatar-sm') +
-      '<div style="font-weight:700;">' + esc(x.name) + '<br><span class="section-note">' + esc(x.kana || '') + '</span>' +
-      (isEndedUser(x) ? '<br><span class="pill-badge">利用終了' + (x.endDate ? ' ' + esc(x.endDate) : '') + '</span>' : '') + '</div></div></td>' +
-      '<td>' + x.age + '歳</td><td>' + esc(x.careLevel) + '</td><td>' + esc(x.scheduleLabel) + '</td>' +
-      '<td style="white-space:nowrap;">' +
-      '<button class="btn-csv" style="margin-right:6px;" onclick="Actions.adminEditUser(\'' + x.id + '\')">編集</button>' +
-      '<button class="btn-danger" data-del="' + x.id + '" onclick="Actions.adminDeleteUser(\'' + x.id + '\', this)">削除</button>' +
-      '</td></tr>'
-    );
-  }).join('');
-
   app.innerHTML = adminShell('admin/users',
     '<div class="admin-page-head"><div><div class="breadcrumb">利用者管理</div>' +
     '<div class="admin-h1">利用者の登録・編集 <span class="attrs">利用中 ' + (S.users.length - endedCount) + '名' + (endedCount ? '・利用終了 ' + endedCount + '名' : '') + '</span></div></div>' +
@@ -7238,13 +7267,97 @@ function renderAdminUsers(app, renderId) {
     '<button class="btn-csv" onclick="Actions.adminImportOpen()">📥 一覧ファイルから取り込む</button>' +
     '</div></div>' +
     formHtml +
-    '<div class="panel"><div style="overflow-x:auto;"><table class="gen-table"><thead><tr>' +
-    '<th>氏名</th><th>年齢</th><th>介護度</th><th>利用曜日</th><th></th>' +
-    '</tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    (endedCount ? '<button class="btn-outline" style="margin-top:8px;" onclick="Actions.adminToggleEnded()">' + (S.showEndedUsers ? '利用終了の方を隠す' : '利用終了の方も表示する(' + endedCount + '名)') + '</button>' : '') +
-    '<div class="section-note" style="margin-top:8px;">削除しても過去の記録は残ります。利用をやめた方は、削除ではなく編集の「利用終了」にすると、あとで戻せます。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
+    '<div class="panel user-directory">' +
+    '<div class="search-box">' + uiIcon('search') +
+    '<input id="admin-user-search" type="search" autocomplete="off" aria-label="利用者を検索" placeholder="名前・ふりがなで検索" value="' + esc(S.adminUserQuery || '') + '" oninput="Actions.adminUserSearch(this.value)">' +
+    '<button class="search-clear" id="admin-user-search-clear" aria-label="検索の文字を消す" onclick="Actions.adminUserSearchClear()"' + (S.adminUserQuery ? '' : ' hidden') + '>' + uiIcon('close') + '</button></div>' +
+    '<p class="search-status" id="admin-user-status" role="status" aria-live="polite"></p>' +
+    '<div id="admin-user-dir"></div>' +
+    '<div class="section-note" style="margin-top:12px;">削除しても過去の記録は残ります。利用をやめた方は、削除ではなく編集の「利用終了」にすると、あとで戻せます。QRカードは「種目マスタ / QR発行」から印刷できます。</div>' +
     '</div>');
+  drawAdminUserDirectory();
   enhanceUserForm();
+}
+
+// 利用者管理の一覧(2026-11-12 原山さん「壱番館みたいに検索できるように」)。壱番館の利用者管理と同じ作り:
+// ふだんは五十音の行を押して絞り込み、名前・ふりがなを入れるとその場で探す(利用終了の方も出る)。
+// 検索の文字を打つたびに一覧の部分だけ書き換える(日本語入力が途切れないよう、検索欄は作り直さない)
+var ADMIN_KANA_ROWS = ['あ', 'か', 'さ', 'た', 'な', 'は', 'ま', 'や', 'ら', 'わ', 'その他'];
+
+function adminUserMatches(u, query) {
+  return normalizeUserSearch((u.name || '') + (u.kana || '')).indexOf(query) >= 0;
+}
+
+function adminUserRowHtml(x) {
+  var ended = isEndedUser(x);
+  var sub = [x.kana || '', x.careLevel || '', x.scheduleLabel ? x.scheduleLabel.split('/').join('・') : '利用曜日 未設定']
+    .filter(function (t) { return t; }).map(esc).join(' · ');
+  return (
+    '<div class="adm-user-row' + (ended ? ' is-ended' : '') + '">' + avatarHtml(x, 'avatar-sm') +
+    '<div class="adm-user-main"><div class="adm-user-name">' + esc(x.name) +
+    (ended ? ' <span class="pill-badge">利用終了' + (x.endDate ? ' ' + esc(x.endDate) : '') + '</span>' : '') + '</div>' +
+    '<div class="adm-user-sub">' + sub + '</div></div>' +
+    '<div class="adm-user-actions">' +
+    '<button class="btn-csv" onclick="Actions.adminEditUser(\'' + x.id + '\')">編集</button>' +
+    '<button class="btn-danger" data-del="' + x.id + '" onclick="Actions.adminDeleteUser(\'' + x.id + '\', this)">削除</button>' +
+    '</div></div>'
+  );
+}
+
+/** 編集欄を開いたとき・閉じたときに、その場所までページを動かす(一覧が長くても迷わないように) */
+function scrollAdminUserArea(id) {
+  var el = document.getElementById(id);
+  if (!el || !el.scrollIntoView) return;
+  try { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (e) { el.scrollIntoView(true); }
+}
+
+function drawAdminUserDirectory() {
+  var box = document.getElementById('admin-user-dir');
+  var status = document.getElementById('admin-user-status');
+  if (!box) return;
+  var raw = S.adminUserQuery || '';
+  var query = normalizeUserSearch(raw);
+  var clear = document.getElementById('admin-user-search-clear');
+  if (clear) clear.hidden = !raw;
+  if (!S.users.length) {
+    if (status) status.textContent = '';
+    box.innerHTML = '<div class="empty-state"><strong>利用者が登録されていません</strong><p>「+ 新規登録」か「一覧ファイルから取り込む」から登録してください。</p></div>';
+    return;
+  }
+  var endedCount = S.users.filter(isEndedUser).length;
+  // 利用終了の方はふだん出さない。名前で検索したとき・「表示する」を押したときだけ出す
+  var users = sortUsersKana(S.users.filter(function (u) {
+    if (query) return adminUserMatches(u, query);
+    return S.showEndedUsers || !isEndedUser(u);
+  }));
+  if (status) {
+    status.textContent = query ? users.length + '名が見つかりました'
+      : (S.showEndedUsers ? '全' + users.length + '名(利用終了' + endedCount + '名を含む)' : '利用中 ' + users.length + '名');
+  }
+  var toggle = (!query && endedCount)
+    ? '<button class="ended-toggle" aria-pressed="' + (S.showEndedUsers ? 'true' : 'false') + '" onclick="Actions.adminToggleEnded()">' +
+      (S.showEndedUsers ? '利用終了の方を隠す' : '利用終了の方も表示する(' + endedCount + '名)') + '</button>'
+    : '';
+  if (query) {
+    box.innerHTML = users.length
+      ? '<div class="adm-user-list">' + users.map(adminUserRowHtml).join('') + '</div>'
+      : '<div class="empty-state"><strong>該当する利用者がいません</strong><p>名前やふりがなを変えてお試しください。</p>' +
+        '<button class="btn-outline" onclick="Actions.adminUserSearchClear()">検索の文字を消す</button></div>';
+    return;
+  }
+  var groups = {};
+  users.forEach(function (u) { var g = kanaGyo(u.kana); (groups[g] = groups[g] || []).push(u); });
+  var picked = groups[S.adminKanaGroup] ? S.adminKanaGroup : '';
+  var label = function (g) { return g === 'その他' ? g : g + '行'; };
+  box.innerHTML = toggle +
+    '<div class="kana-index" role="group" aria-label="五十音から探す">' +
+    ADMIN_KANA_ROWS.filter(function (g) { return groups[g]; }).map(function (g) {
+      return '<button class="kana-index-btn" aria-expanded="' + (picked === g ? 'true' : 'false') + '" aria-controls="admin-kana-results" onclick="Actions.adminKanaGroup(\'' + g + '\')">' +
+        '<span class="kana-label">' + label(g) + '</span><small>' + groups[g].length + '名</small></button>';
+    }).join('') + '</div>' +
+    (picked
+      ? '<div id="admin-kana-results"><div class="kana-results-head">' + label(picked) + 'の利用者</div><div class="adm-user-list">' + groups[picked].map(adminUserRowHtml).join('') + '</div></div>'
+      : '<div id="admin-kana-results" class="empty-state"><strong>五十音を選んでください</strong><p>編集する利用者を絞り込めます。上の検索欄に名前を入れても探せます。</p></div>');
 }
 
 // ---------------------------------------------------------------- 管理: 利用者の一括取り込み
@@ -9269,6 +9382,7 @@ var Actions = {
     S.editingUser = { id: '', name: '', kana: '', age: '', careLevel: '要支援1', scheduleLabel: '', goal: '', medicalHistory: '', precautions: '', photo: '', hasPhoto: false };
     USER_EXTRA_KEYS.forEach(function (k) { S.editingUser[k] = ''; });
     render();
+    scrollAdminUserArea('user-form');
   },
   adminEditUser: function (id) {
     var u = null;
@@ -9278,6 +9392,7 @@ var Actions = {
     S.editingUser = { id: u.id, name: u.name, kana: u.kana, age: u.age, careLevel: u.careLevel, scheduleLabel: u.scheduleLabel, goal: u.goal || '', medicalHistory: u.medicalHistory || '', precautions: u.precautions || '', photo: null, hasPhoto: !!(u.hasPhoto || S.photos[u.id]) };
     USER_EXTRA_KEYS.forEach(function (k) { S.editingUser[k] = u[k] == null ? '' : String(u[k]); });
     render();
+    scrollAdminUserArea('user-form');
   },
   /** 生年月日を入れたら年齢を自動で入れる(年齢の欄は直せなくする) */
   adminBirthChanged: function (value) {
@@ -9296,11 +9411,28 @@ var Actions = {
   },
   adminToggleEnded: function () {
     S.showEndedUsers = !S.showEndedUsers;
-    render();
+    drawAdminUserDirectory();
+  },
+  adminUserSearch: function (value) {
+    S.adminUserQuery = String(value || '');
+    drawAdminUserDirectory();
+  },
+  adminUserSearchClear: function () {
+    S.adminUserQuery = '';
+    var input = document.getElementById('admin-user-search');
+    if (input) { input.value = ''; input.focus(); }
+    drawAdminUserDirectory();
+  },
+  adminKanaGroup: function (g) {
+    S.adminKanaGroup = S.adminKanaGroup === g ? '' : g;
+    drawAdminUserDirectory();
+    var btn = document.querySelector('.kana-index-btn[aria-expanded="true"]');
+    if (btn) btn.focus({ preventScroll: true });
   },
   adminCancelEdit: function () {
     S.editingUser = null;
     render();
+    scrollAdminUserArea('admin-user-dir');
   },
   adminSaveUser: function () {
     var err = document.getElementById('form-error');
@@ -9337,6 +9469,7 @@ var Actions = {
       }
       S.editingUser = null;
       render();
+      scrollAdminUserArea('admin-user-dir');
     }).catch(function (e) {
       if (err) err.textContent = (e && e.message) || '保存できませんでした';
       if (btn) { btn.disabled = false; btn.textContent = '保存する'; }
