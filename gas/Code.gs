@@ -1916,7 +1916,27 @@ function apiGetCommunicationBookCore_(user, target) {
 
 // ---------------------------------------------------------------- 連絡帳の本文・写真
 
-var NOTEBOOK_PHOTO_MAX_CHARS = 48000;  // セル上限(5万文字)未満に収める。端末側で縮小してから送る
+// 写真は1セル(上限5万文字)に収まらない大きさまで許し、「写真」列とその右の見出しなしの列に分けて入れる
+// (2026-11-13 現場「写真の画質をもう少し良く」)。見出しを足さないのは、前の版へ戻したときに
+// 列の確認(ensureSchema_)で止まらないようにするため。前の版で保存した写真(1セル)もそのまま読める。
+var NOTEBOOK_PHOTO_CELL_CHARS = 47000; // 1セルに入れる文字数
+var NOTEBOOK_PHOTO_CELLS = 3;          // 写真に使う列数(H〜J列)
+var NOTEBOOK_PHOTO_COL = 8;            // 「写真」列(H列)
+var NOTEBOOK_PHOTO_MAX_CHARS = NOTEBOOK_PHOTO_CELL_CHARS * NOTEBOOK_PHOTO_CELLS; // 端末側で縮小してから送る
+
+/** 写真(dataURL)を列数ぶんのセルに分ける。空きは '' */
+function splitNotebookPhoto_(photo) {
+  var parts = [];
+  for (var i = 0; i < NOTEBOOK_PHOTO_CELLS; i++) {
+    parts.push(String(photo || '').substr(i * NOTEBOOK_PHOTO_CELL_CHARS, NOTEBOOK_PHOTO_CELL_CHARS));
+  }
+  return parts;
+}
+
+/** 分けて入れた写真を1つにつなぐ。values は「写真」列から右のセルの並び */
+function joinNotebookPhoto_(values) {
+  return (values || []).map(function (v) { return String(v || ''); }).join('');
+}
 var NOTEBOOK_PHOTO_KEEP_DAYS = 31;     // 印刷後の写真は1か月で消し、スプレッドシートの肥大化を防ぐ
 
 /** 連絡帳シートの日付・利用者ID列だけを読み、[{row, date, userId}] を返す(写真列は読まない) */
@@ -1949,7 +1969,8 @@ function notebookEntries_(date, userIds, withPhoto) {
   var rows = Object.keys(found).map(function (userId) { return found[userId]; }).sort(function (a, b) { return a - b; });
   if (!rows.length) return result;
   // 1行ずつ読むと人数分の往復になるため、近い行はまとめて読む(写真列を含めても当日分だけ)
-  var width = withPhoto ? HEADERS.notebooks.length : HEADERS.notebooks.length - 1;
+  var width = NOTEBOOK_PHOTO_COL - 1;
+  if (withPhoto) width = Math.min(sh.getMaxColumns(), NOTEBOOK_PHOTO_COL - 1 + NOTEBOOK_PHOTO_CELLS);
   var byRow = {};
   var start = 0;
   for (var i = 1; i <= rows.length; i++) {
@@ -1962,7 +1983,7 @@ function notebookEntries_(date, userIds, withPhoto) {
   Object.keys(found).forEach(function (userId) {
     var values = byRow[found[userId]];
     var entry = toNotebookEntry_(values);
-    entry.photo = withPhoto && entry.hasPhoto ? String(values[7] || '') : '';
+    entry.photo = withPhoto && entry.hasPhoto ? joinNotebookPhoto_(values.slice(NOTEBOOK_PHOTO_COL - 1)) : '';
     result[userId] = entry;
   });
   return result;
@@ -1993,14 +2014,17 @@ function apiSaveNotebookEntry_(payload) {
   lock.waitLock(10000);
   try {
     var sh = sheet_('notebooks');
+    ensureColumns_(sh, NOTEBOOK_PHOTO_COL - 1 + NOTEBOOK_PHOTO_CELLS);
     var row = 0;
     notebookIndex_().forEach(function (x) { if (x.date === date && x.userId === userId) row = x.row; });
     var id = 'nb-' + date.replace(/-/g, '') + '-' + userId;
     var keepPhoto = '';
-    if (row && photo === null && !payload.removePhoto) keepPhoto = String(sh.getRange(row, 8).getValue() || '');
+    if (row && photo === null && !payload.removePhoto) {
+      keepPhoto = joinNotebookPhoto_(sh.getRange(row, NOTEBOOK_PHOTO_COL, 1, NOTEBOOK_PHOTO_CELLS).getValues()[0]);
+    }
     var finalPhoto = payload.removePhoto ? '' : (photo !== null ? photo : keepPhoto);
     var values = [id, date, userId, comment, finalPhoto ? 'true' : '', currentStaffName_(),
-      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd H:mm:ss'), finalPhoto];
+      Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd H:mm:ss')].concat(splitNotebookPhoto_(finalPhoto));
     if (!row) row = sh.getLastRow() + 1;
     sh.getRange(row, 1, 1, values.length).setNumberFormat('@').setValues([values.map(String)]);
     invalidateRequestRows_('notebooks');
@@ -2025,7 +2049,9 @@ function purgeOldNotebookPhotos_(sh) {
   rows.forEach(function (r, i) {
     if (String(r[3]) === 'true' && String(r[0]) < cutoff) {
       sh.getRange(i + 2, 5).setValue('');
-      sh.getRange(i + 2, 8).setValue('');
+      var n = Math.min(NOTEBOOK_PHOTO_CELLS, sh.getMaxColumns() - NOTEBOOK_PHOTO_COL + 1);
+      var blank = []; for (var k = 0; k < n; k++) blank.push('');
+      sh.getRange(i + 2, NOTEBOOK_PHOTO_COL, 1, n).setValues([blank]);
     }
   });
 }
