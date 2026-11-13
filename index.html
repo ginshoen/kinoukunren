@@ -3741,7 +3741,7 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261112-1617';window.APP_MOCK=false;window.APP_DEMO=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261113-1510';window.APP_MOCK=false;window.APP_DEMO=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -4448,6 +4448,38 @@ function userCareInfoItems(user) {
   var contact = [user.emergencyName, user.emergencyRelation ? '(' + user.emergencyRelation + ')' : '', user.emergencyPhone].filter(Boolean).join(' ');
   if (contact) items.push(['緊急連絡先', contact]);
   return items;
+}
+
+/** バイタルの入力欄の並び(入れ終えたら・Enterを押したら、この順に次へ進む) */
+var VITAL_FIELD_ORDER = ['systolic', 'diastolic', 'pulse', 'temp-int', 'temp-dec', 'spo2', 'weight'];
+
+/**
+ * 数字を入れ終えたか(2026-11-13 現場要望「入れたら次の欄へ自動で移る」)。
+ * 範囲内の値で、もう1桁足すと上限を超えるときに「入れ終えた」とみなす。
+ * 例: 血圧(上)60〜250 → 「128」「98」は入れ終えた、「12」は3桁目を待つ。SpO2 50〜100 → 「98」「100」は入れ終えた、「10」は待つ。
+ * 体重は小数を入れることがあるので対象にしない。
+ */
+function vitalEntryComplete(key, v) {
+  var s = String(v || '');
+  var limit = VITAL_LIMITS[key];
+  if (!limit || key === 'weight' || key === 'temp' || !/^[0-9]+$/.test(s)) return false;
+  var n = Number(s);
+  return n >= limit[0] && n <= limit[1] && n * 10 > limit[1];
+}
+
+function vitalFieldInput(name) {
+  if (name === 'temp-int' || name === 'temp-dec') return document.getElementById(name);
+  return document.querySelector('[data-vital-field="' + name + '"] input');
+}
+
+/** 次の入力欄へ進む。最後の欄(体重)のあとはキーボードを閉じる */
+function focusNextVitalField(name) {
+  var i = VITAL_FIELD_ORDER.indexOf(name);
+  if (i < 0) return;
+  var next = i + 1 < VITAL_FIELD_ORDER.length ? vitalFieldInput(VITAL_FIELD_ORDER[i + 1]) : null;
+  if (next) { next.focus(); if (next.select) next.select(); return; }
+  var cur = vitalFieldInput(name);
+  if (cur) cur.blur();
 }
 
 // ---------------------------------------------------------------- 顔写真
@@ -5889,7 +5921,7 @@ function renderVitals(app, renderId) {
         '<label class="vital-cell" data-vital-field="' + key + '"><span class="card-label">' + label +
         ' <span class="unit">' + unit + '</span>' +
         (prevValue != null ? '<span class="vital-prev">(前回 ' + prevValue + ')</span>' : '') +
-        '</span><input inputmode="decimal" placeholder="--" value="' + esc(d[key]) + '"' +
+        '</span><input inputmode="decimal" enterkeyhint="next" placeholder="--" value="' + esc(d[key]) + '"' +
         ' oninput="Actions.vInput(\'' + key + '\', this.value)" aria-label="' + label + '"></label>'
       );
     }
@@ -5902,17 +5934,17 @@ function renderVitals(app, renderId) {
         (S.vitalTempOptional ? '<span class="vital-optional">2回目以降は省略可</span>' : '') +
         (prevValue != null ? '<span class="vital-prev">(前回 ' + prevValue + ')</span>' : '') + '</span>' +
         '<div class="temp-split">' +
-        '<input id="temp-int" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="36" value="' + esc(parts[0] || '') + '"' +
+        '<input id="temp-int" inputmode="numeric" enterkeyhint="next" pattern="[0-9]*" autocomplete="off" placeholder="36" value="' + esc(parts[0] || '') + '"' +
         ' oninput="Actions.vTempInput(\'int\', this)" aria-label="体温(整数)">' +
         '<span class="temp-dot" aria-hidden="true">.</span>' +
-        '<input id="temp-dec" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="5" value="' + esc(parts[1] || '') + '"' +
+        '<input id="temp-dec" inputmode="numeric" enterkeyhint="next" pattern="[0-9]*" autocomplete="off" placeholder="5" value="' + esc(parts[1] || '') + '"' +
         ' oninput="Actions.vTempInput(\'dec\', this)" onkeydown="Actions.vTempKey(event, this)" aria-label="体温(小数第1位)">' +
         '</div></div>'
       );
     }
 
     app.innerHTML =
-      '<div class="phone-wrap"><div class="phone vital-form-screen">' +
+      '<div class="phone-wrap"><div class="phone vital-form-screen" onkeydown="Actions.vKey(event)">' +
       '<header class="phone-header compact">' +
       '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'menu\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div><div class="h-sub">バイタル記録</div><div class="h-title">' + esc(user.name) + ' さま</div></div>' +
@@ -5930,10 +5962,10 @@ function renderVitals(app, renderId) {
       '<span class="bp-prev">' + (prev ? '前回 ' + prev.systolic + ' / ' + prev.diastolic : '前回記録なし') + '</span></div>' +
       '<div class="bp-inputs">' +
       '<label class="num-box" data-vital-field="systolic"><span class="nb-label">収縮期(上)</span>' +
-      '<input inputmode="decimal" placeholder="---" value="' + esc(d.systolic) + '" oninput="Actions.vInput(\'systolic\', this.value)" aria-label="収縮期血圧"></label>' +
+      '<input inputmode="decimal" enterkeyhint="next" placeholder="---" value="' + esc(d.systolic) + '" oninput="Actions.vInput(\'systolic\', this.value)" aria-label="収縮期血圧"></label>' +
       '<span class="bp-slash">/</span>' +
       '<label class="num-box" data-vital-field="diastolic"><span class="nb-label">拡張期(下)</span>' +
-      '<input inputmode="decimal" placeholder="---" value="' + esc(d.diastolic) + '" oninput="Actions.vInput(\'diastolic\', this.value)" aria-label="拡張期血圧"></label>' +
+      '<input inputmode="decimal" enterkeyhint="next" placeholder="---" value="' + esc(d.diastolic) + '" oninput="Actions.vInput(\'diastolic\', this.value)" aria-label="拡張期血圧"></label>' +
       '</div></div>' +
       '<div class="vitals-grid">' +
       cell('pulse', '脈拍', 'bpm', prev ? String(prev.pulse) : null) +
@@ -8505,6 +8537,9 @@ function renderNotebookBatch(app, renderId) {
   });
 }
 
+var NOTEBOOK_PHOTO_MAX_PX = 1280;      // 連絡帳の写真の長辺(以前は1000)
+var NOTEBOOK_PHOTO_MAX_CHARS = 140000; // 連絡帳の写真の上限(約105KB。以前は47,000=約35KB)。サーバーの上限は141,000
+
 /**
  * 大きな端末写真を非同期デコードして縮小する。createImageBitmap 対応端末では
  * メインUIを塞がずに読み込み、未対応端末は object URL で安全にフォールバックする。
@@ -8544,8 +8579,10 @@ function resizeSelectedImage(file, options) {
             ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
             var q = options.quality || 0.8;
             var out = canvas.toDataURL('image/jpeg', q);
-            while (options.maxChars && out.length > options.maxChars && q > 0.45) {
-              q -= 0.1;
+            // 画質をどこまで下げるか。下げすぎるとざらつくので、連絡帳の写真は0.6で止めて大きさのほうを下げる
+            var minQ = options.minQuality || 0.45;
+            while (options.maxChars && out.length > options.maxChars && q > minQ + 0.001) {
+              q = Math.max(minQ, q - 0.1);
               out = canvas.toDataURL('image/jpeg', q);
             }
             return out;
@@ -8765,6 +8802,33 @@ var Actions = {
     S.vDraft[key] = dot < 0 ? clean : clean.slice(0, dot + 1) + clean.slice(dot + 1).replace(/\./g, '');
     S.vitalConfirmed = false;
     Actions.vRefresh();
+    Actions.vAutoNext(key);
+  },
+  /**
+   * 数字を入れ終えたら次の欄へ進む(血圧の上→下→脈拍→体温→SpO2→体重)。
+   * 消している途中(文字が減った)や、欄の途中を直しているときは動かさない。
+   */
+  vAutoNext: function (key) {
+    var value = String(S.vDraft[key] || '');
+    if (!S.vPrevLen) S.vPrevLen = {};
+    var prevLen = S.vPrevLen[key] || 0;
+    S.vPrevLen[key] = value.length;
+    if (value.length <= prevLen || !vitalEntryComplete(key, value)) return;
+    var box = vitalFieldInput(key);
+    if (!box || document.activeElement !== box) return;
+    if (typeof box.selectionStart === 'number' && box.selectionStart < String(box.value).length) return;
+    focusNextVitalField(key);
+  },
+  /** Enter(キーボードの「次へ」「改行」)で次の欄へ進む。空欄のままでも進める */
+  vKey: function (e) {
+    if (e.key !== 'Enter' || e.isComposing) return;
+    var el = e.target;
+    if (!el || el.tagName !== 'INPUT') return;
+    var field = el.closest ? el.closest('[data-vital-field]') : null;
+    var name = el.id === 'temp-int' || el.id === 'temp-dec' ? el.id : (field ? field.getAttribute('data-vital-field') : '');
+    if (VITAL_FIELD_ORDER.indexOf(name) < 0) return;
+    e.preventDefault();
+    focusNextVitalField(name);
   },
   /** 体温: 整数2桁を入れたら小数の欄へ進む。「369」と続けて押しても 36.9 になる */
   vTempInput: function (part, el) {
@@ -8787,6 +8851,8 @@ var Actions = {
     S.vDraft.temp = i === '' ? '' : (f === '' ? i : i + '.' + f);
     S.vitalConfirmed = false;
     Actions.vRefresh();
+    // 小数を入れたら次の欄(SpO2)へ進む
+    if (part === 'dec' && decEl.value !== '' && document.activeElement === decEl) focusNextVitalField('temp-dec');
   },
   /** 小数の欄が空のときに「削除」を押したら整数の欄へ戻る */
   vTempKey: function (e, el) {
@@ -9754,8 +9820,9 @@ var Actions = {
     if (status) status.textContent = '写真を読み込み・縮小しています…';
     if (label) label.classList.add('is-processing');
     if (input) input.disabled = true;
-    // スプレッドシートの1セル(5万文字)に収まるよう縮小する。A5の写真欄には十分な画質
-    resizeSelectedImage(file, { maxDimension: 1000, quality: 0.78, maxChars: 47000 }).then(function (data) {
+    // 写真は複数のセルに分けて保存するので、以前(1セル=47,000文字)の3倍まで許して画質を上げる
+    // (2026-11-13 現場「写真の画質をもう少し良く」)。上げすぎると、まとめて印刷の読み込みが重くなる
+    resizeSelectedImage(file, { maxDimension: NOTEBOOK_PHOTO_MAX_PX, quality: 0.85, minQuality: 0.6, maxChars: NOTEBOOK_PHOTO_MAX_CHARS }).then(function (data) {
       S.notebook.photo = data;
       S.notebook.photoChanged = true;
       S.notebook.dirty = true;
