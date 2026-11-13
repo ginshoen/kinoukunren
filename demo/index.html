@@ -3741,7 +3741,7 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 
   </head>
   <body>
-<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261112-1616';window.APP_MOCK=false;window.APP_DEMO=true;</script>
+<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261113-1344';window.APP_MOCK=false;window.APP_DEMO=true;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -4448,6 +4448,13 @@ function userCareInfoItems(user) {
   var contact = [user.emergencyName, user.emergencyRelation ? '(' + user.emergencyRelation + ')' : '', user.emergencyPhone].filter(Boolean).join(' ');
   if (contact) items.push(['緊急連絡先', contact]);
   return items;
+}
+
+/** 収縮期血圧(上)を入れ終えたか。3桁、または先頭が3〜9の2桁(3桁になり得ない) */
+function bpSystolicComplete(v) {
+  var s = String(v || '');
+  if (!/^[0-9]+$/.test(s)) return false;
+  return s.length >= 3 || (s.length === 2 && s.charAt(0) >= '3');
 }
 
 // ---------------------------------------------------------------- 顔写真
@@ -8505,6 +8512,9 @@ function renderNotebookBatch(app, renderId) {
   });
 }
 
+var NOTEBOOK_PHOTO_MAX_PX = 1280;      // 連絡帳の写真の長辺(以前は1000)
+var NOTEBOOK_PHOTO_MAX_CHARS = 140000; // 連絡帳の写真の上限(約105KB。以前は47,000=約35KB)。サーバーの上限は141,000
+
 /**
  * 大きな端末写真を非同期デコードして縮小する。createImageBitmap 対応端末では
  * メインUIを塞がずに読み込み、未対応端末は object URL で安全にフォールバックする。
@@ -8544,8 +8554,10 @@ function resizeSelectedImage(file, options) {
             ctx.drawImage(source, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
             var q = options.quality || 0.8;
             var out = canvas.toDataURL('image/jpeg', q);
-            while (options.maxChars && out.length > options.maxChars && q > 0.45) {
-              q -= 0.1;
+            // 画質をどこまで下げるか。下げすぎるとざらつくので、連絡帳の写真は0.6で止めて大きさのほうを下げる
+            var minQ = options.minQuality || 0.45;
+            while (options.maxChars && out.length > options.maxChars && q > minQ + 0.001) {
+              q = Math.max(minQ, q - 0.1);
               out = canvas.toDataURL('image/jpeg', q);
             }
             return out;
@@ -8765,6 +8777,24 @@ var Actions = {
     S.vDraft[key] = dot < 0 ? clean : clean.slice(0, dot + 1) + clean.slice(dot + 1).replace(/\./g, '');
     S.vitalConfirmed = false;
     Actions.vRefresh();
+    if (key === 'systolic') Actions.vBpAdvance();
+  },
+  /**
+   * 血圧: 収縮期(上)を入れ終えたら拡張期(下)の欄へ進む(2026-11-13 現場要望)。
+   * 3桁なら進む。2桁でも先頭が3〜9なら3桁になり得ない(上限250)ので進む。1・2で始まる2桁は3桁目を待つ。
+   * 消している途中(文字が減った)や、欄の途中を直しているときは動かさない。
+   */
+  vBpAdvance: function () {
+    var digits = String(S.vDraft.systolic || '');
+    var prevLen = S.vBpPrevLen || 0;
+    S.vBpPrevLen = digits.length;
+    if (digits.length <= prevLen || !bpSystolicComplete(digits)) return;
+    var box = document.querySelector('[data-vital-field="systolic"] input');
+    var next = document.querySelector('[data-vital-field="diastolic"] input');
+    if (!box || !next || document.activeElement !== box) return;
+    if (typeof box.selectionStart === 'number' && box.selectionStart < String(box.value).length) return;
+    next.focus();
+    if (next.select) next.select();
   },
   /** 体温: 整数2桁を入れたら小数の欄へ進む。「369」と続けて押しても 36.9 になる */
   vTempInput: function (part, el) {
@@ -9754,8 +9784,9 @@ var Actions = {
     if (status) status.textContent = '写真を読み込み・縮小しています…';
     if (label) label.classList.add('is-processing');
     if (input) input.disabled = true;
-    // スプレッドシートの1セル(5万文字)に収まるよう縮小する。A5の写真欄には十分な画質
-    resizeSelectedImage(file, { maxDimension: 1000, quality: 0.78, maxChars: 47000 }).then(function (data) {
+    // 写真は複数のセルに分けて保存するので、以前(1セル=47,000文字)の3倍まで許して画質を上げる
+    // (2026-11-13 現場「写真の画質をもう少し良く」)。上げすぎると、まとめて印刷の読み込みが重くなる
+    resizeSelectedImage(file, { maxDimension: NOTEBOOK_PHOTO_MAX_PX, quality: 0.85, minQuality: 0.6, maxChars: NOTEBOOK_PHOTO_MAX_CHARS }).then(function (data) {
       S.notebook.photo = data;
       S.notebook.photoChanged = true;
       S.notebook.dirty = true;
