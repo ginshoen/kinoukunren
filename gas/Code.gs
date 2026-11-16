@@ -274,6 +274,12 @@ function ensureColumns_(sh, width) {
 var SCHEMA_VERSION = '12';
 
 function ensureSchema_() {
+  ensureSchemaColumns_();
+  // 脳トレメニューの入れ替え(2026-11-16)は見出しを変えないので SCHEMA_VERSION は上げず、別の印で1回だけ行う
+  ensureFieldCognitiveMenu_();
+}
+
+function ensureSchemaColumns_() {
   if (scriptProp_('SCHEMA_VERSION') === SCHEMA_VERSION) return;
   var props = PropertiesService.getScriptProperties();
   var cache = CacheService.getScriptCache();
@@ -309,8 +315,7 @@ function ensureSchema_() {
       sh.setFrozenRows(1);
       // 脳トレメニューが空なら標準の選択肢を投入する(あとから管理画面で追加・変更できる)
       if (key === 'cognitiveMenu' && sh.getLastRow() < 2) {
-        var seed = [['cm1', '計算プリント'], ['cm2', '漢字プリント'], ['cm3', '間違い探し'],
-                    ['cm4', '塗り絵'], ['cm5', 'パズル'], ['cm6', '音読'], ['cm7', '回想法・昔話']];
+        var seed = FIELD_COGNITIVE_MENU.map(function (name, i) { return ['cm' + (i + 1), name]; });
         sh.getRange(2, 1, seed.length, 3).setNumberFormat('@')
           .setValues(seed.map(function (r) { return [r[0], r[1], 'true']; }));
       }
@@ -406,6 +411,81 @@ function applyFieldExerciseList_(sh) {
   sh.getRange(2, 1, ordered.length, width).setNumberFormat('@').setValues(ordered);
   invalidateRequestRows_('exercises');
   CacheService.getScriptCache().remove('master-v4-exercises');
+}
+
+/**
+ * 脳トレメニューの一覧(2026-11-16 弐番館の職員より。原山さん了承)。この順でプルダウンに並べる。
+ * 「その他(記載式)」は画面に組み込みの自由記載(__free__)なので、ここには入れない。
+ */
+var FIELD_COGNITIVE_MENU = [
+  '箸つまみ', '顔合わせ', '置き換え課題', 'エルジパズル', '紅白パズル', '白黒パズル', '輪かけ', 'ペグボード',
+  '計算コマ置き（＋−）', '計算コマ置き（×÷）', 'ナンプレ',
+];
+var COG_MENU_PROP = 'COG_MENU_FIELD_20261116'; // 入れ替え済みの印(スクリプトプロパティ)
+
+/** 脳トレメニューを現場の一覧に1回だけ合わせる。済んでいれば何もしない */
+function ensureFieldCognitiveMenu_() {
+  if (scriptProp_(COG_MENU_PROP)) return;
+  // ログインの通信でも通るため、入れ替えに失敗してもログインや記録は止めない(印を付けず、次の通信でやり直す)
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) return;
+  try {
+    // ほかの通信が先に入れ替えたかもしれないので、ロックを取ってから読み直す
+    if (PropertiesService.getScriptProperties().getProperty(COG_MENU_PROP)) return;
+    // 見出しが違うときは書かず、印も付けない(見出しを直せば次の通信で入れ替わる)
+    if (applyFieldCognitiveMenu_(sheet_('cognitiveMenu'))) setScriptProp_(COG_MENU_PROP, new Date().toISOString());
+  } catch (e) {
+    console.error('脳トレメニューの入れ替えに失敗(次の通信でやり直す): ' + (e && e.message));
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 脳トレメニューのシートを現場の一覧に並べ替える。入れ替えたら true、見出しが想定と違えば何も書かずに false。
+ * 名前が同じ(全角半角・空白は無視)既存のメニューはIDを引き継いで有効にし、ないものは追加、
+ * 一覧にない今のメニューは消さずに「有効=false」(停止)にして後ろへ回す。
+ * IDが空の行(手で名前だけ入れた行。アプリは読まない)は、元のまま一番後ろに残す。
+ * 書き込みは空白で埋めた1つの表を1回で書く(途中で失敗しても旧メニューが消えた状態を残さない・
+ * 書いている間にほかの端末が空のメニューを読まない)。
+ * 脳トレ記録には名前そのものが入っているので、過去の記録の表示は変わらない。何度実行しても同じ結果になる。
+ */
+function applyFieldCognitiveMenu_(sh) {
+  var width = HEADERS.cognitiveMenu.length;
+  var last = Math.max(1, sh.getLastRow());
+  var values = sh.getRange(1, 1, last, width).getValues().map(function (r) {
+    return r.map(function (v) { return String(v == null ? '' : v); });
+  });
+  var head = values[0];
+  for (var h = 0; h < width; h++) {
+    if (head[h] !== HEADERS.cognitiveMenu[h]) {
+      console.error('脳トレメニューの見出しが想定と違うため、入れ替えをしませんでした(' + (h + 1) + '列目「' + head[h] + '」)');
+      return false;
+    }
+  }
+  var body = values.slice(1);
+  var rows = body.filter(function (r) { return r[0] !== ''; });
+  var noId = body.filter(function (r) { return r[0] === '' && r.join('') !== ''; });
+  var byKey = {};
+  rows.forEach(function (r) { var k = exerciseNameKey_(r[1]); if (!byKey[k]) byKey[k] = r; });
+  var used = {};
+  var stamp = Date.now().toString(36);
+  var ordered = FIELD_COGNITIVE_MENU.map(function (name, i) {
+    var hit = byKey[exerciseNameKey_(name)];
+    if (hit && !used[hit[0]]) { used[hit[0]] = true; return [hit[0], name, 'true']; }
+    return ['cm' + stamp + ('0' + i).slice(-2), name, 'true'];
+  });
+  rows.forEach(function (r) {
+    if (used[r[0]]) return;
+    ordered.push([r[0], r[1], 'false']);
+  });
+  noId.forEach(function (r) { ordered.push(r.slice(0, width)); });
+  // 前より行が減ったときは残りを空白で埋めて、同じ1回の書き込みで消す
+  var height = Math.max(body.length, ordered.length);
+  while (ordered.length < height) ordered.push(Array.apply(null, Array(width)).map(function () { return ''; }));
+  sh.getRange(2, 1, height, width).setNumberFormat('@').setValues(ordered);
+  invalidateRequestRows_('cognitiveMenu');
+  return true;
 }
 
 function todayStr_() {
@@ -2158,7 +2238,16 @@ function apiGetTodayRecords_() {
     records: recordsOn_(today),
     cognitiveRecords: cognitiveOn_(today),
     assessments: assessmentsOn_(today),
+    // 記録メニューの上に出す個人目標(2026-11-16)。利用者の詳細と同じく、個別目標進捗の最新(シートの後ろの行)を使う
+    goals: latestGoalsByUser_(),
   };
+}
+
+/** 利用者ごとの個別目標進捗の最新({ userId: { goal, updatedDate } })。ない方は入れない(画面は利用者マスタの個人目標を使う) */
+function latestGoalsByUser_() {
+  var out = {};
+  allGoals_().forEach(function (g) { out[g.userId] = { goal: g.goal, updatedDate: g.updatedDate }; });
+  return out;
 }
 
 /**
