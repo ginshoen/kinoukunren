@@ -3775,7 +3775,7 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261116-1203';window.APP_MOCK=false;window.APP_DEMO=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261116-1249';window.APP_MOCK=false;window.APP_DEMO=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -5423,11 +5423,29 @@ function printRulesCss() {
   return S.printRulesCss;
 }
 
+/** 連絡帳の写真をPDFに入れるときに使える形か(JPEG の data URL)。使えれば {src, width, height} */
+function notebookPdfPhoto(pdf, sheet) {
+  var img = sheet.querySelector('.notebook-photo-frame img');
+  var src = img ? String(img.getAttribute('src') || '') : '';
+  if (!/^data:image\/jpe?g;base64,/.test(src)) return null;
+  try {
+    var p = pdf.getImageProperties(src);
+    return p && p.width && p.height ? { src: src, width: p.width, height: p.height } : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 /**
  * 連絡帳(.communication-sheet)を1人1ページのA5横PDFにする。
  * 画面の連絡帳を印刷用の見た目にして画像化し、A5横(余白5mm)に貼る。
+ * 写真は、ページの画像には入れずに、保存してある写真(長辺1280pxまで)をそのまま写真の枠の位置に重ねる
+ * (2026-11-16 原山さん「連絡帳の写真の画質を上げることはできますか(印刷した紙で)」)。
+ * 以前はページ全体を1枚の画像(約190dpi)にしていたため、写真もその細かさに落ち、JPEGで2回圧縮されていた。
+ * opts.inlinePhoto=true で以前の作り(写真もページの画像に入れる)。写真を読めないときも以前の作りになる。
  */
-function notebookSheetsToPdf(sheets, onProgress) {
+function notebookSheetsToPdf(sheets, onProgress, opts) {
+  opts = opts || {};
   return ensurePdfLibs().then(function () {
     var css = printRulesCss();
     var pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5', compress: true });
@@ -5436,62 +5454,116 @@ function notebookSheetsToPdf(sheets, onProgress) {
     if (pdf.viewerPreferences) {
       try { pdf.viewerPreferences({ Duplex: 'Simplex', PickTrayByPDFSize: true, PrintScaling: 'None' }); } catch (e) { /* 設定できなくてもPDFは作る */ }
     }
+    /**
+     * 連絡帳1枚を画像にする。photo があれば写真をページの画像から外し、枠の位置(geo)を測って返す。
+     * photo が null なら以前の作り(写真もページの画像に入れる)。
+     */
+    function capture(sheet, photo) {
+      var geo = null; // 写真の枠の位置(連絡帳の左上からの px)と連絡帳の大きさ
+      sheet.setAttribute('data-pdf-target', '1');
+      return window.html2canvas(sheet, {
+        scale: opts.scale || 2,
+        backgroundColor: '#ffffff',
+        logging: false,
+        windowWidth: 756, // 200mm。印刷するときの画面幅にそろえる
+        scrollX: 0,
+        scrollY: 0,
+        // 他の方の連絡帳(写真つき)まで毎回写さない(人数が多いと遅くなるため)
+        ignoreElements: function (node) {
+          return !!(node.classList && node.classList.contains('communication-sheet') && !node.hasAttribute('data-pdf-target'));
+        },
+        onclone: function (doc) {
+          // 画面用(@media screen)の指定は印刷では効かないため外す(色・文字の大きさを紙と同じにする)
+          Array.prototype.forEach.call(doc.styleSheets, function (sheet) {
+            var rules;
+            try { rules = sheet.cssRules; } catch (e) { return; }
+            if (!rules) return;
+            for (var k = rules.length - 1; k >= 0; k--) {
+              var media = rules[k].media && rules[k].media.mediaText;
+              if (media && /screen/.test(media) && !/print/.test(media)) sheet.deleteRule(k);
+            }
+          });
+          var style = doc.createElement('style');
+          style.textContent = css;
+          doc.head.appendChild(style);
+          var el = doc.querySelector('[data-pdf-target]');
+          if (!el) return;
+          // 印刷と同じ 200×137mm(A5横から余白5mmを除いた大きさ)にそろえる
+          el.style.setProperty('width', '200mm', 'important');
+          el.style.setProperty('height', '137mm', 'important');
+          el.style.setProperty('min-width', '0', 'important');
+          // 写真は別に重ねるので、ページの画像からは外して枠の位置だけ測る
+          var frame = photo && el.querySelector('.notebook-photo-frame');
+          if (frame) {
+            var fr = frame.getBoundingClientRect();
+            var er = el.getBoundingClientRect();
+            if (fr.width > 0 && fr.height > 0 && er.width > 0 && er.height > 0) {
+              geo = { x: fr.left - er.left, y: fr.top - er.top, w: fr.width, h: fr.height, ew: er.width, eh: er.height };
+              Array.prototype.forEach.call(frame.querySelectorAll('img'), function (img) { img.parentNode.removeChild(img); });
+            }
+          }
+          // 写真の切り抜き(object-fit)は画像化で崩れるため、同じ見え方の背景画像に置き換える(以前の作り)
+          Array.prototype.forEach.call(el.querySelectorAll('.notebook-photo-frame img'), function (img) {
+            var box = doc.createElement('div');
+            box.style.cssText = 'width:100%;height:100%;border-radius:5px;background-position:center;background-size:cover;background-repeat:no-repeat;';
+            box.style.backgroundImage = 'url("' + img.getAttribute('src') + '")';
+            img.parentNode.replaceChild(box, img);
+          });
+        },
+      }).then(function (canvas) {
+        sheet.removeAttribute('data-pdf-target');
+        return { canvas: canvas, geo: geo };
+      }, function (err) {
+        sheet.removeAttribute('data-pdf-target');
+        throw err;
+      });
+    }
+    function addPageImage(canvas, isFirst) {
+      if (!isFirst) pdf.addPage('a5', 'landscape');
+      pdf.addImage(canvas.toDataURL('image/jpeg', opts.quality || 0.92), 'JPEG', 5, 5, 200, 137);
+    }
     var chain = Promise.resolve();
     sheets.forEach(function (sheet, i) {
       chain = chain.then(function () {
         if (onProgress) onProgress(i + 1, sheets.length);
-        sheet.setAttribute('data-pdf-target', '1');
-        return window.html2canvas(sheet, {
-          scale: 2,
-          backgroundColor: '#ffffff',
-          logging: false,
-          windowWidth: 756, // 200mm。印刷するときの画面幅にそろえる
-          scrollX: 0,
-          scrollY: 0,
-          // 他の方の連絡帳(写真つき)まで毎回写さない(人数が多いと遅くなるため)
-          ignoreElements: function (node) {
-            return !!(node.classList && node.classList.contains('communication-sheet') && !node.hasAttribute('data-pdf-target'));
-          },
-          onclone: function (doc) {
-            // 画面用(@media screen)の指定は印刷では効かないため外す(色・文字の大きさを紙と同じにする)
-            Array.prototype.forEach.call(doc.styleSheets, function (sheet) {
-              var rules;
-              try { rules = sheet.cssRules; } catch (e) { return; }
-              if (!rules) return;
-              for (var k = rules.length - 1; k >= 0; k--) {
-                var media = rules[k].media && rules[k].media.mediaText;
-                if (media && /screen/.test(media) && !/print/.test(media)) sheet.deleteRule(k);
-              }
-            });
-            var style = doc.createElement('style');
-            style.textContent = css;
-            doc.head.appendChild(style);
-            var el = doc.querySelector('[data-pdf-target]');
-            if (!el) return;
-            // 印刷と同じ 200×137mm(A5横から余白5mmを除いた大きさ)にそろえる
-            el.style.setProperty('width', '200mm', 'important');
-            el.style.setProperty('height', '137mm', 'important');
-            el.style.setProperty('min-width', '0', 'important');
-            // 写真の切り抜き(object-fit)は画像化で崩れるため、同じ見え方の背景画像に置き換える
-            Array.prototype.forEach.call(el.querySelectorAll('.notebook-photo-frame img'), function (img) {
-              var box = doc.createElement('div');
-              box.style.cssText = 'width:100%;height:100%;border-radius:5px;background-position:center;background-size:cover;background-repeat:no-repeat;';
-              box.style.backgroundImage = 'url("' + img.getAttribute('src') + '")';
-              img.parentNode.replaceChild(box, img);
-            });
-          },
-        }).then(function (canvas) {
-          sheet.removeAttribute('data-pdf-target');
-          if (i > 0) pdf.addPage('a5', 'landscape');
-          pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 5, 5, 200, 137);
-        }, function (err) {
-          sheet.removeAttribute('data-pdf-target');
-          throw err;
+        var photo = opts.inlinePhoto ? null : notebookPdfPhoto(pdf, sheet);
+        return capture(sheet, photo).then(function (shot) {
+          addPageImage(shot.canvas, i === 0);
+          if (!shot.geo) return;
+          try {
+            addNotebookPdfPhoto(pdf, photo, shot.geo, 'nbphoto' + i);
+          } catch (e) {
+            // 写真を重ねられなかったページは、そのページを消して以前の作り(写真もページの画像に入れる)で作り直す
+            // (形は読めても埋め込みで失敗する写真があっても、PDF 全体は作れるようにする)
+            if (window.console && console.warn) console.warn('連絡帳の写真を重ねられなかったので、以前の作りで作り直します', e);
+            pdf.deletePage(pdf.getNumberOfPages());
+            return capture(sheet, null).then(function (again) { addPageImage(again.canvas, false); }); // 消したので必ずページを足す
+          }
         });
       });
     });
     return chain.then(function () { return pdf.output('blob'); });
   });
+}
+
+/**
+ * 写真を、連絡帳の写真の枠に「枠いっぱい(はみ出た分は切る)」で重ねる。画面の object-fit: cover と同じ見え方。
+ * 保存してある JPEG をそのまま入れる(作り直さないので画質が落ちず、重さも写真1枚分だけ増える)。
+ * 枠の外は角の丸い四角で切り取る。
+ */
+function addNotebookPdfPhoto(pdf, photo, geo, alias) {
+  var kx = 200 / geo.ew, ky = 137 / geo.eh; // px → mm(連絡帳は 200×137mm)
+  var fx = 5 + geo.x * kx, fy = 5 + geo.y * ky, fw = geo.w * kx, fh = geo.h * ky;
+  var ratio = photo.width / photo.height;
+  var dw = fw, dh = fw / ratio;
+  if (dh < fh) { dh = fh; dw = fh * ratio; }
+  var r = 5 * kx; // 角の丸み(画面の 5px)
+  pdf.saveGraphicsState();
+  pdf.roundedRect(fx, fy, fw, fh, r, r, null);
+  pdf.clip();
+  pdf.discardPath();
+  pdf.addImage(photo.src, 'JPEG', fx + (fw - dw) / 2, fy + (fh - dh) / 2, dw, dh, alias);
+  pdf.restoreGraphicsState();
 }
 
 /** 作ったPDFを渡す画面。共有メニュー(プリント・ファイルに保存・メール)は押した直後にしか開けないため、ボタンを押してもらう */
