@@ -55,6 +55,47 @@ var HEADER_ALIASES = {
   checkins: { 2: ['時刻', '来苑時刻'] },
 };
 
+/**
+ * HEADERS の右に、必要になったときだけ使う列(2026-11-17 現場要望「振替の方は受付で午前・午後を選ぶ」)。
+ * HEADERS に入れず、見出しのセルも空けておく(連絡帳の写真の I・J列と同じ考え)。前の版へ戻したときに
+ * 列の確認(ensureSchema_)で止まらないようにするため。見出しのセルには説明のメモだけを付ける。
+ * 読むときは、シートにその列があれば一緒に読む。誰かが見出しに同じ名前を書いても止めない。
+ */
+var TRAILING_HEADERS = {
+  checkins: ['午前午後'],
+};
+var DAY_PARTS_ = ['午前', '午後'];
+// 注意: 8列目(H列)を午前・午後に使っている。将来チェックインの HEADERS に列を足すときは、この列とぶつかるので
+// 先に午前午後の値を新しい場所へ移す(2026-11-17 点検の指摘)
+var CHECKIN_DAY_PART_COL = 8; // チェックインの H列(午前午後)
+
+/** 読むときの列数。HEADERS ＋ シートにある分の TRAILING_HEADERS */
+function readWidth_(sh, key) {
+  var base = HEADERS[key].length;
+  var extra = (TRAILING_HEADERS[key] || []).length;
+  if (!extra) return base;
+  return Math.max(base, Math.min(base + extra, sh.getMaxColumns()));
+}
+
+/** 使う列を用意する(なければ列を足す)。見出しのセルに別の言葉が入っていたら、ほかの用途とみて止める */
+function ensureTrailingHeader_(sh, key) {
+  var base = HEADERS[key].length;
+  var extra = TRAILING_HEADERS[key] || [];
+  ensureColumns_(sh, base + extra.length);
+  var head = sh.getRange(1, base + 1, 1, extra.length).getDisplayValues()[0];
+  for (var i = 0; i < extra.length; i++) {
+    var actual = String(head[i] || '').trim();
+    if (actual && actual !== extra[i]) throw new Error('シート「' + SHEETS[key] + '」の' + (base + i + 1) + '列目が「' + actual + '」になっています。午前・午後を保存できませんでした。');
+    if (!actual) sh.getRange(1, base + i + 1).setNote(extra[i] + '(受付で選んだ午前の部・午後の部。前の版へ戻せるよう見出しは空けています)');
+  }
+}
+
+/** '午前' / '午後' 以外は ''(空=受付の時刻で分ける) */
+function normalizeDayPart_(v) {
+  var s = String(v == null ? '' : v).trim();
+  return DAY_PARTS_.indexOf(s) >= 0 ? s : '';
+}
+
 // 1回のAPI実行中に同じスプレッドシート・シート行を何度も読み直さない。
 var REQUEST_SS_ = null;
 var REQUEST_ROWS_ = {};
@@ -125,6 +166,7 @@ var API_REGISTRY = {
   apiGetTodayCheckins: { fn: apiGetTodayCheckins_, auth: 'staff' },
   apiCheckin: { fn: apiCheckin_, auth: 'staff' },
   apiCheckout: { fn: apiCheckout_, auth: 'staff' },
+  apiSetCheckinDayPart: { fn: apiSetCheckinDayPart_, auth: 'staff' },
   apiRefreshToday: { fn: apiRefreshToday_, auth: 'staff' },
   apiVoidRecord: { fn: apiVoidRecord_, auth: 'staff' },
   apiGetVitalContext: { fn: apiGetVitalContext_, auth: 'staff' },
@@ -165,6 +207,8 @@ var API_REGISTRY = {
   apiAdminMoveExercise: { fn: apiAdminMoveExercise_, auth: 'admin' },
   apiAdminSaveTemplate: { fn: apiAdminSaveTemplate_, auth: 'admin' },
   apiAdminDeleteTemplate: { fn: apiAdminDeleteTemplate_, auth: 'admin' },
+  apiAdminGetNotebookPhrases: { fn: apiAdminGetNotebookPhrases_, auth: 'admin' },
+  apiAdminDecideNotebookPhrase: { fn: apiAdminDecideNotebookPhrase_, auth: 'admin' },
   apiGetMonthly: { fn: apiGetMonthly_, auth: 'admin' },
   apiGetMonthlyIndividual: { fn: apiGetMonthlyIndividual_, auth: 'admin' },
   apiVerifyAdmin: { fn: apiVerifyAdmin_, auth: 'admin' },
@@ -299,7 +343,7 @@ function ensureSchemaColumns_() {
         for (var i = 0; i < current.length; i++) {
           var actual = String(current[i] || '').trim();
           if (!actual) continue;
-          var expected = HEADERS[key][i];
+          var expected = HEADERS[key][i] || (TRAILING_HEADERS[key] || [])[i - HEADERS[key].length];
           var aliases = HEADER_ALIASES[key] && HEADER_ALIASES[key][i];
           if (!expected || (actual !== expected && (!aliases || aliases.indexOf(actual) < 0))) {
             throw new Error('シート「' + SHEETS[key] + '」の' + (i + 1) + '列目が想定外です。自動変更を中止しました。');
@@ -538,7 +582,7 @@ function rows_(key) {
     return REQUEST_ROWS_[key];
   }
   // 見出しの確認と中身を1回の読み取りで済ませる(以前は見出しと中身で2回読んでいた)
-  var values = sh.getRange(1, 1, last, HEADERS[key].length).getValues();
+  var values = sh.getRange(1, 1, last, readWidth_(sh, key)).getValues();
   checkHeaderRow_(values[0], key);
   REQUEST_ROWS_[key] = values.slice(1)
     .filter(function (r) { return String(r[0]) !== ''; });
@@ -676,6 +720,8 @@ function toCheckin_(r) {
   return {
     id: String(r[0]), date: dateStr_(r[1]), time: timeStr_(r[2]), userId: String(r[3]),
     checkoutTime: String(r[4] || ''), transport: String(r[5] || ''),
+    // 受付で選んだ午前の部・午後の部(振替など、登録の区分で決まらない方だけ)。空なら受付の時刻で分ける
+    dayPart: normalizeDayPart_(r[7]),
   };
 }
 
@@ -820,7 +866,7 @@ function rowsOnDate_(key, date) {
     sh.getRange(2, 2, last - 1, 1).getValues().forEach(function (r, i) {
       if (dateStr_(r[0]) === date) found.push(i + 2);
     });
-    var width = HEADERS[key].length;
+    var width = readWidth_(sh, key);
     // 近い行はまとめて1回で読む(当日分は通常シート末尾に連続している)
     var start = 0;
     for (var i = 1; i <= found.length; i++) {
@@ -874,6 +920,7 @@ function apiGetBootstrap_() {
     exercises: allExercises_(),
     cognitiveMenu: allCognitiveMenu_(),
     templates: allTemplates_().filter(function (t) { return t.active; }),
+    notebookPhrases: usedNotebookPhrases_(), // 「使う」にした連絡帳の文例(2026-11-17)
     today: todayStr_(),
     staff: currentStaffName_() || '職員',
     role: CURRENT_STAFF_ ? CURRENT_STAFF_.role : 'staff',
@@ -887,8 +934,11 @@ function apiGetTodayCheckins_() {
     .sort(function (a, b) { return timeKey_(b.time) < timeKey_(a.time) ? -1 : 1; });
 }
 
-/** チェックイン登録。既存なら既存レコードを返す */
-function apiCheckin_(userId) {
+/**
+ * チェックイン登録。既存なら既存レコードを返す。
+ * dayPart('午前' / '午後')は、振替などで登録の区分がない日に受付で選んだ部(2026-11-17)。省略・空なら保存しない
+ */
+function apiCheckin_(userId, dayPart) {
   var target = allUsers_().filter(function (u) { return u.id === userId; })[0];
   if (!target) throw new Error('利用者が見つかりません。');
   if (target.status === '利用終了') throw new Error(target.name + ' さんは利用終了になっています。受付するときは、管理画面の利用者の編集で「利用中」に戻してください。');
@@ -905,15 +955,57 @@ function apiCheckin_(userId) {
         .sort(function (a, b) { return timeKey_(b.time) < timeKey_(a.time) ? -1 : 1; });
       return { record: existing[0], already: true, todayCheckins: current };
     }
+    var part = normalizeDayPart_(dayPart);
     var rec = {
       id: newId_(), date: today, time: nowTime_(), userId: userId,
-      checkoutTime: '', transport: '',
+      checkoutTime: '', transport: '', dayPart: part,
     };
-    appendRowNoLock_('checkins', [rec.id, rec.date, rec.time, rec.userId, '', '', currentStaffName_()]);
+    var row = [rec.id, rec.date, rec.time, rec.userId, '', '', currentStaffName_()];
+    var partWarning = '';
+    if (part) {
+      // H列が別の用途で使われていて部を残せないときも、受付そのものは止めない(2026-11-17 点検の指摘)
+      try {
+        ensureTrailingHeader_(sheet_('checkins'), 'checkins');
+        row.push(part);
+      } catch (e) {
+        partWarning = '受付しましたが、午前・午後の部は保存できませんでした(' + ((e && e.message) || e) + ')';
+        part = '';
+        rec.dayPart = '';
+      }
+    }
+    appendRowNoLock_('checkins', row);
     var todayCheckins = allCheckins.filter(function (c) { return c.date === today; });
     todayCheckins.push(rec);
     todayCheckins.sort(function (a, b) { return timeKey_(b.time) < timeKey_(a.time) ? -1 : 1; });
-    return { record: rec, already: false, todayCheckins: todayCheckins };
+    var out = { record: rec, already: false, todayCheckins: todayCheckins };
+    if (partWarning) out.warning = partWarning;
+    return out;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 本日の受付の午前の部・午後の部を選び直す(2026-11-17 振替の方)。dayPart が空なら選んだ部を消し、受付の時刻で分ける。
+ * 返すのは本日の受付の一覧(受付画面・記録メニューをそのまま描き直せる)
+ */
+function apiSetCheckinDayPart_(userId, dayPart) {
+  var part = normalizeDayPart_(dayPart);
+  if (String(dayPart || '') && !part) throw new Error('午前の部か午後の部を選んでください。');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var today = todayStr_();
+    var rec = null;
+    checkinsOn_(today).forEach(function (c) { if (c.userId === userId && !rec) rec = c; });
+    if (!rec) throw new Error('本日の受付がありません。先に受付してください。');
+    var sh = sheet_('checkins');
+    var row = findRowById_(sh, rec.id);
+    if (row < 0) throw new Error('受付の記録が見つかりません。');
+    ensureTrailingHeader_(sh, 'checkins');
+    sh.getRange(row, CHECKIN_DAY_PART_COL).setNumberFormat('@').setValue(part);
+    invalidateRequestRows_('checkins');
+    return { record: { id: rec.id, userId: userId, dayPart: part }, todayCheckins: apiGetTodayCheckins_() };
   } finally {
     lock.releaseLock();
   }
@@ -2112,6 +2204,10 @@ function apiSaveNotebookEntry_(payload) {
   } finally {
     lock.releaseLock();
   }
+  // 職員が書き直した文を、文例の候補として集める(2026-11-17)。失敗しても連絡帳の保存は止めない
+  if (payload.phrases) {
+    try { collectNotebookPhrases_(payload.phrases, payload.phraseStyle); } catch (e) { console.warn('文例を集められませんでした: ' + ((e && e.message) || e)); }
+  }
   return notebookEntry_(userId, date, false);
 }
 
@@ -2134,6 +2230,309 @@ function purgeOldNotebookPhotos_(sh) {
       sh.getRange(i + 2, NOTEBOOK_PHOTO_COL, 1, n).setValues([blank]);
     }
   });
+}
+
+// ---------------------------------------------------------------- 連絡帳の文例(2026-11-17 原山さん了承)
+// 職員が連絡帳の自動の文章を書き直して保存したとき、書き直した文だけを「候補」として集める。
+// 管理者が管理画面で1文ずつ「使う」「直して使う」「使わない」を決め、「使う」にした文だけが自動の文章の言い回しに加わる。
+//  - お名前・数字・体調や通院の言葉・ご家族の呼び方などを含む文は集めない(伏せて残すより確実なため)
+//  - 利用者がだれか(利用者ID・元の連絡帳)は残さない。外部には送らない(このスプレッドシートの新しいシートだけ)
+//  - 「使わない」にした文と、最後に集まってから90日たった候補は消す
+// シートは HEADERS / SHEETS に入れず、初めて集めるときに作る(SCHEMA_VERSION を上げないので、前の版へ戻しても止まらない)
+var PHRASE_SHEET_NAME_ = '連絡帳の文例';
+var PHRASE_HEADERS_ = ['ID', '区分', '場所', '文', '状態', '回数', '最初に集めた日', '最後に集めた日', '決めた人', '決めた日'];
+var PHRASE_STYLES_ = ['strong', 'gentle', 'mixed', 'other', 'plain', 'rest'];
+var PHRASE_PLACES_ = ['書き出し', '締め'];
+var PHRASE_CANDIDATE_ = '候補';
+var PHRASE_USE_ = '使う';
+var PHRASE_EX_MARK_ = '【運動】'; // その日の運動の名前に入れ替わる印
+var PHRASE_MIN_LEN_ = 10;
+var PHRASE_MAX_LEN_ = 80;
+var PHRASE_KEEP_DAYS_ = 90;
+var PHRASE_MAX_CANDIDATES_ = 500;
+var PHRASE_PER_SAVE_ = 3;
+// 以下の言葉の決まりは、画面の確認版(Client.html の MOCK_PHRASE)と同じにする(tests/test_notebook_phrases.cjs で答えを比べる)
+// 11/17 4回目の点検: 数の書き方違い(一〇回・壱回・数回・いっかい)、年齢・生まれ年、呼び名、カタカナの名前、病名・お体、ご家庭の事情、
+// 地名・施設名、ご家族へのお願い・注意の文を足した。機械では拾いきれないので、管理者が「使う」の前に読むことが最後の守り(管理画面に注意を出す)
+var PHRASE_COUNT_WORDS_ = /[一二三四五六七八九十百千〇零壱弐参拾数何幾]+\s*(回|分|秒|度|歩|周|セット|キロ|メートル|時|日|月|年|歳|才|人|本|枚|個|往復|種目|種類|週)/;
+var PHRASE_KANA_COUNT_ = /(いっ|に|さん|よん|ご|ろっ|なな|はっ|きゅう|じゅっ|じっ|ひゃっ|ひゃく|なん|すう)(かい(?!た)|ぷん|ふん|びょう|しゅう|ねん|さい)/;
+var PHRASE_AGE_WORDS_ = /十を過ぎ|十代|米寿|喜寿|傘寿|卒寿|白寿|百寿|還暦|古希|古稀|長寿|誕生|生まれ|年齢|明治|大正|昭和|平成|令和/;
+var PHRASE_HONORIFIC_ = /様(?!子|々)|さま(?!ざま)|さん|くん|君|ちゃん|氏|ばあ(?!い)|婆|爺|じいじ|じいちゃ/; // 「様子」「様々」「さまざま」「ばあい」は除く。「花ばあ」などの呼び名も止める
+var PHRASE_HEALTH_WORDS_ = /痛|薬|通院|受診|病院|入院|退院|医師|看護|診察|検査|手術|治療|転倒|転ん|骨折|打撲|傷|腫れ|内出血|発熱|熱っぽ|血|体温|脈|酸素|便|尿|失禁|排泄|トイレ|咳|せき込|風邪|かぜ|鼻水|コロナ|インフル|めまい|ふらつ|吐|嘔|しびれ|痺れ|むくみ|浮腫|褥瘡|皮膚|認知症|糖尿|透析|体調|疲れ|眠|息切れ|膝|肩|腰|首|股関節|背中|骨|筋肉痛|病|症|パーキンソン|麻痺|まひ|杖|つえ|車いす|車椅子|車イス|歩行器|シルバーカー|物忘れ|もの忘れ|忘れっぽ|耳が|補聴器|聞き取りにく|聞こえにく|入れ歯|義歯|歯|食欲|食べ残|残され|完食|水分|むせ|誤嚥|飲み込|リウマチ|脳梗塞|脳出血|脳卒中|梗塞|がん(?!ば)|癌|腫瘍|ペースメーカー|心臓|心不全|リハビリ|見えにく|目が|視力|白内障|緑内障|障害|障がい|介助|要介護|要支援|おむつ|オムツ|徘徊|妄想|せん妄|不穏|喘息|ぜんそく|肺|胃|腸|肝臓|腎|貧血|右手|左手|右足|左足|右腕|左腕|片手|片足|手足|人工関節|インスリン|認知|震え|義足|ストーマ|お通じ|ぼんやり|うつらうつら|出にく/;
+var PHRASE_FAMILY_WORDS_ = /娘|息子|孫|奥様|奥さん|旦那|ご主人|夫婦|妻|嫁|婿|兄|姉|弟|妹|親戚|父|母|家族|ご家庭|親子|両親|親御|親類|親族|身内|連れ合い|配偶者|亡くな|亡くされ|他界|葬|法事|法要|墓|仏壇|一人暮らし|ひとり暮らし|独り暮らし|独居|同居|別居|離婚|再婚|甥|姪|叔父|叔母|伯父|伯母|いとこ|従兄|従姉|生活保護|年金|お金|費用|借金|改修|引っ越|転居|財布|相続|後見|支払|手続き|校長|先生|教師|教員|お仕事|勤め|農家|役場/;
+var PHRASE_PLACE_WORDS_ = /大町|松本|白馬|安曇野|池田|松川|小谷|長野|信州|信濃|木崎|美麻|八坂|常盤|穂高|豊科|北アルプス|仁科|鹿島槍|爺ヶ岳|黒部|青木湖|上田|東京|名古屋|大阪|県|市内|町内|村内|地区|駅|温泉|銀松苑|弐番館|壱番館|れんげ|ケアハウス|特養|老健|グループホーム|ショートステイ|デイサービス|施設|入所|別荘|旅行|実家|故郷|ふるさと|出身|地元/;
+// ご家族へのお願い・注意・困りごと(「お過ごしください」「ご覧ください」のような、お・ご で始まる結びは除く)
+var PHRASE_TONE_WORDS_ = /ください|下さい|ほしい|欲しい|困っ|困り|わがまま|迷惑|守って|叱|怒|文句|苦情|べき|しないで|やめて|止めて|ダメ|だめ|いけません|不満|心配|残念|機嫌が悪|不機嫌|トラブル|遅れ|助かります|大変でした|休みが続|欠席/;
+var PHRASE_POLITE_REQUEST_ = /[おご][^。、\s]{1,6}(ください|下さい)/g;
+// 止めすぎない言葉(11/17 5回目の点検): 「皆さんと」はお名前ではない。「今日一日」「もう一度」は数ではない
+var PHRASE_GROUP_WORDS_ = /皆さん|皆さま|皆様|みなさん|みなさま/g;
+var PHRASE_NOT_COUNT_ = /もう一度|(^|[^一二三四五六七八九十百千〇零壱弐参拾数何幾])一日/g;
+// 「しっかり」系の強い言葉。体調に気がかりのある日に出ないよう、負荷の強い運動の日(strong)・組み合わせの日(mixed)の区分だけで使える
+// (strong・mixed は、体調に気がかりのある日には other に変わる。Client.html notebookCommentContext)。画面でも同じ決まりで外す
+var PHRASE_STRONG_WORDS_ = /しっかり|力強|ちからづよ|頑張|がんば|ガンバ|負荷|もっと|全力|精一杯|せいいっぱい|汗|ハード|きつ|激し|鍛え|追い込|限界|みっちり|ばっちり|ガンガン|バリバリ|張り切|はりき|最後まで|やり切|やりき|やり遂げ|達成|更新|ペースを上げ|ペースアップ|レベルアップ|増や|向上|強化|筋力|粘り強|思い切|思いっき|目いっぱい|めいっぱい|存分|精力的|ばりばり|元気いっぱい/;
+var PHRASE_STRONG_STYLES_ = ['strong', 'mixed'];
+var PHRASE_PURGE_FLAG_ = 'phrase-purge-'; // 古い候補を消すのは、連絡帳の保存では1日1回だけ(管理画面では毎回)
+
+/** 文の形をそろえる(前後の空白・箇条書きの記号をとり、文の終わりに「。」) */
+function normalizePhrase_(text) {
+  var t = String(text == null ? '' : text).replace(/[\r\n\t]+/g, ' ').replace(/[ 　]+/g, ' ').trim();
+  t = t.replace(/^[・\-－*＊•●○◯]+\s*/, '').trim();
+  if (t && !/[。！？!?]$/.test(t)) t += '。';
+  return t;
+}
+
+/** カタカナをひらがなにする(「ハナコ」と登録のふりがな「はなこ」を同じに見るため) */
+function phraseHira_(s) {
+  return String(s || '').replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); });
+}
+
+/**
+ * 文例に使えない理由(使えるなら空)。names はお名前の一覧(利用者・職員)。
+ * style を渡したときは、強い言葉(「しっかり」「頑張」など)の文を strong・mixed 以外の区分では使えなくする
+ */
+function notebookPhraseProblem_(text, names, style) {
+  var t = String(text || '');
+  if (!t) return '文が空です。';
+  if (t.length < PHRASE_MIN_LEN_ || t.length > PHRASE_MAX_LEN_) return PHRASE_MIN_LEN_ + '〜' + PHRASE_MAX_LEN_ + '字の文だけ使えます。';
+  if (/^[=+\-@']/.test(t)) return '先頭に記号(= + - @)は使えません。';
+  var plain = t.split(PHRASE_EX_MARK_).join('');
+  var hira = phraseHira_(plain);
+  var plainNoGroup = plain.replace(PHRASE_GROUP_WORDS_, '');
+  if (PHRASE_HONORIFIC_.test(plainNoGroup) || PHRASE_HONORIFIC_.test(phraseHira_(plainNoGroup))) return 'お名前・呼び名(〇〇様・〇〇さん・〇〇ばあ など)を含む文は使えません。';
+  for (var i = 0; i < (names || []).length; i++) {
+    if (names[i] && (plain.indexOf(names[i]) >= 0 || hira.indexOf(phraseHira_(names[i])) >= 0)) return 'お名前を含む文は使えません。';
+  }
+  if (/[0-9０-９]/.test(plain) || PHRASE_COUNT_WORDS_.test(plain.replace(PHRASE_NOT_COUNT_, '$1')) || PHRASE_KANA_COUNT_.test(hira)) return '数字を含む文は使えません。';
+  if (PHRASE_AGE_WORDS_.test(plain)) return '年齢・生まれ年・お誕生日の言葉を含む文は使えません。';
+  if (/[A-Za-zＡ-Ｚａ-ｚ]/.test(plain)) return '英字を含む文は使えません。';
+  if (/[<>【】{}]/.test(plain)) return '記号(< > 【 】 { })は使えません(運動の名前の印「' + PHRASE_EX_MARK_ + '」だけ使えます)。';
+  if (PHRASE_HEALTH_WORDS_.test(plain)) return '体調・お体・ご病気・通院などの言葉を含む文は使えません。';
+  if (PHRASE_FAMILY_WORDS_.test(plain)) return 'ご家族・ご家庭・お仕事・お金や手続きのことを含む文は使えません。';
+  if (PHRASE_PLACE_WORDS_.test(plain)) return '地名・施設名などを含む文は使えません。';
+  if (PHRASE_TONE_WORDS_.test(plain.replace(PHRASE_POLITE_REQUEST_, ''))) return 'ご家族へのお願い・注意・困りごとの文は使えません。';
+  if (style != null && PHRASE_STRONG_STYLES_.indexOf(String(style)) < 0 && PHRASE_STRONG_WORDS_.test(plain)) {
+    return '「しっかり」「頑張」などの強い言葉の文は、負荷の強い運動の日・組み合わせの日の区分だけで使えます(体調に気がかりのある日に出ないように)。';
+  }
+  return '';
+}
+
+/** 利用者・職員のお名前(フルネーム・姓・名・ふりがな)。漢字1字の姓名も含める。かな1字は含めない */
+function phraseNames_() {
+  var out = [];
+  function add(v) {
+    var full = String(v || '').trim();
+    if (!full) return;
+    var parts = full.split(/[\s　・]+/).filter(String);
+    [full, parts.join('')].concat(parts).forEach(function (p) {
+      if (!p) return;
+      if (p.length < 2 && !/[一-龥々]/.test(p)) return;
+      if (out.indexOf(p) < 0) out.push(p);
+    });
+  }
+  allUsers_().forEach(function (u) { add(u.name); add(u.kana); });
+  allStaff_().forEach(function (s) { add(s.name); add(s.kana); });
+  return out;
+}
+
+/** 文例のシート。create=true なら無ければ作る。見出しが変わっていたら止める */
+function phraseSheet_(create) {
+  var ss = getSs_();
+  var sh = ss.getSheetByName(PHRASE_SHEET_NAME_);
+  if (!sh) {
+    if (!create) return null;
+    sh = ss.insertSheet(PHRASE_SHEET_NAME_);
+    ensureColumns_(sh, PHRASE_HEADERS_.length);
+    sh.getRange(1, 1, 1, PHRASE_HEADERS_.length).setValues([PHRASE_HEADERS_]);
+    sh.setFrozenRows(1);
+    return sh;
+  }
+  var head = sh.getRange(1, 1, 1, PHRASE_HEADERS_.length).getValues()[0];
+  for (var i = 0; i < PHRASE_HEADERS_.length; i++) {
+    if (String(head[i]) !== PHRASE_HEADERS_[i]) {
+      throw new Error('シート「' + PHRASE_SHEET_NAME_ + '」の列構成が変更されています(' + (i + 1) + '列目が「' + head[i] + '」)。列は並べ替えず、見出しを元に戻してください。');
+    }
+  }
+  return sh;
+}
+
+function phraseRows_(sh) {
+  var last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, PHRASE_HEADERS_.length).getValues().map(function (r, i) {
+    return {
+      row: i + 2, id: String(r[0]), style: String(r[1]), place: String(r[2]), text: String(r[3]), status: String(r[4]),
+      count: Number(r[5]) || 1, firstDate: dateStr_(r[6]), lastDate: dateStr_(r[7]), decidedBy: String(r[8] || ''), decidedAt: String(r[9] || ''),
+    };
+  }).filter(function (p) { return p.id; });
+}
+
+function phraseCutoff_() {
+  var d = new Date();
+  d.setDate(d.getDate() - PHRASE_KEEP_DAYS_);
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+/**
+ * 最後に集まってから90日たった候補を消す(「使う」にした文は消さない)。呼び出し側でロック取得済み。
+ * 続いた行はまとめて消す(1行ずつ消すと遅いため。11/17 4回目の点検)
+ */
+function purgeOldPhrases_(sh) {
+  var cutoff = phraseCutoff_();
+  var old = phraseRows_(sh).filter(function (p) { return p.status !== PHRASE_USE_ && p.lastDate && p.lastDate < cutoff; })
+    .map(function (p) { return p.row; }).sort(function (a, b) { return b - a; });
+  var i = 0;
+  while (i < old.length) {
+    var end = old[i], start = end;
+    while (i + 1 < old.length && old[i + 1] === start - 1) { i += 1; start = old[i]; }
+    sh.deleteRows(start, end - start + 1);
+    i += 1;
+  }
+  return old.length;
+}
+
+function newPhraseId_() {
+  return 'ph' + Date.now().toString(36) + Math.floor(Math.random() * 1296).toString(36);
+}
+
+/**
+ * 連絡帳の保存のときに、職員が書き直した文を候補として集める。
+ * list: [{ text }](画面が、自動の文章・前に保存した文章になかった文だけを送る)。style: その日の書き分け
+ * 返すのは候補に入れた(または回数を足した)文の数。集めるのに失敗しても連絡帳の保存は止めない(呼び出し側で握る)
+ */
+function collectNotebookPhrases_(list, style) {
+  if (!Array.isArray(list) || !list.length) return 0;
+  style = PHRASE_STYLES_.indexOf(String(style)) >= 0 ? String(style) : 'other';
+  var names = phraseNames_();
+  var templates = allTemplates_().map(function (t) { return normalizePhrase_(t.text); });
+  var picked = [];
+  list.slice(0, 20).forEach(function (p) {
+    if (picked.length >= PHRASE_PER_SAVE_) return;
+    var text = normalizePhrase_(p && p.text);
+    if (!text || notebookPhraseProblem_(text, names, style)) return;
+    if (templates.indexOf(text) >= 0) return; // 定型文のボタンで入れた文は集めない
+    if (picked.some(function (x) { return x.text === text; })) return;
+    var place = text.indexOf(PHRASE_EX_MARK_) >= 0 || style === 'rest' ? '書き出し' : '締め';
+    picked.push({ text: text, place: place });
+  });
+  if (!picked.length) return 0;
+  // 職員の画面への保存の返事を待たせないよう、鍵は短く待つだけ。取れなければ今回は集めない(候補が1つ減るだけ。11/17 4回目の点検)
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(1500)) return 0;
+  try {
+    var sh = phraseSheet_(true);
+    // 古い候補を消すのは1日1回だけ(管理画面を開いたときは毎回消す)
+    var cache = CacheService.getScriptCache();
+    var flag = PHRASE_PURGE_FLAG_ + todayStr_();
+    if (!cache.get(flag)) { cache.put(flag, '1', 21600); purgeOldPhrases_(sh); }
+    var rows = phraseRows_(sh);
+    var today = todayStr_();
+    var candidates = rows.filter(function (p) { return p.status !== PHRASE_USE_; }).length;
+    var done = 0;
+    picked.forEach(function (p) {
+      var same = rows.filter(function (r) { return r.text === p.text; })[0];
+      if (same) {
+        sh.getRange(same.row, 6, 1, 3).setNumberFormat('@').setValues([[String(same.count + 1), same.firstDate, today]]);
+        same.count += 1;
+        done += 1;
+        return;
+      }
+      if (candidates >= PHRASE_MAX_CANDIDATES_) return; // 候補がたまりすぎたら、管理者が決めるまで増やさない
+      var row = [newPhraseId_(), style, p.place, p.text, PHRASE_CANDIDATE_, '1', today, today, '', ''];
+      sh.getRange(sh.getLastRow() + 1, 1, 1, row.length).setNumberFormat('@').setValues([row]);
+      rows.push({ row: sh.getLastRow(), id: row[0], text: p.text, status: PHRASE_CANDIDATE_, count: 1, firstDate: today, lastDate: today });
+      candidates += 1;
+      done += 1;
+    });
+    return done;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** 「使う」にした文例(起動時に画面へ渡す。シートがなければ空。読めなくても起動は止めない) */
+function usedNotebookPhrases_() {
+  try {
+    var sh = phraseSheet_(false);
+    if (!sh) return [];
+    var used = phraseRows_(sh).filter(function (p) { return p.status === PHRASE_USE_ && p.text; });
+    if (!used.length) return [];
+    // シートを直接書き換えて「使う」にした文も、画面へ渡す前にもう一度確かめる(11/17 点検の注意。決まりに合わない文・区分・場所は渡さない)
+    var names = phraseNames_();
+    return used.filter(function (p) {
+      return PHRASE_STYLES_.indexOf(p.style) >= 0 && PHRASE_PLACES_.indexOf(p.place) >= 0 && !notebookPhraseProblem_(p.text, names, p.style);
+    }).map(function (p) { return { style: p.style, place: p.place, text: p.text }; });
+  } catch (e) {
+    return [];
+  }
+}
+
+function phraseListForAdmin_(sh) {
+  var rows = sh ? phraseRows_(sh) : [];
+  rows.sort(function (a, b) {
+    if ((a.status === PHRASE_USE_) !== (b.status === PHRASE_USE_)) return a.status === PHRASE_USE_ ? 1 : -1;
+    if (a.count !== b.count) return b.count - a.count;
+    return a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0;
+  });
+  return rows.map(function (p) {
+    return { id: p.id, style: p.style, place: p.place, text: p.text, status: p.status, count: p.count,
+      firstDate: p.firstDate, lastDate: p.lastDate, decidedBy: p.decidedBy, decidedAt: p.decidedAt };
+  });
+}
+
+/** 管理画面: 文例の一覧(候補が先、回数の多い順)。古い候補はここでも消す */
+function apiAdminGetNotebookPhrases_() {
+  var sh = phraseSheet_(false);
+  if (!sh) return { phrases: [], used: [] };
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    purgeOldPhrases_(sh);
+    return { phrases: phraseListForAdmin_(sh), used: usedNotebookPhrases_() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 管理画面: 文例を決める。
+ * payload: { id, action: 'use'(使う・直して使う) | 'reject'(使わない) | 'stop'(使うのをやめる), text?, style?, place? }
+ * 「直して使う」の文も、集めるときと同じ決まり(お名前・数字・体調の言葉など)で確かめる
+ */
+function apiAdminDecideNotebookPhrase_(payload) {
+  payload = payload || {};
+  var action = String(payload.action || '');
+  if (['use', 'reject', 'stop'].indexOf(action) < 0) throw new Error('操作が正しくありません。');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    var sh = phraseSheet_(false);
+    if (!sh) throw new Error('文例が見つかりません。');
+    var rows = phraseRows_(sh);
+    var target = rows.filter(function (p) { return p.id === String(payload.id || ''); })[0];
+    if (!target) throw new Error('文例が見つかりません。画面を開き直してください。');
+    if (action === 'reject' || action === 'stop') {
+      sh.deleteRows(target.row, 1);
+    } else {
+      var text = payload.text == null ? target.text : normalizePhrase_(payload.text);
+      var style = payload.style == null ? target.style : String(payload.style);
+      if (PHRASE_STYLES_.indexOf(style) < 0) throw new Error('区分が正しくありません。');
+      // 区分を変えたときも、強い言葉の文は strong・mixed 以外では使えない(11/17 4回目の点検)
+      var problem = notebookPhraseProblem_(text, phraseNames_(), style);
+      if (problem) throw new Error(problem);
+      var place = payload.place == null ? target.place : String(payload.place);
+      if (PHRASE_PLACES_.indexOf(place) < 0) throw new Error('場所(書き出し・締め)が正しくありません。');
+      var dup = rows.filter(function (p) { return p.id !== target.id && p.text === text && p.status === PHRASE_USE_; })[0];
+      if (dup) {
+        sh.deleteRows(target.row, 1); // 同じ文がすでに「使う」になっている
+      } else {
+        sh.getRange(target.row, 2, 1, 9).setNumberFormat('@').setValues([[style, place, text, PHRASE_USE_, String(target.count),
+          target.firstDate, target.lastDate, currentStaffName_() || '管理者', todayStr_()]]);
+      }
+    }
+    return { phrases: phraseListForAdmin_(sh), used: usedNotebookPhrases_() };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
