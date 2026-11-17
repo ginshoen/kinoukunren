@@ -1891,6 +1891,23 @@ textarea {
 .record-line span { font-size: 14px; font-weight: 700; }
 .record-line small { grid-column: 1 / -1; color: var(--text-aux); line-height: 1.5; }
 .record-line.assessment b { color: var(--purple-dark); }
+/* 当日の記録を直す(2026-11-17 現場要望) */
+.record-line.has-edit { grid-template-columns: auto 1fr auto; }
+.record-line .record-edit-btn { grid-row: 1; grid-column: 3; width: auto; min-height: 44px; padding: 8px 14px; font-size: 14px; font-weight: 700; color: var(--green-dark); border: 1px solid var(--line, #d8ded6); border-radius: 999px; background: #fff; }
+button.record-line { width: 100%; text-align: left; font: inherit; cursor: pointer; }
+.record-line.vital-record span:not(.record-edit-btn) { font-weight: 400; }
+.record-line.vital-record span b { font-size: 15px; color: var(--text); }
+.today-vital-list { display: flex; flex-direction: column; gap: 8px; }
+.record-edit { display: flex; flex-direction: column; gap: 10px; border: 2px solid var(--green-dark); }
+.record-edit-head { font-size: 15px; }
+.record-edit-fixed { font-weight: 700; }
+.record-edit-field { display: flex; flex-direction: column; gap: 4px; }
+.record-edit-actions { flex-wrap: wrap; gap: 8px; }
+.record-edit-actions .btn-primary { flex: 1 1 100%; }
+.record-edit-actions button, .vital-form-screen .btn-row button { min-height: 44px; white-space: nowrap; }
+.danger-outline { color: var(--alert-text); border-color: var(--alert-text); }
+.today-vitals-edit { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; text-align: left; font: inherit; color: var(--text-sub); background: #fff; border: 1px dashed var(--green-dark); border-radius: 10px; cursor: pointer; }
+.today-vitals-edit-label { flex: none; font-size: 13px; font-weight: 700; color: var(--green-dark); white-space: nowrap; }
 .form-wide { grid-column: 1 / -1; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .checkout-controls { display: flex; gap: 6px; min-width: 230px; }
