@@ -2160,6 +2160,21 @@ textarea {
 .day-part-row { display: grid; gap: 4px; margin-top: 8px; }
 .day-part-row .gin-chips, .day-part-box .gin-chips { margin: 0; }
 .day-part-hint { color: var(--text-aux); font-size: 12px; }
+/* 連絡帳の文例(2026-11-17) */
+.notebook-phrase-note { display: block; flex-basis: 100%; width: 100%; color: var(--text-aux); font-size: 12px; line-height: 1.5; margin-top: 6px; }
+.phrase-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.phrase-row:last-child { border-bottom: 0; }
+.phrase-text { flex: 1 1 260px; min-width: 0; font-weight: 700; color: var(--text); line-height: 1.6; overflow-wrap: anywhere; }
+.phrase-mark { color: var(--green-dark); }
+.phrase-meta { flex-basis: 100%; color: var(--text-aux); font-size: 12px; }
+.phrase-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.phrase-actions button { min-height: 40px; }
+.phrase-edit { flex-basis: 100%; display: grid; gap: 8px; }
+.phrase-edit textarea { width: 100%; min-height: 64px; }
+.phrase-edit .phrase-edit-selects { display: flex; flex-wrap: wrap; gap: 8px; }
+.phrase-section-label { margin: 14px 0 4px; font-weight: 800; color: var(--text-sub); font-size: 13px; }
+.phrase-warning { margin: 10px 0 4px; padding: 10px 12px; border-radius: 8px; background: var(--alert-bg); color: var(--alert-text); font-size: 13px; font-weight: 700; line-height: 1.6; }
+@media print { .notebook-phrase-note { display: none !important; } }
 .day-part-chips .gin-chip[disabled] { opacity: .5; }
 
 /* ---------- 安全情報・管理者ゲート ---------- */
@@ -3795,7 +3810,7 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 
   </head>
   <body>
-<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261117-1134';window.APP_MOCK=false;window.APP_DEMO=true;</script>
+<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261117-1153';window.APP_MOCK=false;window.APP_DEMO=true;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -4384,6 +4399,8 @@ var S = {
   cognitiveMenu: [],    // 脳トレメニュー(記録画面の選択肢。管理画面で編集)
   capabilities: [],     // サーバー(Apps Script)が対応している機能。画面だけ先に新しくなった場合に備える
   templates: [],        // 種別ごとの定型文
+  notebookPhrases: [],  // 連絡帳の文例(「使う」にしたもの)
+  phraseAdmin: { loaded: false, loading: false, list: [], error: '', editId: '' }, // 管理画面「連絡帳の文例」
   cogDraft: null,       // 脳トレ記録下書き {activity, free, durationMinutes, metricValue, metricUnit, note}
   assessDraft: null,    // 評価記録下書き {type, item, freeItem, result, detail}
   assessBatch: null,    // 体力測定一括入力 {item, entries, message}
@@ -8142,6 +8159,58 @@ function qrBadgeCardHtml(u) {
   );
 }
 
+/**
+ * 管理画面「連絡帳の文例」(2026-11-17)。職員が書き直した文の候補を、1文ずつ「使う」「直して使う」「使わない」で決める。
+ * 「使う」にした文は自動の文章の言い回しに加わる。「使わない」にした文と、最後に集まってから90日たった候補は消える
+ */
+function notebookPhraseAdminPanel() {
+  var st = S.phraseAdmin;
+  var label = function (p) { return NOTEBOOK_PHRASE_STYLE_LABELS[p.style] || p.style; };
+  var shown = function (text) { return esc(text).split(esc(NOTEBOOK_PHRASE_EX_MARK)).join('<span class="phrase-mark">' + esc(NOTEBOOK_PHRASE_EX_MARK) + '</span>'); };
+  var editor = function (p) {
+    var styleOptions = Object.keys(NOTEBOOK_PHRASE_STYLE_LABELS).map(function (k) {
+      return '<option value="' + k + '"' + (p.style === k ? ' selected' : '') + '>' + esc(NOTEBOOK_PHRASE_STYLE_LABELS[k]) + '</option>';
+    }).join('');
+    var placeOptions = ['書き出し', '締め'].map(function (k) {
+      return '<option value="' + k + '"' + (p.place === k ? ' selected' : '') + '>' + k + 'の文</option>';
+    }).join('');
+    return '<div class="phrase-edit">' +
+      '<textarea class="note-area" id="phrase-edit-text" maxlength="80">' + esc(p.text) + '</textarea>' +
+      '<div class="phrase-edit-selects"><select class="select-plain" id="phrase-edit-style" aria-label="区分">' + styleOptions + '</select>' +
+      '<select class="select-plain" id="phrase-edit-place" aria-label="場所">' + placeOptions + '</select></div>' +
+      '<small class="phrase-meta">「' + esc(NOTEBOOK_PHRASE_EX_MARK) + '」は、その日の運動の名前に入れ替わります。お名前・数字・体調などの言葉は入れられません。' +
+      '「しっかり」「頑張」などの強い言葉は、負荷の強い運動の日・組み合わせの日の区分だけで使えます。</small>' +
+      '<div class="phrase-warning">' + esc(NOTEBOOK_PHRASE_CHECK_NOTE) + '</div>' +
+      '<div class="phrase-actions"><button class="btn-csv" onclick="Actions.decideNotebookPhrase(\'' + p.id + '\', \'use\', true)">直した文で使う</button>' +
+      '<button class="link-plain" onclick="Actions.editNotebookPhrase(\'\')">やめる</button></div></div>';
+  };
+  var row = function (p) {
+    var editing = st.editId === p.id;
+    var meta = label(p) + '・' + p.place + 'の文・' + p.count + '回' + (p.status === '使う' && p.decidedBy ? '・' + esc(p.decidedBy) + ' ' + esc(p.decidedAt) + ' に使うと決定' : '・最後に集まった日 ' + esc(p.lastDate));
+    var actions = p.status === '使う'
+      ? '<button class="link-plain" style="color:var(--alert-text);" onclick="Actions.decideNotebookPhrase(\'' + p.id + '\', \'stop\')">使うのをやめる</button>'
+      : '<button class="btn-csv" onclick="Actions.decideNotebookPhrase(\'' + p.id + '\', \'use\')">使う</button>' +
+        '<button class="btn-outline" onclick="Actions.editNotebookPhrase(\'' + p.id + '\')">直して使う</button>' +
+        '<button class="link-plain" style="color:var(--alert-text);" onclick="Actions.decideNotebookPhrase(\'' + p.id + '\', \'reject\')">使わない</button>';
+    return '<div class="phrase-row" data-phrase="' + esc(p.id) + '"><span class="phrase-text">' + shown(p.text) + '</span>' +
+      (editing ? '' : '<span class="phrase-actions">' + actions + '</span>') +
+      '<small class="phrase-meta">' + meta + '</small>' + (editing ? editor(p) : '') + '</div>';
+  };
+  var candidates = st.list.filter(function (p) { return p.status !== '使う'; });
+  var used = st.list.filter(function (p) { return p.status === '使う'; });
+  var body = st.loading && !st.loaded ? '<div class="empty-note">読み込み中…</div>'
+    : (st.error && !st.loaded ? '<div class="empty-note">' + esc(st.error) + '</div>'
+    : (candidates.length ? '<div class="phrase-warning">' + esc(NOTEBOOK_PHRASE_CHECK_NOTE) + '</div>' : '') +
+      '<div class="phrase-section-label">候補(' + candidates.length + ')</div>' +
+      (candidates.map(row).join('') || '<div class="empty-note">候補はありません。職員が連絡帳の文章を書き直して保存すると、ここに集まります</div>') +
+      '<div class="phrase-section-label">使っている文例(' + used.length + ')</div>' +
+      (used.map(row).join('') || '<div class="empty-note">まだありません</div>'));
+  return '<div class="panel no-print" id="phrase-admin"><div class="panel-title">連絡帳の文例 ' +
+    '<span class="sub">職員が書き直した文の候補。「使う」にした文だけが、連絡帳の自動の文章の言い回しに加わります。' +
+    'お名前・数字・体調や通院の言葉・ご家庭のこと・地名などを含む文と、体調に気がかりのある日の文は集めず、利用者がだれかも残しません。「使わない」にした文と、90日集まらなかった候補は消えます</span></div>' +
+    body + '<div id="phrase-error" class="section-note" style="color:var(--alert-text);min-height:18px;">' + (st.loaded && st.error ? esc(st.error) : '') + '</div></div>';
+}
+
 function renderAdminMaster(app, renderId) {
   // 利用者カードは 壱番館の名札と同じデザイン(2026-11-12 原山さん)。性別で色柄、ふりがな(ひらがな)、大きな氏名、利用曜日。
   // 介護度は載せない。QRの中身は従来どおり GSU:<ID> のみ(配ったカードもそのまま読める)
@@ -8222,9 +8291,11 @@ function renderAdminMaster(app, renderId) {
     '<div class="row-list">' + templateRows + '</div><div class="btn-row template-admin-form">' +
     '<select class="select-plain" id="template-kind"><option value="vital">バイタル</option><option value="exercise">運動</option><option value="cognitive">脳トレ</option><option value="notebook">連絡帳</option><option value="handoff">申し送り</option></select>' +
     '<input class="note-area" id="template-new" maxlength="300" placeholder="新しい定型文" style="flex:1;min-height:44px;">' +
-    '<button class="btn-csv" onclick="Actions.templateAdd()">追加</button></div><div id="template-error" class="section-note"></div></div></div>';
+    '<button class="btn-csv" onclick="Actions.templateAdd()">追加</button></div><div id="template-error" class="section-note"></div></div>' +
+    notebookPhraseAdminPanel() + '</div>';
 
   app.innerHTML = adminShell('admin/master', content);
+  if (!S.phraseAdmin.loaded && !S.phraseAdmin.loading) Actions.loadNotebookPhrases();
 
   function drawQrCodes() {
     if (!isCurrentRender(renderId) || typeof QRCode === 'undefined') return;
@@ -8613,6 +8684,58 @@ function notebookExNames(list) {
   return list.slice(0, 2).join('や');
 }
 
+/**
+ * 連絡帳の文例(2026-11-17 原山さん了承)。職員が書き直して保存した文を候補として集め、管理者が「使う」にした文だけを
+ * 自動の文章の言い回しに足す。集める文の確かめ(お名前・数字・体調の言葉など)はサーバーが行う(Code.gs notebookPhraseProblem_)
+ */
+var NOTEBOOK_PHRASE_NOTE = '書き直した文は、お名前・数字・体調などの言葉を含まないものだけ、文例の候補になります(管理者が確かめてから自動の文章に使います)。';
+var NOTEBOOK_PHRASE_EX_MARK = '【運動】';
+// 「しっかり」系の強い言葉(Code.gs の PHRASE_STRONG_WORDS_ と同じ)。strong・mixed 以外の日には、この言葉の文例を使わない(11/17 4回目の点検)
+var NOTEBOOK_PHRASE_STRONG_WORDS = /しっかり|力強|ちからづよ|頑張|がんば|ガンバ|負荷|もっと|全力|精一杯|せいいっぱい|汗|ハード|きつ|激し|鍛え|追い込|限界|みっちり|ばっちり|ガンガン|バリバリ|張り切|はりき|最後まで|やり切|やりき|やり遂げ|達成|更新|ペースを上げ|ペースアップ|レベルアップ|増や|向上|強化|筋力|粘り強|思い切|思いっき|目いっぱい|めいっぱい|存分|精力的|ばりばり|元気いっぱい/;
+var NOTEBOOK_PHRASE_STRONG_STYLES = ['strong', 'mixed'];
+var NOTEBOOK_PHRASE_CHECK_NOTE = '「使う」の前に、お名前(カタカナ・あだ名を含む)・ご病気やお体のこと・ご家庭の事情・地名が入っていないか、ご家族が読んで気にならない文かを確かめてください。アプリの確かめでは拾いきれないことがあります。' +
+  '止める例: 「昔は学校の先生をされていたそうです」(昔のお仕事)、「若いころに登った山の話をされました」(地元の山や湖)、「歩くときは手すりを使われました」(お体のこと)、「今日はご機嫌ななめで手がかかりました」(職員の困りごと)。';
+var NOTEBOOK_PHRASE_STYLE_LABELS = { strong: '負荷の強い運動の日', gentle: 'ゆったりした運動の日', mixed: '組み合わせの日', other: 'そのほかの運動の日', plain: '準備運動などだけの日', rest: '運動のない日' };
+
+function notebookSentences(text) {
+  return (String(text || '').replace(/\r/g, '').match(/[^。！？!?\n]+[。！？!?]?/g) || [])
+    .map(function (x) { return x.replace(/[ 　]+/g, ' ').trim(); })
+    .filter(String);
+}
+
+/** 文の中の運動の名前を【運動】の印にする(ほかの方の運動の名前に入れ替えて使えるように)。続いた名前は1つにまとめる */
+function notebookPhraseMarkExercises(text, names) {
+  var out = String(text || '');
+  names.filter(String).sort(function (a, b) { return b.length - a.length; }).forEach(function (n) {
+    out = out.split(n).join(NOTEBOOK_PHRASE_EX_MARK);
+  });
+  var joined = new RegExp(NOTEBOOK_PHRASE_EX_MARK + '(?:や|と|、|・|,|，)*' + NOTEBOOK_PHRASE_EX_MARK, 'g');
+  var prev;
+  do { prev = out; out = out.replace(joined, NOTEBOOK_PHRASE_EX_MARK); } while (out !== prev);
+  return out;
+}
+
+/**
+ * 保存する文章のうち、もとの文章(自動の文章・前に保存した文章)になかった文だけを、文例の候補として返す。[{ text }]
+ * data はその日の連絡帳のデータ(運動の名前を【運動】にするため)
+ */
+function notebookPhraseCandidates(baseText, finalText, data) {
+  var seen = {};
+  notebookSentences(baseText).forEach(function (x) { seen[x] = true; });
+  var names = [];
+  (typeof S !== 'undefined' && S.exercises ? S.exercises : []).forEach(function (e) {
+    if (e.id === OTHER_EXERCISE_ID || e.id === PREPARATION_EXERCISE_ID) return;
+    [e.name, e.shortName].forEach(function (n) { n = String(n || '').trim(); if (n.length >= 2 && names.indexOf(n) < 0) names.push(n); });
+  });
+  var out = [];
+  notebookSentences(finalText).forEach(function (x) {
+    if (seen[x] || out.length >= 6) return;
+    seen[x] = true;
+    out.push({ text: notebookPhraseMarkExercises(x, names) });
+  });
+  return out;
+}
+
 /** 体調に気がかりのある日か(familyNotebookTopics の topics から)。この日は「しっかり」系の文を使わない */
 function notebookEasedDay(t) {
   t = t || {};
@@ -8693,9 +8816,11 @@ function notebookConcernDay(data) {
   return (data.exercises || []).some(function (e) { return notebookTextConcern(e.note, false); });
 }
 
-function defaultNotebookComment(data, variant) {
-  var seed = notebookSeed(((data.user && data.user.id) || '') + '|' + (data.date || '')) + Math.abs(Number(variant) || 0);
-  function pick(list, salt) { return list[(seed + (salt || 0) * 7) % list.length]; }
+/**
+ * その日の書き分け(style)と、記録から読み取った体調などの話題。自動の文章と、文例を集めるとき(どの区分の文か)の両方で使う。
+ * style: strong / gentle / mixed / other / plain(準備運動だけなど) / rest(運動の記録なし)。体調に気がかりのある日は strong・mixed を other に
+ */
+function notebookCommentContext(data) {
   var notes = data.exercises.map(function (e) { return e.note; }).filter(String);
   // 再測定した日は全部の測定の体調・特記事項を使う(同じ文は1回だけ)
   var vitalList = data.vitals && data.vitals.length ? data.vitals : (data.vital ? [data.vital] : []);
@@ -8713,13 +8838,38 @@ function defaultNotebookComment(data, variant) {
   // 「しっかり運動」とは書かない(2026-11-17 点検の指摘。痛いのに頑張らせたと受け取られないように)
   var eased = notebookEasedDay(t) || notebookConcernDay(data);
   if (eased && (style === 'strong' || style === 'mixed')) style = 'other';
+  if (!data.exercises.length) style = 'rest';
+  return { read: read, topics: t, ex: ex, style: style, eased: !!eased };
+}
+
+/**
+ * 管理者が「使う」にした連絡帳の文例(S.notebookPhrases)を、決まった言い回しに足した一覧。
+ * place: '書き出し' / '締め'。文例の【運動】はその日の運動の名前({ex})に入れ替える。運動の名前がない日は【運動】の文は使わない。
+ * 体調に気がかりのある日(eased)は文例を足さず、決まった言い回しだけにする。強い言葉の文例は strong・mixed の日だけ(11/17 4回目の点検)
+ */
+function notebookPhrasePool(builtin, style, place, hasNames, eased) {
+  if (eased) return builtin;
+  var extra = (typeof S !== 'undefined' && S.notebookPhrases ? S.notebookPhrases : []).filter(function (p) {
+    if (!p || p.style !== style || p.place !== place || !p.text) return false;
+    if (NOTEBOOK_PHRASE_STRONG_STYLES.indexOf(style) < 0 && NOTEBOOK_PHRASE_STRONG_WORDS.test(p.text)) return false;
+    return hasNames || p.text.indexOf(NOTEBOOK_PHRASE_EX_MARK) < 0;
+  }).map(function (p) { return p.text.split(NOTEBOOK_PHRASE_EX_MARK).join('{ex}'); });
+  return extra.length ? builtin.concat(extra) : builtin;
+}
+
+function defaultNotebookComment(data, variant) {
+  var seed = notebookSeed(((data.user && data.user.id) || '') + '|' + (data.date || '')) + Math.abs(Number(variant) || 0);
+  function pick(list, salt) { return list[(seed + (salt || 0) * 7) % list.length]; }
+  var c = notebookCommentContext(data);
+  var read = c.read, t = c.topics, ex = c.ex, style = c.style;
   var parts = [];
-  if (!data.exercises.length) {
-    parts.push(pick(NOTEBOOK_OPENINGS_REST));
+  var names = style === 'strong' ? ex.strong : style === 'gentle' ? ex.gentle : ex.strong.concat(ex.gentle, ex.other);
+  var exNames = notebookExNames(names);
+  if (style === 'rest') {
+    parts.push(pick(notebookPhrasePool(NOTEBOOK_OPENINGS_REST, 'rest', '書き出し', false, c.eased)));
   } else {
-    var names = style === 'strong' ? ex.strong : style === 'gentle' ? ex.gentle : ex.strong.concat(ex.gentle, ex.other);
-    parts.push(pick(NOTEBOOK_OPENINGS_BY_STYLE[style])
-      .replace('{ex}', notebookExNames(names))
+    parts.push(pick(notebookPhrasePool(NOTEBOOK_OPENINGS_BY_STYLE[style], style, '書き出し', names.length > 0, c.eased))
+      .split('{ex}').join(exNames)
       .replace('{strong}', notebookExNames(ex.strong))
       .replace('{gentle}', notebookExNames(ex.gentle)));
   }
@@ -8730,9 +8880,9 @@ function defaultNotebookComment(data, variant) {
   if (data.cognitiveRecords && data.cognitiveRecords.length) {
     parts.push('脳トレは「' + data.cognitiveRecords.map(function (r) { return r.activity; }).join('、') + '」を実施しました。');
   }
-  var closings = NOTEBOOK_CLOSINGS_BY_STYLE[style] || NOTEBOOK_CLOSINGS_BY_STYLE.other;
+  var closings = notebookPhrasePool(NOTEBOOK_CLOSINGS_BY_STYLE[style] || NOTEBOOK_CLOSINGS_BY_STYLE.other, style, '締め', names.length > 0, c.eased);
   var hasCare = familyWords.indexOf(FAMILY_CARE_CLOSING) >= 0;
-  if (data.exercises.length && !hasCare && parts.join('').length < NOTEBOOK_CLOSING_IF_SHORTER) parts.push(pick(closings, 1));
+  if (data.exercises.length && !hasCare && parts.join('').length < NOTEBOOK_CLOSING_IF_SHORTER) parts.push(pick(closings, 1).split('{ex}').join(exNames));
   return parts.join('');
 }
 
@@ -8940,6 +9090,7 @@ function loadNotebookEntry(data) {
   S.notebook.entry = entry;
   if (!S.notebook.loaded) {
     S.notebook.comment = (entry && entry.comment ? entry.comment : defaultNotebookComment(data, S.notebook.variant || 0)).slice(0, NOTEBOOK_COMMENT_MAX);
+    S.notebook.baseComment = S.notebook.comment; // 職員が書き直した文を見分けるもと(文例の候補)
     S.notebook.photo = entry && entry.photo ? entry.photo : '';
     S.notebook.photoChanged = false;
     S.notebook.dirty = false;
@@ -8948,7 +9099,7 @@ function loadNotebookEntry(data) {
 }
 
 function resetNotebookState() {
-  S.notebook = { data: null, entry: null, photo: '', comment: '', variant: 0, loaded: false, dirty: false, photoChanged: false };
+  S.notebook = { data: null, entry: null, photo: '', comment: '', baseComment: '', variant: 0, loaded: false, dirty: false, photoChanged: false };
 }
 
 function notebookSavedLabel(entry) {
@@ -8984,7 +9135,8 @@ function renderCommunicationBook(app, renderId) {
       (S.notebook.photo ? '<button class="btn-csv" onclick="Actions.notebookRemovePhoto()">写真を外す</button>' : '') +
       '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
-      '<span id="notebook-photo-status" role="status">' + notebookSavedLabel(S.notebook.entry) + '。黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 240 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div>' +
+      '<span id="notebook-photo-status" role="status">' + notebookSavedLabel(S.notebook.entry) + '。黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 240 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span>' +
+      '<small class="notebook-phrase-note">' + esc(NOTEBOOK_PHRASE_NOTE) + '</small></div>' +
       notebookSheetHtml(data, S.notebook.comment, S.notebook.photo, { editable: true, staffName: S.staff });
     app.innerHTML = adminShell('admin/notebook', content);
   }).catch(function (e) {
@@ -9037,7 +9189,8 @@ function renderNotebookEntry(app, renderId) {
       templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<textarea class="note-area" id="notebook-comment-input" maxlength="' + NOTEBOOK_COMMENT_MAX + '" rows="6" oninput="Actions.notebookComment(this.value)">' + esc(S.notebook.comment) + '</textarea>' +
       '<div class="btn-row" style="justify-content:space-between;"><button class="link-plain" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
-      '<span id="notebook-count" class="notebook-count">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div></div>' +
+      '<span id="notebook-count" class="notebook-count">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div>' +
+      '<small class="notebook-phrase-note">' + esc(NOTEBOOK_PHRASE_NOTE) + '</small></div>' +
       '<div class="section-note" id="notebook-saved">' + notebookSavedLabel(S.notebook.entry) + '</div>' +
       '<div id="notebook-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
       '<button class="btn-primary" id="notebook-save" style="flex:none;width:100%;" onclick="Actions.saveNotebook(true)">連絡帳を保存する</button>' +
@@ -10473,6 +10626,7 @@ var Actions = {
     // 押すたびに言い回しを変えて作り直す(編集した文章は破棄される)
     S.notebook.variant = (S.notebook.variant || 0) + 1;
     S.notebook.comment = defaultNotebookComment(S.notebook.data, S.notebook.variant).slice(0, NOTEBOOK_COMMENT_MAX);
+    S.notebook.baseComment = S.notebook.comment;
     Actions.syncNotebookCommentBox(true);
   },
   notebookPhoto: function (file, input) {
@@ -10525,12 +10679,21 @@ var Actions = {
     var err = document.getElementById('notebook-error');
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
     var payload = { userId: data.user.id, date: data.date, comment: S.notebook.comment.trim() };
+    // 書き直した文を文例の候補として送る(お名前・数字・体調の言葉などを含む文は、サーバーが集めない。2026-11-17)
+    // 体調に気がかりのある日の文は、その日の体調にふれていることが多いので集めない(11/17 4回目の点検。安全な側に)
+    var phraseCtx = notebookCommentContext(data);
+    var phrases = phraseCtx.eased ? [] : notebookPhraseCandidates(S.notebook.baseComment || '', payload.comment, data);
+    if (phrases.length) {
+      payload.phrases = phrases;
+      payload.phraseStyle = phraseCtx.style;
+    }
     if (S.notebook.photoChanged) {
       if (S.notebook.photo) payload.photo = S.notebook.photo;
       else payload.removePhoto = true;
     }
     return rpc('apiSaveNotebookEntry', payload).then(function (entry) {
       S.notebook.entry = entry;
+      S.notebook.baseComment = payload.comment; // 同じ文を保存し直しても、もう一度は集めない
       S.notebook.dirty = false;
       S.notebook.photoChanged = false;
       if (data.entry !== undefined) data.entry = Object.assign({}, entry, { photo: S.notebook.photo });
@@ -10919,6 +11082,51 @@ var Actions = {
       alert((e && e.message) || '削除できませんでした');
     });
   },
+  /** 管理画面「連絡帳の文例」を読み込む */
+  loadNotebookPhrases: function () {
+    S.phraseAdmin.loading = true;
+    return rpc('apiAdminGetNotebookPhrases').then(function (res) {
+      S.phraseAdmin.list = res.phrases || [];
+      S.notebookPhrases = res.used || [];
+      S.phraseAdmin.loaded = true;
+      S.phraseAdmin.error = '';
+    }).catch(function (e) {
+      S.phraseAdmin.error = (e && e.message) || '文例を読み込めませんでした';
+    }).then(function () {
+      S.phraseAdmin.loading = false;
+      if (location.hash.replace(/^#\/?/, '') === 'admin/master') render();
+    });
+  },
+  editNotebookPhrase: function (id) {
+    S.phraseAdmin.editId = id || '';
+    S.phraseAdmin.error = '';
+    render();
+  },
+  /** action: use(使う) / reject(使わない) / stop(使うのをやめる)。edited=true は「直して使う」の欄の文で使う */
+  decideNotebookPhrase: function (id, action, edited) {
+    // 「使う」の前に、もう一度確かめてもらう(機械では拾いきれないため。11/17 4回目の点検)
+    if (action === 'use' && !confirm('この文を連絡帳の自動の文章に使います。\n\n' + NOTEBOOK_PHRASE_CHECK_NOTE + '\n\n確かめて使いますか？')) return Promise.resolve();
+    var payload = { id: id, action: action };
+    if (edited) {
+      var text = document.getElementById('phrase-edit-text');
+      var style = document.getElementById('phrase-edit-style');
+      var place = document.getElementById('phrase-edit-place');
+      payload.text = text ? text.value : '';
+      if (style) payload.style = style.value;
+      if (place) payload.place = place.value;
+    }
+    return rpc('apiAdminDecideNotebookPhrase', payload).then(function (res) {
+      S.phraseAdmin.list = res.phrases || [];
+      S.notebookPhrases = res.used || [];
+      S.phraseAdmin.editId = '';
+      S.phraseAdmin.error = '';
+      render();
+    }).catch(function (e) {
+      var err = document.getElementById('phrase-error');
+      S.phraseAdmin.error = (e && e.message) || '保存できませんでした';
+      if (err) err.textContent = S.phraseAdmin.error; else alert(S.phraseAdmin.error);
+    });
+  },
   templateAdd: function () {
     var kind = document.getElementById('template-kind');
     var input = document.getElementById('template-new');
@@ -11106,6 +11314,113 @@ var Mock = (function () {
       { id: 'st-staff', name: '中川 職員', kana: 'なかがわ しょくいん', jobTitle: '機能訓練指導員', role: 'staff', pin: '1111', active: true },
     ];
   }
+  // ---- 連絡帳の文例(確認版。Code.gs の notebookPhraseProblem_ ほかと同じ決まり。tests/test_notebook_phrases.cjs で答えを比べる)
+  var MOCK_PHRASE = {
+    min: 10, max: 80, mark: '【運動】', keepDays: 90, perSave: 3, maxCandidates: 500,
+    count: /[一二三四五六七八九十百千〇零壱弐参拾数何幾]+\s*(回|分|秒|度|歩|周|セット|キロ|メートル|時|日|月|年|歳|才|人|本|枚|個|往復|種目|種類|週)/,
+    kanaCount: /(いっ|に|さん|よん|ご|ろっ|なな|はっ|きゅう|じゅっ|じっ|ひゃっ|ひゃく|なん|すう)(かい(?!た)|ぷん|ふん|びょう|しゅう|ねん|さい)/,
+    age: /十を過ぎ|十代|米寿|喜寿|傘寿|卒寿|白寿|百寿|還暦|古希|古稀|長寿|誕生|生まれ|年齢|明治|大正|昭和|平成|令和/,
+    honorific: /様(?!子|々)|さま(?!ざま)|さん|くん|君|ちゃん|氏|ばあ(?!い)|婆|爺|じいじ|じいちゃ/,
+    health: /痛|薬|通院|受診|病院|入院|退院|医師|看護|診察|検査|手術|治療|転倒|転ん|骨折|打撲|傷|腫れ|内出血|発熱|熱っぽ|血|体温|脈|酸素|便|尿|失禁|排泄|トイレ|咳|せき込|風邪|かぜ|鼻水|コロナ|インフル|めまい|ふらつ|吐|嘔|しびれ|痺れ|むくみ|浮腫|褥瘡|皮膚|認知症|糖尿|透析|体調|疲れ|眠|息切れ|膝|肩|腰|首|股関節|背中|骨|筋肉痛|病|症|パーキンソン|麻痺|まひ|杖|つえ|車いす|車椅子|車イス|歩行器|シルバーカー|物忘れ|もの忘れ|忘れっぽ|耳が|補聴器|聞き取りにく|聞こえにく|入れ歯|義歯|歯|食欲|食べ残|残され|完食|水分|むせ|誤嚥|飲み込|リウマチ|脳梗塞|脳出血|脳卒中|梗塞|がん(?!ば)|癌|腫瘍|ペースメーカー|心臓|心不全|リハビリ|見えにく|目が|視力|白内障|緑内障|障害|障がい|介助|要介護|要支援|おむつ|オムツ|徘徊|妄想|せん妄|不穏|喘息|ぜんそく|肺|胃|腸|肝臓|腎|貧血|右手|左手|右足|左足|右腕|左腕|片手|片足|手足|人工関節|インスリン|認知|震え|義足|ストーマ|お通じ|ぼんやり|うつらうつら|出にく/,
+    family: /娘|息子|孫|奥様|奥さん|旦那|ご主人|夫婦|妻|嫁|婿|兄|姉|弟|妹|親戚|父|母|家族|ご家庭|親子|両親|親御|親類|親族|身内|連れ合い|配偶者|亡くな|亡くされ|他界|葬|法事|法要|墓|仏壇|一人暮らし|ひとり暮らし|独り暮らし|独居|同居|別居|離婚|再婚|甥|姪|叔父|叔母|伯父|伯母|いとこ|従兄|従姉|生活保護|年金|お金|費用|借金|改修|引っ越|転居|財布|相続|後見|支払|手続き|校長|先生|教師|教員|お仕事|勤め|農家|役場/,
+    place: /大町|松本|白馬|安曇野|池田|松川|小谷|長野|信州|信濃|木崎|美麻|八坂|常盤|穂高|豊科|北アルプス|仁科|鹿島槍|爺ヶ岳|黒部|青木湖|上田|東京|名古屋|大阪|県|市内|町内|村内|地区|駅|温泉|銀松苑|弐番館|壱番館|れんげ|ケアハウス|特養|老健|グループホーム|ショートステイ|デイサービス|施設|入所|別荘|旅行|実家|故郷|ふるさと|出身|地元/,
+    tone: /ください|下さい|ほしい|欲しい|困っ|困り|わがまま|迷惑|守って|叱|怒|文句|苦情|べき|しないで|やめて|止めて|ダメ|だめ|いけません|不満|心配|残念|機嫌が悪|不機嫌|トラブル|遅れ|助かります|大変でした|休みが続|欠席/,
+    politeRequest: /[おご][^。、\s]{1,6}(ください|下さい)/g,
+    strong: /しっかり|力強|ちからづよ|頑張|がんば|ガンバ|負荷|もっと|全力|精一杯|せいいっぱい|汗|ハード|きつ|激し|鍛え|追い込|限界|みっちり|ばっちり|ガンガン|バリバリ|張り切|はりき|最後まで|やり切|やりき|やり遂げ|達成|更新|ペースを上げ|ペースアップ|レベルアップ|増や|向上|強化|筋力|粘り強|思い切|思いっき|目いっぱい|めいっぱい|存分|精力的|ばりばり|元気いっぱい/,
+    groupWords: /皆さん|皆さま|皆様|みなさん|みなさま/g,
+    notCount: /もう一度|(^|[^一二三四五六七八九十百千〇零壱弐参拾数何幾])一日/g,
+    strongStyles: ['strong', 'mixed'],
+  };
+  function mockNormalizePhrase(text) {
+    var t = String(text == null ? '' : text).replace(/[\r\n\t]+/g, ' ').replace(/[ 　]+/g, ' ').trim();
+    t = t.replace(/^[・\-－*＊•●○◯]+\s*/, '').trim();
+    if (t && !/[。！？!?]$/.test(t)) t += '。';
+    return t;
+  }
+  function mockPhraseHira(s) {
+    return String(s || '').replace(/[ァ-ヶ]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0x60); });
+  }
+  function mockPhraseProblem(text, names, style) {
+    var t = String(text || '');
+    if (!t) return '文が空です。';
+    if (t.length < MOCK_PHRASE.min || t.length > MOCK_PHRASE.max) return MOCK_PHRASE.min + '〜' + MOCK_PHRASE.max + '字の文だけ使えます。';
+    if (/^[=+\-@']/.test(t)) return '先頭に記号(= + - @)は使えません。';
+    var plain = t.split(MOCK_PHRASE.mark).join('');
+    var hira = mockPhraseHira(plain);
+    var plainNoGroup = plain.replace(MOCK_PHRASE.groupWords, '');
+    if (MOCK_PHRASE.honorific.test(plainNoGroup) || MOCK_PHRASE.honorific.test(mockPhraseHira(plainNoGroup))) return 'お名前・呼び名(〇〇様・〇〇さん・〇〇ばあ など)を含む文は使えません。';
+    for (var i = 0; i < (names || []).length; i++) if (names[i] && (plain.indexOf(names[i]) >= 0 || hira.indexOf(mockPhraseHira(names[i])) >= 0)) return 'お名前を含む文は使えません。';
+    if (/[0-9０-９]/.test(plain) || MOCK_PHRASE.count.test(plain.replace(MOCK_PHRASE.notCount, '$1')) || MOCK_PHRASE.kanaCount.test(hira)) return '数字を含む文は使えません。';
+    if (MOCK_PHRASE.age.test(plain)) return '年齢・生まれ年・お誕生日の言葉を含む文は使えません。';
+    if (/[A-Za-zＡ-Ｚａ-ｚ]/.test(plain)) return '英字を含む文は使えません。';
+    if (/[<>【】{}]/.test(plain)) return '記号(< > 【 】 { })は使えません(運動の名前の印「' + MOCK_PHRASE.mark + '」だけ使えます)。';
+    if (MOCK_PHRASE.health.test(plain)) return '体調・お体・ご病気・通院などの言葉を含む文は使えません。';
+    if (MOCK_PHRASE.family.test(plain)) return 'ご家族・ご家庭・お仕事・お金や手続きのことを含む文は使えません。';
+    if (MOCK_PHRASE.place.test(plain)) return '地名・施設名などを含む文は使えません。';
+    if (MOCK_PHRASE.tone.test(plain.replace(MOCK_PHRASE.politeRequest, ''))) return 'ご家族へのお願い・注意・困りごとの文は使えません。';
+    if (style != null && MOCK_PHRASE.strongStyles.indexOf(String(style)) < 0 && MOCK_PHRASE.strong.test(plain)) {
+      return '「しっかり」「頑張」などの強い言葉の文は、負荷の強い運動の日・組み合わせの日の区分だけで使えます(体調に気がかりのある日に出ないように)。';
+    }
+    return '';
+  }
+  function mockPhraseNames(db) {
+    var out = [];
+    function add(v) {
+      var full = String(v || '').trim();
+      if (!full) return;
+      var parts = full.split(/[\s　・]+/).filter(String);
+      [full, parts.join('')].concat(parts).forEach(function (p) {
+        if (!p || (p.length < 2 && !/[一-龥々]/.test(p))) return;
+        if (out.indexOf(p) < 0) out.push(p);
+      });
+    }
+    (db.users || []).forEach(function (u) { add(u.name); add(u.kana); });
+    (db.staff || mockDefaultStaff()).forEach(function (x) { add(x.name); add(x.kana); });
+    return out;
+  }
+  function mockPurgePhrases(db) {
+    var d = new Date(); d.setDate(d.getDate() - MOCK_PHRASE.keepDays);
+    var cutoff = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+    db.notebookPhrases = (db.notebookPhrases || []).filter(function (p) { return p.status === '使う' || !p.lastDate || p.lastDate >= cutoff; });
+  }
+  function mockUsedPhrases(db) {
+    return (db.notebookPhrases || []).filter(function (p) { return p.status === '使う'; }).map(function (p) { return { style: p.style, place: p.place, text: p.text }; });
+  }
+  function mockPhraseList(db) {
+    return (db.notebookPhrases || []).slice().sort(function (a, b) {
+      if ((a.status === '使う') !== (b.status === '使う')) return a.status === '使う' ? 1 : -1;
+      if (a.count !== b.count) return b.count - a.count;
+      return a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0;
+    });
+  }
+  function mockCollectPhrases(db, list, style) {
+    if (!Array.isArray(list) || !list.length) return 0;
+    style = ['strong', 'gentle', 'mixed', 'other', 'plain', 'rest'].indexOf(String(style)) >= 0 ? String(style) : 'other';
+    var names = mockPhraseNames(db);
+    var templates = (db.templates || []).map(function (t) { return mockNormalizePhrase(t.text); });
+    var picked = [];
+    list.slice(0, 20).forEach(function (p) {
+      if (picked.length >= MOCK_PHRASE.perSave) return;
+      var text = mockNormalizePhrase(p && p.text);
+      if (!text || mockPhraseProblem(text, names, style) || templates.indexOf(text) >= 0) return;
+      if (picked.some(function (x) { return x.text === text; })) return;
+      picked.push({ text: text, place: text.indexOf(MOCK_PHRASE.mark) >= 0 || style === 'rest' ? '書き出し' : '締め' });
+    });
+    if (!db.notebookPhrases) db.notebookPhrases = [];
+    mockPurgePhrases(db);
+    var today = todayStr();
+    var done = 0;
+    picked.forEach(function (p) {
+      var same = db.notebookPhrases.filter(function (r) { return r.text === p.text; })[0];
+      if (same) { same.count += 1; same.lastDate = today; done += 1; return; }
+      if (db.notebookPhrases.filter(function (r) { return r.status !== '使う'; }).length >= MOCK_PHRASE.maxCandidates) return;
+      db.notebookPhrases.push({ id: 'ph' + Date.now().toString(36) + db.notebookPhrases.length, style: style, place: p.place, text: p.text,
+        status: '候補', count: 1, firstDate: today, lastDate: today, decidedBy: '', decidedAt: '' });
+      done += 1;
+    });
+    return done;
+  }
+
   function mockMe() {
     var db = load();
     if (!db.staff) { db.staff = mockDefaultStaff(); save(db); }
@@ -11139,7 +11454,7 @@ var Mock = (function () {
       var me = mockMe();
       var photos = db.photos || {};
       db.users.forEach(function (x) { x.hasPhoto = !!photos[x.id]; });
-      return { apiVersion: 8, me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), templates: (db.templates || []).filter(function (t) { return t.active !== false; }), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+      return { apiVersion: 8, me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), templates: (db.templates || []).filter(function (t) { return t.active !== false; }), notebookPhrases: mockUsedPhrases(db), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
     },
     apiAdminSaveCognitiveMenu: function (p) {
       var db = load();
@@ -11521,6 +11836,7 @@ var Mock = (function () {
       var me = mockMe();
       db.notebooks[key] = { userId: p.userId, date: p.date || todayStr(), comment: String(p.comment || '').slice(0, 600), hasPhoto: !!photo, photo: photo,
         updatedBy: me ? me.name : 'プレビュー', updatedAt: todayStr() + ' ' + nowTime() + ':00' };
+      if (p.phrases) { try { mockCollectPhrases(db, p.phrases, p.phraseStyle); } catch (e) { /* 連絡帳の保存は止めない */ } }
       save(db);
       var out = Object.assign({}, db.notebooks[key]);
       out.photo = '';
@@ -11622,6 +11938,35 @@ var Mock = (function () {
     },
     apiAdminDeleteTemplate: function (id) {
       var db = load(); db.templates = (db.templates || []).filter(function (t) { return t.id !== id; }); save(db); return { templates: db.templates };
+    },
+    apiAdminGetNotebookPhrases: function () {
+      var db = load(); mockPurgePhrases(db); save(db);
+      return { phrases: mockPhraseList(db), used: mockUsedPhrases(db) };
+    },
+    apiAdminDecideNotebookPhrase: function (p) {
+      var db = load(); p = p || {};
+      if (['use', 'reject', 'stop'].indexOf(p.action) < 0) throw new Error('操作が正しくありません。');
+      var target = (db.notebookPhrases || []).filter(function (x) { return x.id === p.id; })[0];
+      if (!target) throw new Error('文例が見つかりません。画面を開き直してください。');
+      if (p.action !== 'use') {
+        db.notebookPhrases = db.notebookPhrases.filter(function (x) { return x !== target; });
+      } else {
+        var text = p.text == null ? target.text : mockNormalizePhrase(p.text);
+        var style = p.style == null ? target.style : String(p.style);
+        if (['strong', 'gentle', 'mixed', 'other', 'plain', 'rest'].indexOf(style) < 0) throw new Error('区分が正しくありません。');
+        var problem = mockPhraseProblem(text, mockPhraseNames(db), style);
+        if (problem) throw new Error(problem);
+        var place = p.place == null ? target.place : String(p.place);
+        if (['書き出し', '締め'].indexOf(place) < 0) throw new Error('場所(書き出し・締め)が正しくありません。');
+        var dup = db.notebookPhrases.filter(function (x) { return x !== target && x.text === text && x.status === '使う'; })[0];
+        if (dup) db.notebookPhrases = db.notebookPhrases.filter(function (x) { return x !== target; });
+        else {
+          var me = mockMe();
+          Object.assign(target, { style: style, place: place, text: text, status: '使う', decidedBy: me ? me.name : 'プレビュー', decidedAt: todayStr() });
+        }
+      }
+      save(db);
+      return { phrases: mockPhraseList(db), used: mockUsedPhrases(db) };
     },
     apiGetMonthlyIndividual: function (userId, month) {
       var db = load(); function inM(x) { return x.date.slice(0, 7) === month && x.userId === userId; }
@@ -11732,6 +12077,7 @@ function bootAfterLogin() {
     S.capabilities = boot.capabilities || [];
     S.cognitiveMenu = boot.cognitiveMenu || [];
     S.templates = boot.templates || [];
+    S.notebookPhrases = boot.notebookPhrases || []; // 管理者が「使う」にした連絡帳の文例
     S.today = boot.today;
     S.staff = boot.staff;
     if (S.me && boot.role) S.me.role = boot.role; // 権限はサーバーの現在値を優先
