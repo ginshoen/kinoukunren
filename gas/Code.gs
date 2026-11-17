@@ -177,6 +177,8 @@ var API_REGISTRY = {
   apiSaveAssessment: { fn: apiSaveAssessment_, auth: 'staff' },
   apiSaveAssessmentBatch: { fn: apiSaveAssessmentBatch_, auth: 'staff' },
   apiGetTodayExercises: { fn: apiGetTodayExercises_, auth: 'staff' },
+  apiEditExerciseRecord: { fn: apiEditExerciseRecord_, auth: 'staff' },
+  apiEditVital: { fn: apiEditVital_, auth: 'staff' },
   apiGetTodayAlerts: { fn: apiGetTodayAlerts_, auth: 'staff' },
   apiGetUserDetail: { fn: apiGetUserDetail_, auth: 'staff' },
   apiGetUserPhotos: { fn: apiGetUserPhotos_, auth: 'staff' },
@@ -1072,7 +1074,7 @@ function apiGetUserDetail_(userId) {
   var recentDays = Object.keys(dates).sort().reverse().slice(0, 5).map(function (date) {
     var dayEx = records
       .filter(function (e) { return e.date === date; })
-      .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; });
+      .sort(exerciseOrder_);
     return {
       date: date,
       time: dates[date],
@@ -1086,7 +1088,7 @@ function apiGetUserDetail_(userId) {
     todayVital: todayVitals.length ? todayVitals[todayVitals.length - 1] : null,
     todayExercises: records
       .filter(function (e) { return e.date === today; })
-      .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; }),
+      .sort(exerciseOrder_),
     vitalsAll: vitals,
     recentDays: recentDays,
     alertHistory: vitals.filter(function (v) { return v.flagged; }).reverse().slice(0, 10),
@@ -1821,6 +1823,7 @@ function apiSaveExerciseBatch_(payload) {
   // 「その他」は入力した運動名を「負荷」列に残す(この列は15分コマ形式では使っていない)
   var otherText = safeText_(payload.otherText, 40);
   if (ids.indexOf(OTHER_EXERCISE_ID) >= 0 && !otherText) throw new Error('「その他」の運動の内容を入力してください。');
+  if (!ids.length) return addExerciseNote_(String(payload.userId), note);
   var time = nowTime_();
   var records = ids.map(function (id, i) {
     return {
@@ -1843,12 +1846,199 @@ function apiSaveExerciseBatch_(payload) {
   return { records: records };
 }
 
+/**
+ * 運動はもう記録してあり、特記事項だけを書き足すとき(休憩時間に行った介護整体など。2026-11-17 現場要望)。
+ * 本日の特記事項のある記録(なければ準備運動)を、特記事項を書き足した新しい記録に置き換える(元の記録は取り消しとして残る)。
+ */
+function addExerciseNote_(userId, note) {
+  if (!note) throw new Error('記録する運動を選ぶか、特記事項を入力してください。');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    invalidateRequestRows_('records');
+    invalidateRequestRows_('voids');
+    var mine = recordsOn_(todayStr_()).filter(function (r) { return r.userId === userId; })
+      .sort(exerciseOrder_);
+    var holder = mine.filter(function (r) { return r.note; })[0] ||
+      mine.filter(function (r) { return r.exerciseId === 'prep'; })[0] || mine[0];
+    if (!holder) throw new Error('記録する運動を選んでください。');
+    var base = holder.note.replace(/[。\s]+$/, '');
+    var adding = note.replace(/[。\s]+$/, '');
+    if (!adding) throw new Error('記録する運動を選ぶか、特記事項を入力してください。');
+    // 通信が切れて押し直したときに、同じ文を2回つけない(点検の指摘)
+    if (base === adding || base.slice(-(adding.length + 1)) === '。' + adding) {
+      return { records: [holder], removed: [], unchanged: true, notebook: notebookStateToday_(userId) };
+    }
+    var merged = base ? base + '。' + adding : adding;
+    if (merged.length > 300) throw new Error('特記事項は合わせて300文字以内にしてください。');
+    var rec = {
+      id: newId_(), date: holder.date, time: holder.time, userId: userId, exerciseId: holder.exerciseId,
+      amount: holder.amount || '15分', load: holder.load || '', note: merged,
+    };
+    // 新しい記録を先に足し、そのあとで元の記録を取り消す(間で失敗しても、記録が消えずに二重に見えるだけにする。点検の指摘)
+    appendRowNoLock_('records', [
+      rec.id, rec.date, rec.time, rec.userId, rec.exerciseId, rec.amount, rec.load, rec.note, currentStaffName_(),
+    ]);
+    voidRecordNoLock_('records', holder.id, editStamp_());
+    return { records: [rec], removed: [holder.id], notebook: notebookStateToday_(userId) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 運動の記録の並び(時刻順。同じ時刻なら準備運動を先に)。直した記録は同じ時刻で後ろの行に足されるため、
+ * 同じ時刻の中で準備運動が後ろに回らないようにする(2026-11-17)
+ */
+function exerciseOrder_(a, b) {
+  var ka = timeKey_(a.time), kb = timeKey_(b.time);
+  if (ka !== kb) return ka < kb ? -1 : 1;
+  var pa = a.exerciseId === 'prep' ? 0 : 1, pb = b.exerciseId === 'prep' ? 0 : 1;
+  return pa - pb;
+}
+
 /** 当日の実施済み種目(時刻昇順) */
 function apiGetTodayExercises_(userId) {
   var today = todayStr_();
   return recordsOn_(today)
     .filter(function (e) { return e.userId === userId; })
-    .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; });
+    .sort(exerciseOrder_);
+}
+
+// ---------------------------------------------------------------- 当日の記録を直す(2026-11-17 現場要望)
+// 機能訓練の急なメニュー変更・バイタルの書き足しや入力間違いのため、当日の記録をあとから直せるようにする。
+// 元の記録は消さずに「取り消し」(取消記録シート。取消日時・取消者が残る)にし、直した内容を同じ日付・同じ時刻の
+// 新しい記録として足す(記録者は直した職員)。シートの列は増やさない(前の版へ戻しても読める)。
+// 直せるのは本日の記録だけ。別の端末で先に直された・取り消された記録は直さずに知らせる。
+
+/** 本日・この利用者の、まだ取り消されていない記録を ID で探す(なければ例外) */
+function todayRecordFor_(kind, userId, recordId) {
+  var list = kind === 'vitals' ? vitalsOn_(todayStr_()) : recordsOn_(todayStr_());
+  var found = list.filter(function (r) { return r.id === String(recordId || '') && r.userId === String(userId || ''); })[0];
+  if (!found) throw new Error('この記録は、ほかの端末で直されたか取り消されたか、本日の記録ではありません。画面を読み込み直してください。');
+  return found;
+}
+
+/** 元の記録を取り消しにする(ロックの中で呼ぶ) */
+function voidRecordNoLock_(kind, recordId, stamp) {
+  appendRowNoLock_('voids', [String(recordId), SHEETS[kind], stamp, currentStaffName_()]);
+}
+
+function editStamp_() {
+  return Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd H:mm:ss');
+}
+
+/** この方の本日の連絡帳が、文章を保存済みか・印刷済み(連絡帳完了)か。直したあとに職員へ知らせるため */
+function notebookStateToday_(userId) {
+  var today = todayStr_();
+  var entry = notebookEntry_(userId, today, false);
+  var done = dailyStatusOn_(today).some(function (st) { return st.userId === userId && st.notebookDone; });
+  return { saved: !!(entry && String(entry.comment || '').trim()), done: done };
+}
+
+/**
+ * 本日の機能訓練の記録を1つ直す・取り消す。
+ * payload: { userId, recordId, exerciseId?, otherText?, note?, remove? }
+ *  - 準備運動は種目を変えられない(特記事項だけ直せる)。ほかの種目は、本日まだ記録していない種目か「その他」に変えられる
+ *  - remove=true は、その記録を取り消すだけ(新しい記録は足さない)
+ */
+function apiEditExerciseRecord_(payload) {
+  payload = payload || {};
+  var userId = String(payload.userId || '');
+  if (!allUsers_().some(function (u) { return u.id === userId; })) throw new Error('利用者が見つかりません。');
+  var note = safeText_(payload.note, 300);
+  var otherText = safeText_(payload.otherText, 40);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    // ほかの端末の保存・取り消しを待ってから読み直す
+    invalidateRequestRows_('records');
+    invalidateRequestRows_('voids');
+    var old = todayRecordFor_('records', userId, payload.recordId);
+    var stamp = editStamp_();
+    if (payload.remove) {
+      voidRecordNoLock_('records', old.id, stamp);
+      return { removed: old.id, record: null, notebook: notebookStateToday_(userId) };
+    }
+    var exerciseId = String(payload.exerciseId || old.exerciseId);
+    if (old.exerciseId === 'prep' && exerciseId !== 'prep') throw new Error('準備運動はほかの運動に変えられません。特記事項だけ直せます。');
+    if (old.exerciseId !== 'prep' && exerciseId === 'prep') throw new Error('準備運動には変えられません。');
+    var exercise = allExercises_().filter(function (e) { return e.id === exerciseId; })[0];
+    // 種目の一覧から消した種目の記録も、種目を変えなければ特記事項を直せる(点検の指摘)
+    if (!exercise && exerciseId !== old.exerciseId) throw new Error('訓練種目が見つかりません: ' + exerciseId);
+    if (!exercise) exercise = { id: exerciseId, name: exerciseId, active: true };
+    if (exerciseId !== old.exerciseId && exercise.active === false) throw new Error('停止中の種目には変えられません。');
+    if (exerciseId !== old.exerciseId && exerciseId !== OTHER_EXERCISE_ID) {
+      var dup = recordsOn_(todayStr_()).some(function (r) {
+        return r.userId === userId && r.id !== old.id && r.exerciseId === exerciseId;
+      });
+      if (dup) throw new Error('「' + exercise.name + '」は本日すでに記録されています。');
+    }
+    if (exerciseId === OTHER_EXERCISE_ID && !otherText) throw new Error('「その他」の運動の内容を入力してください。');
+    var rec = {
+      id: newId_(), date: old.date, time: old.time, userId: userId, exerciseId: exerciseId,
+      amount: old.amount || '15分', load: exerciseId === OTHER_EXERCISE_ID ? otherText : '', note: note,
+    };
+    if (rec.exerciseId === old.exerciseId && rec.load === (old.exerciseId === OTHER_EXERCISE_ID ? old.load : '') && rec.note === old.note) {
+      return { removed: null, record: old, unchanged: true, notebook: notebookStateToday_(userId) };
+    }
+    // 新しい記録を先に足し、そのあとで元の記録を取り消す(間で失敗しても記録が消えない)
+    appendRowNoLock_('records', [
+      rec.id, rec.date, rec.time, rec.userId, rec.exerciseId, rec.amount, rec.load, rec.note, currentStaffName_(),
+    ]);
+    voidRecordNoLock_('records', old.id, stamp);
+    return { removed: old.id, record: rec, notebook: notebookStateToday_(userId) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 本日のバイタルを1回分直す・取り消す。payload は apiSaveVitals_ と同じ項目に recordId(と remove)を足したもの。
+ * 体温は、その日にほかに体温のある測定がなければ必須(もともと体温のない記録を直すときは省略できる)。
+ * 警告は直した値で判定し直す(前回値は apiSaveVitals_ と同じ、本日より前の最新)。
+ */
+function apiEditVital_(payload) {
+  payload = payload || {};
+  var userId = String(payload.userId || '');
+  if (!allUsers_().some(function (u) { return u.id === userId; })) throw new Error('利用者が見つかりません。');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    invalidateRequestRows_('vitals');
+    invalidateRequestRows_('voids');
+    var old = todayRecordFor_('vitals', userId, payload.recordId);
+    var stamp = editStamp_();
+    if (payload.remove) {
+      voidRecordNoLock_('vitals', old.id, stamp);
+      return { removed: old.id, record: null, notebook: notebookStateToday_(userId) };
+    }
+    // 体温は、その日にほかに体温のある測定がないときだけ必要(もともと体温のない記録を直すときは省略できる)
+    var otherTemp = vitalsOn_(todayStr_()).some(function (v) { return v.userId === userId && v.id !== old.id && v.temp != null; });
+    validateVitalPayload_(payload, otherTemp || old.temp == null);
+    var prev = apiGetVitalContext_(userId).prev;
+    var alerts = evaluateVitalAlerts_(payload, prev);
+    var rec = {
+      id: newId_(), date: old.date, time: old.time, userId: userId,
+      systolic: Number(payload.systolic) || 0, diastolic: Number(payload.diastolic) || 0,
+      pulse: Number(payload.pulse) || 0, temp: payload.temp == null || String(payload.temp) === '' ? null : Number(payload.temp),
+      spo2: payload.spo2 == null || String(payload.spo2) === '' ? null : Number(payload.spo2),
+      weight: payload.weight == null || String(payload.weight) === '' ? null : Number(payload.weight),
+      flagged: alerts.length > 0, alerts: alerts,
+      conditionNote: safeText_(payload.conditionNote, 300),
+    };
+    // 新しい記録を先に足し、そのあとで元の記録を取り消す(間で失敗しても記録が消えない)
+    appendRowNoLock_('vitals', [
+      rec.id, rec.date, rec.time, rec.userId,
+      rec.systolic, rec.diastolic, rec.pulse, rec.temp === null ? '' : rec.temp,
+      rec.spo2 === null ? '' : rec.spo2, rec.weight === null ? '' : rec.weight,
+      rec.flagged, rec.alerts.join(' / '), rec.conditionNote, currentStaffName_(),
+    ]);
+    voidRecordNoLock_('vitals', old.id, stamp);
+    return { removed: old.id, record: rec, notebook: notebookStateToday_(userId) };
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /** 脳トレの実施内容を記録する。 */
@@ -2076,7 +2266,7 @@ function apiGetCommunicationBookCore_(user, target) {
   var vital = vitals.length ? vitals[vitals.length - 1] : null;
   var exercises = recordsOn_(target)
     .filter(function (e) { return e.userId === userId; })
-    .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; });
+    .sort(exerciseOrder_);
   var cognitive = cognitiveOn_(target)
     .filter(function (e) { return e.userId === userId; })
     .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; });
@@ -2675,7 +2865,9 @@ function apiGetCareDashboard_() {
   var rows = apiGetTodayCheckins_().map(function (c) {
     var u = users[c.userId];
     if (!u) return null;
-    var userVitals = vitals.filter(function (v) { return v.userId === u.id; });
+    // 測った時刻でいちばん遅いものを最新にする(直した記録はシートの下に足されるため、行の順ではない。点検の指摘)
+    var userVitals = vitals.filter(function (v) { return v.userId === u.id; })
+      .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : timeKey_(a.time) > timeKey_(b.time) ? 1 : 0; });
     var latestVital = userVitals.length ? userVitals[userVitals.length - 1] : null;
     var exerciseCount = countFor(records, u.id);
     var cognitiveCount = countFor(cognitive, u.id);
@@ -2749,7 +2941,7 @@ function apiGetPreviousRecordSet_(userId) {
   return {
     vital: vitals.length ? vitals[vitals.length - 1] : null,
     exercises: exercises.filter(function (r) { return r.date === lastExerciseDate; })
-      .sort(function (a, b) { return timeKey_(a.time) < timeKey_(b.time) ? -1 : 1; }),
+      .sort(exerciseOrder_),
     exerciseDate: lastExerciseDate,
     cognitive: cognitive.length ? cognitive[cognitive.length - 1] : null,
   };
