@@ -3735,6 +3735,17 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .pdf-ready-title { font-size: 17px; font-weight: 900; color: var(--green-dark); }
 .pdf-ready-card p { margin: 0; font-size: 14px; line-height: 1.6; }
 .pdf-ready-card button { width: 100%; min-height: 48px; }
+.pdf-ready-card { max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+/* iPad・iPhone のまとめて印刷: 5名ずつに分けたPDFを上から順に印刷する(2026-11-18) */
+.pdf-parts { display: grid; gap: 8px; }
+.pdf-part { display: grid; grid-template-columns: 1fr auto; gap: 6px 8px; align-items: center; padding: 10px 12px; border: 1px solid #d7e5dd; border-radius: 12px; background: #f7fbf8; }
+.pdf-part-text { grid-column: 1 / -1; display: grid; gap: 2px; font-size: 15px; }
+.pdf-part-text small { color: #5d6b64; font-size: 13px; line-height: 1.4; }
+.pdf-part .btn-outline { width: auto; min-width: 72px; }
+.pdf-part.is-done { background: #eef1ef; border-color: #cfd8d3; }
+.pdf-part.is-done .pdf-part-text b::after { content: ' ✓ 済み'; color: var(--green-dark); }
+.pdf-ready-card .pdf-ready-problem { padding: 10px 12px; border-radius: 10px; background: #fdecee; color: #8a1f2d; }
+.pdf-part.is-done .btn-primary { background: #fff; color: var(--green-dark); border: 1px solid #cfd8d3; box-shadow: none; }
 
 /* デモの画面(架空のデータ)であることを常に表示する(2026-11-04)。印刷・PDFには出さない */
 html.is-demo body::before {
@@ -3827,7 +3838,7 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 
   </head>
   <body>
-<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261117-1704';window.APP_MOCK=false;window.APP_DEMO=true;</script>
+<script>(function(){var P='nibDemo:';try{var p=Storage.prototype,g=p.getItem,s=p.setItem,r=p.removeItem;p.getItem=function(k){return g.call(this,P+k);};p.setItem=function(k,v){return s.call(this,P+k,v);};p.removeItem=function(k){return r.call(this,P+k);};}catch(e){}})();window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwxIhl346bfQ-c6z5bWQ4aHSMQRU_Gdo_3Pfde9NmL4uJrmrS3XJJ1DYOX-2IRCNVnz/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261118-1348';window.APP_MOCK=false;window.APP_DEMO=true;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -5552,7 +5563,12 @@ function notebookSheetsToPdf(sheets, onProgress, opts) {
      */
     function capture(sheet, photo) {
       var geo = null; // 写真の枠の位置(連絡帳の左上からの px)と連絡帳の大きさ
-      sheet.setAttribute('data-pdf-target', '1');
+      // 1回ごとに別の印を付ける(止まった前の回があとから終わっても、作り直し中の印を外さないように)
+      var token = 'pdf' + (++captureSeq);
+      sheet.setAttribute('data-pdf-target', token);
+      var release = function () {
+        if (sheet.getAttribute('data-pdf-target') === token) sheet.removeAttribute('data-pdf-target');
+      };
       return window.html2canvas(sheet, {
         scale: opts.scale || 2,
         backgroundColor: '#ffffff',
@@ -5562,7 +5578,7 @@ function notebookSheetsToPdf(sheets, onProgress, opts) {
         scrollY: 0,
         // 他の方の連絡帳(写真つき)まで毎回写さない(人数が多いと遅くなるため)
         ignoreElements: function (node) {
-          return !!(node.classList && node.classList.contains('communication-sheet') && !node.hasAttribute('data-pdf-target'));
+          return !!(node.classList && node.classList.contains('communication-sheet') && node.getAttribute('data-pdf-target') !== token);
         },
         onclone: function (doc) {
           // 画面用(@media screen)の指定は印刷では効かないため外す(色・文字の大きさを紙と同じにする)
@@ -5578,7 +5594,7 @@ function notebookSheetsToPdf(sheets, onProgress, opts) {
           var style = doc.createElement('style');
           style.textContent = css;
           doc.head.appendChild(style);
-          var el = doc.querySelector('[data-pdf-target]');
+          var el = doc.querySelector('[data-pdf-target="' + token + '"]');
           if (!el) return;
           // 印刷と同じ 200×137mm(A5横から余白5mmを除いた大きさ)にそろえる
           el.style.setProperty('width', '200mm', 'important');
@@ -5603,23 +5619,47 @@ function notebookSheetsToPdf(sheets, onProgress, opts) {
           });
         },
       }).then(function (canvas) {
-        sheet.removeAttribute('data-pdf-target');
+        release();
         return { canvas: canvas, geo: geo };
       }, function (err) {
-        sheet.removeAttribute('data-pdf-target');
+        release();
         throw err;
+      });
+    }
+    /**
+     * 1枚を画像にする。iPad の Safari では画像にする部品が終わらないまま止まることがあり
+     * (html2canvas は画面の写しの読み込みを待ち続け、時間切れがない)、PDFの作成が途中で止まっていた。
+     * 時間を区切り、止まったり失敗したりしたら少し待ってもう1回だけ作り直す。2回ともだめなら、何枚目かを知らせて止める。
+     */
+    function captureSafely(sheet, photo, no) {
+      var attempt = function () {
+        return notebookWithTimeout(capture(sheet, photo), opts.pageTimeoutMs || NOTEBOOK_PDF_PAGE_TIMEOUT_MS);
+      };
+      return attempt().catch(function (e) {
+        removeStalePdfClones();
+        if (window.console && console.warn) console.warn('連絡帳 ' + no + '枚目を作り直します', e);
+        return notebookDelay(opts.retryDelayMs == null ? 500 : opts.retryDelayMs).then(attempt);
+      }).catch(function (e) {
+        removeStalePdfClones();
+        var slow = e && e.notebookTimeout;
+        throw new Error(no + '枚目の連絡帳をPDFにできませんでした' + (slow ? '(時間がかかりすぎました)' : '') +
+          '。もう一度お試しください。続くときは、事務所のパソコンで印刷してください。');
       });
     }
     function addPageImage(canvas, isFirst) {
       if (!isFirst) pdf.addPage('a5', 'landscape');
       pdf.addImage(canvas.toDataURL('image/jpeg', opts.quality || 0.92), 'JPEG', 5, 5, 200, 137);
+      // 使い終わった画像の置き場をすぐ空ける(iPad の Safari は画像の置き場の合計に上限があり、空くのが遅い)
+      try { canvas.width = 0; canvas.height = 0; } catch (e) { /* 空けられなくても続ける */ }
     }
+    var captureSeq = 0;
+    var startNo = opts.startNo || 0;
     var chain = Promise.resolve();
     sheets.forEach(function (sheet, i) {
       chain = chain.then(function () {
         if (onProgress) onProgress(i + 1, sheets.length);
         var photo = opts.inlinePhoto ? null : notebookPdfPhoto(pdf, sheet);
-        return capture(sheet, photo).then(function (shot) {
+        return captureSafely(sheet, photo, startNo + i + 1).then(function (shot) {
           addPageImage(shot.canvas, i === 0);
           if (!shot.geo) return;
           try {
@@ -5629,13 +5669,63 @@ function notebookSheetsToPdf(sheets, onProgress, opts) {
             // (形は読めても埋め込みで失敗する写真があっても、PDF 全体は作れるようにする)
             if (window.console && console.warn) console.warn('連絡帳の写真を重ねられなかったので、以前の作りで作り直します', e);
             pdf.deletePage(pdf.getNumberOfPages());
-            return capture(sheet, null).then(function (again) { addPageImage(again.canvas, false); }); // 消したので必ずページを足す
+            return captureSafely(sheet, null, startNo + i + 1).then(function (again) { addPageImage(again.canvas, false); }); // 消したので必ずページを足す
           }
         });
       });
     });
-    return chain.then(function () { return pdf.output('blob'); });
+    return chain.then(function () {
+      // 人数とページ数が合わないPDFは渡さない(足りないまま印刷されるのを防ぐ)
+      if (pdf.getNumberOfPages() !== sheets.length) {
+        throw new Error('PDFのページ数(' + pdf.getNumberOfPages() + '枚)が人数(' + sheets.length + '名)と合いません。もう一度お試しください。');
+      }
+      return pdf.output('blob');
+    });
   });
+}
+
+var NOTEBOOK_PDF_GROUP_SIZE = 5;          // iPad・iPhone の「PDFにして印刷」は、この人数ずつのPDFに分ける(2026-11-18)
+var NOTEBOOK_PDF_PAGE_TIMEOUT_MS = 30000; // 1枚を画像にするのを待つ長さ。これを超えたら作り直す
+
+/** promise が ms 以内に終わらなければ、notebookTimeout の印を付けたエラーにする */
+function notebookWithTimeout(promise, ms) {
+  return new Promise(function (resolve, reject) {
+    var timer = setTimeout(function () {
+      var e = new Error('時間切れ');
+      e.notebookTimeout = true;
+      reject(e);
+    }, ms);
+    promise.then(function (v) { clearTimeout(timer); resolve(v); }, function (e) { clearTimeout(timer); reject(e); });
+  });
+}
+
+function notebookDelay(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms); });
+}
+
+/** 止まった画像作成が残した画面の写し(html2canvas の iframe)を片付ける */
+function removeStalePdfClones() {
+  if (typeof document === 'undefined' || !document.querySelectorAll) return;
+  Array.prototype.forEach.call(document.querySelectorAll('iframe.html2canvas-container'), function (f) {
+    if (f.parentNode) f.parentNode.removeChild(f);
+  });
+}
+
+/**
+ * count 名を size 名までのまとまりに、なるべく同じ人数で分ける([始め, 終わり) の組。例: 11名・5名まで → 4・4・3名)。
+ * size がない・count が size 以下なら1つ。
+ */
+function notebookPdfGroups(count, size) {
+  if (!size || count <= size) return [[0, count]];
+  var parts = Math.ceil(count / size);
+  var base = Math.floor(count / parts), extra = count % parts;
+  var out = [], from = 0;
+  for (var k = 0; k < parts; k++) {
+    var n = base + (k < extra ? 1 : 0);
+    out.push([from, from + n]);
+    from += n;
+  }
+  return out;
 }
 
 /**
@@ -5658,9 +5748,13 @@ function addNotebookPdfPhoto(pdf, photo, geo, alias) {
   pdf.restoreGraphicsState();
 }
 
-/** 作ったPDFを渡す画面。共有メニュー(プリント・ファイルに保存・メール)は押した直後にしか開けないため、ボタンを押してもらう */
-function showPdfReady(blob, fileName, pages) {
-  S.pdfReady = { blob: blob, name: fileName };
+/**
+ * 作ったPDFを渡す画面。共有メニュー(プリント・ファイルに保存・メール)は押した直後にしか開けないため、ボタンを押してもらう。
+ * parts が2つ以上(iPad・iPhone のまとめて印刷)のときは、分けたPDFごとに「印刷する」を並べる。
+ * problem があれば、途中で止まったことと、できた分だけ並べていることを上に書く。
+ */
+function showPdfReady(parts, total, problem) {
+  S.pdfReady = { parts: parts };
   var old = document.getElementById('pdf-ready');
   if (old) old.parentNode.removeChild(old);
   var box = document.createElement('div');
@@ -5668,32 +5762,97 @@ function showPdfReady(blob, fileName, pages) {
   box.className = 'pdf-ready no-print';
   box.setAttribute('role', 'dialog');
   box.setAttribute('aria-label', '連絡帳のPDF');
+  var paper = '用紙は<b>A5・横・片面</b>です(PDFに設定済み。プリント画面で「両面」がオフになっているかだけ確かめてください)。';
+  var body;
+  if (parts.length > 1) {
+    var marks = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳';
+    body =
+      '<div class="pdf-ready-title">連絡帳のPDFができました(' + total + '名分)</div>' +
+      '<p>印刷が途中で止まらないよう、<b>' + parts.length + 'つに分けました</b>。上から順に「印刷する」を押し、出てきたメニューから<b>「プリント」</b>を選んでください。' + paper + '</p>' +
+      '<div class="pdf-parts">' + parts.map(function (part, i) {
+        var who = part.first ? esc(part.first) + ' 様' + (part.last && part.to > part.from ? ' 〜 ' + esc(part.last) + ' 様' : '') : '';
+        return '<div class="pdf-part" id="pdf-part-' + i + '">' +
+          '<div class="pdf-part-text"><b>' + (marks.charAt(i) || (i + 1) + '.') + ' ' + part.from + (part.to > part.from ? '〜' + part.to : '') + '人目(' + (part.to - part.from + 1) + '枚)</b>' +
+          (who ? '<small>' + who + '</small>' : '') + '</div>' +
+          '<button class="btn-primary" id="pdf-share-' + i + '" onclick="Actions.sharePdf(' + i + ')">印刷する</button>' +
+          '<button class="btn-outline" onclick="Actions.openPdf(' + i + ')">開く</button>' +
+          '</div>';
+      }).join('') + '</div>';
+  } else {
+    body =
+      '<div class="pdf-ready-title">連絡帳のPDFができました(' + total + '枚)</div>' +
+      '<p>「印刷・共有する」を押し、出てきたメニューから<b>「プリント」</b>を選んでください。' + paper + '</p>' +
+      '<button class="btn-primary" id="pdf-share" onclick="Actions.sharePdf(0)">印刷・共有する</button>' +
+      '<button class="btn-outline" onclick="Actions.openPdf(0)">PDFを開く</button>';
+  }
+  if (problem) {
+    body = '<div class="pdf-ready-title">連絡帳のPDFは途中までです</div>' +
+      '<p class="pdf-ready-problem">' + esc(problem).replace(/\n/g, '<br>') + '</p>' +
+      body.replace(/^<div class="pdf-ready-title">[^<]*<\/div>/, '');
+  }
   box.innerHTML =
-    '<div class="pdf-ready-card">' +
-    '<div class="pdf-ready-title">連絡帳のPDFができました(' + pages + '枚)</div>' +
-    '<p>「印刷・共有する」を押し、出てきたメニューから<b>「プリント」</b>を選んでください。用紙は<b>A5・横・片面</b>です(PDFに設定済み。プリント画面で「両面」がオフになっているかだけ確かめてください)。</p>' +
+    '<div class="pdf-ready-card">' + body +
     '<p class="section-note">iPadからプリンタが見つからないときは、同じメニューの「ファイルに保存」やメールで事務所のパソコンへ送って印刷できます。</p>' +
-    '<button class="btn-primary" id="pdf-share" onclick="Actions.sharePdf()">印刷・共有する</button>' +
-    '<button class="btn-outline" onclick="Actions.openPdf()">PDFを開く</button>' +
     '<button class="btn-outline" onclick="Actions.closePdf()">閉じる</button>' +
     '</div>';
   document.body.appendChild(box);
 }
 
-/** 連絡帳をPDFにする共通処理。button は進み具合を表示するボタン。作れたら true */
-function makeNotebookPdf(sheets, fileName, button) {
+function pdfReadyPart(i) {
+  var ready = S.pdfReady;
+  return ready && ready.parts ? ready.parts[i || 0] || null : null;
+}
+
+/** 分けたPDFを共有メニューへ渡し終えたら、その行に「済」を付ける(どこまで印刷したか分かるように) */
+function markPdfPartShared(i) {
+  var row = document.getElementById('pdf-part-' + (i || 0));
+  var btn = document.getElementById('pdf-share-' + (i || 0));
+  if (row) row.classList.add('is-done');
+  if (btn) btn.textContent = '✓ 済み(もう一度印刷)';
+}
+
+/**
+ * 連絡帳をPDFにする共通処理。button は進み具合を表示するボタン。作れたら true。
+ * opts.groupSize: この人数ずつのPDFに分ける(iPad・iPhone のまとめて印刷)。1回の印刷を小さくして、
+ *   プリンタへ送る途中で止まる・数枚しか出ないのを防ぐ(2026-11-18 現場「iPadやスマホでは数枚しか出てこない」)。
+ * opts.labels: 1枚ごとの利用者名(分けたPDFの見分けに使う)
+ */
+function makeNotebookPdf(sheets, fileName, button, opts) {
+  opts = opts || {};
   if (!sheets.length || S.pdfBusy) return Promise.resolve(false);
   S.pdfBusy = true;
   var label = button ? button.innerHTML : '';
   if (button) { button.disabled = true; button.textContent = 'PDFを作成中…'; }
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-  return notebookSheetsToPdf(sheets, function (n, total) {
-    if (button) button.textContent = 'PDFを作成中… ' + n + ' / ' + total;
-  }).then(function (blob) {
-    showPdfReady(blob, fileName, sheets.length);
+  var labels = opts.labels || [];
+  var groups = notebookPdfGroups(sheets.length, opts.groupSize);
+  var baseName = fileName.replace(/\.pdf$/i, '');
+  var parts = [];
+  var chain = Promise.resolve();
+  groups.forEach(function (g) {
+    chain = chain.then(function () {
+      return notebookSheetsToPdf(sheets.slice(g[0], g[1]), function (n) {
+        if (button) button.textContent = 'PDFを作成中… ' + (g[0] + n) + ' / ' + sheets.length;
+      }, { startNo: g[0] }).then(function (blob) {
+        parts.push({
+          blob: blob,
+          name: groups.length > 1 ? baseName + '_' + (g[0] + 1) + '-' + g[1] + '.pdf' : baseName + '.pdf',
+          from: g[0] + 1, to: g[1], first: labels[g[0]] || '', last: labels[g[1] - 1] || '',
+        });
+      });
+    });
+  });
+  return chain.then(function () {
+    showPdfReady(parts, sheets.length);
     return true;
   }).catch(function (e) {
-    alert((e && e.message) || 'PDFを作成できませんでした');
+    var msg = (e && e.message) || 'PDFを作成できませんでした';
+    // 分けたPDFのうち、できた分は捨てずに印刷できるようにする(残りの方は知らせる)
+    if (parts.length) {
+      var made = parts[parts.length - 1].to;
+      showPdfReady(parts, sheets.length, msg + '\n' + made + '人目まではできています。下のPDFを印刷し、' + (made + 1) + '人目からは事務所のパソコンで印刷するか、もう一度お試しください。');
+    }
+    alert(msg);
     return false;
   }).then(function (ok) {
     S.pdfBusy = false;
@@ -9448,7 +9607,7 @@ function drawNotebookBatch(app) {
       : '<div class="empty-note">' + (allBooks.length ? 'この日の' + NOTEBOOK_PART_LABELS[part] + 'に来所した方はいません' : 'この日の来所記録がありません') + '</div>') +
     (books.length ? (notebookUsesPdf()
       ? '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + who + books.length + '名分をPDFにして印刷</button>' +
-        '<p class="section-note">PDFができたら「印刷・共有する」→「プリント」を選びます。PDFには「片面・A5」の設定が入っています。プリント画面で「両面」がオフ、用紙が「A5」になっているかだけ確かめてください。</p>' +
+        '<p class="section-note">PDFは' + NOTEBOOK_PDF_GROUP_SIZE + '名ずつに分かれます(1回の印刷を小さくして、途中で止まらないようにするため)。できたら上から順に「印刷する」→「プリント」を選びます。PDFには「片面・A5」の設定が入っています。プリント画面で「両面」がオフ、用紙が「A5」になっているかだけ確かめてください。</p>' +
         '<p class="section-note">iPadで「AirPrintプリンタが見つかりません」と出るときは、同じメニューの「ファイルに保存」やメールで事務所のパソコンへ送るか、事務所のパソコンでこの画面(受付 →「本日の連絡帳をまとめて印刷」)を開いて印刷してください。</p>'
       : '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + who + books.length + '名分をA5横で印刷</button>' +
         '<button class="btn-outline" id="batch-pdf" onclick="Actions.printNotebookBatch(true)">📄 PDFにする(保存・送る)</button>' +
@@ -11083,7 +11242,11 @@ var Actions = {
     if (asPdf === true || notebookUsesPdf()) {
       var sheets = Array.prototype.slice.call(document.querySelectorAll('.notebook-batch-sheets .communication-sheet'));
       var button = document.getElementById(asPdf === true ? 'batch-pdf' : 'batch-print');
-      makeNotebookPdf(sheets, '連絡帳_' + partName + '_' + date + '.pdf', button).then(function (ok) { if (ok) markDone(); });
+      // 印刷するときは5名ずつのPDFに分ける(パソコンの「PDFにする(保存・送る)」は1つのまま)
+      makeNotebookPdf(sheets, '連絡帳_' + partName + '_' + date + '.pdf', button, {
+        groupSize: asPdf === true ? 0 : NOTEBOOK_PDF_GROUP_SIZE,
+        labels: books.map(function (b) { return b.user.name; }),
+      }).then(function (ok) { if (ok) markDone(); });
       return;
     }
     var oldTitle = document.title;
@@ -11092,30 +11255,32 @@ var Actions = {
     setTimeout(function () { document.title = oldTitle; }, 500);
     markDone();
   },
-  /** できたPDFを共有メニューへ(iPad/iPhone では「プリント」「ファイルに保存」などが選べる) */
-  sharePdf: function () {
-    var ready = S.pdfReady;
-    if (!ready) return;
+  /** できたPDFを共有メニューへ(iPad/iPhone では「プリント」「ファイルに保存」などが選べる)。i は分けたPDFの番号 */
+  sharePdf: function (i) {
+    var part = pdfReadyPart(i);
+    if (!part) return;
     var file = null;
-    try { file = new File([ready.blob], ready.name, { type: 'application/pdf' }); } catch (e) { file = null; }
+    try { file = new File([part.blob], part.name, { type: 'application/pdf' }); } catch (e) { file = null; }
     if (file && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: ready.name }).catch(function (e) {
+      navigator.share({ files: [file], title: part.name }).then(function () {
+        markPdfPartShared(i);
+      }).catch(function (e) {
         if (e && e.name === 'AbortError') return; // 共有メニューを閉じただけ
-        Actions.openPdf();
+        Actions.openPdf(i);
       });
       return;
     }
-    Actions.openPdf();
+    Actions.openPdf(i);
   },
   /** 共有メニューが使えない端末(パソコンなど)は、PDFを開く・保存する */
-  openPdf: function () {
-    var ready = S.pdfReady;
-    if (!ready) return;
+  openPdf: function (i) {
+    var part = pdfReadyPart(i);
+    if (!part) return;
     if (S.pdfUrl) URL.revokeObjectURL(S.pdfUrl);
-    S.pdfUrl = URL.createObjectURL(ready.blob);
+    S.pdfUrl = URL.createObjectURL(part.blob);
     var a = document.createElement('a');
     a.href = S.pdfUrl;
-    a.download = ready.name;
+    a.download = part.name;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
