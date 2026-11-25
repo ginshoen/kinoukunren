@@ -63,6 +63,14 @@ var HEADER_ALIASES = {
  */
 var TRAILING_HEADERS = {
   checkins: ['午前午後'],
+  // 2026-11-22 現場要望「実際の測定日を指定して保存」: 脳トレ・評価記録を当日以外の日付で入れたとき、いつ入力したかを残す列
+  cognitive: ['入力日時'],
+  assessments: ['入力日時'],
+};
+/** TRAILING_HEADERS の列の見出しのセルに付ける説明のメモと、保存できないときの文に使う名前 */
+var TRAILING_NOTES = {
+  午前午後: { label: '午前・午後の部', note: '午前午後(受付で選んだ午前の部・午後の部。前の版へ戻せるよう見出しは空けています)' },
+  入力日時: { label: '入力日時', note: '入力日時(実際に入力した日時。測定日・実施日と違う日に入力したかが分かる。前の版へ戻せるよう見出しは空けています)' },
 };
 var DAY_PARTS_ = ['午前', '午後'];
 // 注意: 8列目(H列)を午前・午後に使っている。将来チェックインの HEADERS に列を足すときは、この列とぶつかるので
@@ -85,8 +93,9 @@ function ensureTrailingHeader_(sh, key) {
   var head = sh.getRange(1, base + 1, 1, extra.length).getDisplayValues()[0];
   for (var i = 0; i < extra.length; i++) {
     var actual = String(head[i] || '').trim();
-    if (actual && actual !== extra[i]) throw new Error('シート「' + SHEETS[key] + '」の' + (base + i + 1) + '列目が「' + actual + '」になっています。午前・午後を保存できませんでした。');
-    if (!actual) sh.getRange(1, base + i + 1).setNote(extra[i] + '(受付で選んだ午前の部・午後の部。前の版へ戻せるよう見出しは空けています)');
+    var info = TRAILING_NOTES[extra[i]] || { label: extra[i], note: extra[i] };
+    if (actual && actual !== extra[i]) throw new Error('シート「' + SHEETS[key] + '」の' + (base + i + 1) + '列目が「' + actual + '」になっています。' + info.label + 'を保存できませんでした。');
+    if (!actual) sh.getRange(1, base + i + 1).setNote(info.note);
   }
 }
 
@@ -167,6 +176,8 @@ var API_REGISTRY = {
   apiCheckin: { fn: apiCheckin_, auth: 'staff' },
   apiCheckout: { fn: apiCheckout_, auth: 'staff' },
   apiSetCheckinDayPart: { fn: apiSetCheckinDayPart_, auth: 'staff' },
+  apiCancelCheckin: { fn: apiCancelCheckin_, auth: 'staff' },
+  apiGetDayResults: { fn: apiGetDayResults_, auth: 'staff' },
   apiRefreshToday: { fn: apiRefreshToday_, auth: 'staff' },
   apiVoidRecord: { fn: apiVoidRecord_, auth: 'staff' },
   apiGetVitalContext: { fn: apiGetVitalContext_, auth: 'staff' },
@@ -176,6 +187,7 @@ var API_REGISTRY = {
   apiSaveCognitive: { fn: apiSaveCognitive_, auth: 'staff' },
   apiSaveAssessment: { fn: apiSaveAssessment_, auth: 'staff' },
   apiSaveAssessmentBatch: { fn: apiSaveAssessmentBatch_, auth: 'staff' },
+  apiGetAssessmentsOn: { fn: apiGetAssessmentsOn_, auth: 'staff' },
   apiGetTodayExercises: { fn: apiGetTodayExercises_, auth: 'staff' },
   apiEditExerciseRecord: { fn: apiEditExerciseRecord_, auth: 'staff' },
   apiEditVital: { fn: apiEditVital_, auth: 'staff' },
@@ -558,6 +570,52 @@ function validDateStr_(value) {
   return text;
 }
 
+/** 日付の文字列(yyyy-MM-dd)を days 日ずらす */
+function shiftDateStr_(date, days) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date));
+  var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + days);
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+}
+
+/**
+ * 1年前の同じ日(暦で数える。2/29 の1年前は 2/28)。2026-11-22 点検の指摘: 365日で数えると、2/29 をはさむ年に1年前の同じ日が選べない
+ */
+function oneYearBeforeStr_(date) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date));
+  var y = Number(m[1]) - 1;
+  var last = new Date(y, Number(m[2]), 0).getDate();
+  return y + '-' + m[2] + '-' + ('0' + Math.min(Number(m[3]), last)).slice(-2);
+}
+
+/**
+ * 脳トレ・HDS-R・MMSE・体力測定の測定日・実施日(2026-11-22 現場要望「実際の測定日を指定して保存」「過去のデータを入れたい」)。
+ * 空なら今日。明日以降と、1年前の同じ日より前は断る(原山さん 11/22 決定)。
+ * 機能訓練(運動)とバイタルは対象外で、今までどおり当日だけ
+ */
+function recordDateFor_(value) {
+  var today = todayStr_();
+  var text = String(value == null ? '' : value).trim();
+  if (!text) return today;
+  var date = validDateStr_(text);
+  if (date > today) throw new Error('明日以降の日付では記録できません。');
+  if (date < oneYearBeforeStr_(today)) throw new Error('記録できるのは1年前までです。');
+  return date;
+}
+
+/**
+ * 記録の行の右に入力日時を足す(TRAILING_HEADERS)。当日以外の日付の記録は、入力日時を残せなければ保存しない
+ * (あとから入力した印を残す決め)。当日の記録は、列が使えなくても保存は止めない。row はロックの中で書く前に渡す
+ */
+function withEnteredAt_(key, row, date, stamp) {
+  try {
+    ensureTrailingHeader_(sheet_(key), key);
+    return row.concat([stamp]);
+  } catch (e) {
+    if (date !== todayStr_()) throw e;
+    return row;
+  }
+}
+
 function timeStr_(v) {
   if (v instanceof Date) return Utilities.formatDate(v, Session.getScriptTimeZone(), 'H:mm');
   return String(v);
@@ -756,6 +814,7 @@ function toCognitive_(r) {
     activity: String(r[4] || ''), note: String(r[5] || ''),
     durationMinutes: numOrNull_(r[7] == null ? '' : r[7]),
     metricValue: numOrNull_(r[8] == null ? '' : r[8]), metricUnit: String(r[9] || ''),
+    enteredAt: String(r[10] || ''), // 入力日時(2026-11-22〜。それより前の行は空)
   };
 }
 
@@ -764,6 +823,7 @@ function toAssessment_(r) {
     id: String(r[0]), date: dateStr_(r[1]), userId: String(r[2]), type: String(r[3]),
     result: String(r[4] || ''), detail: String(r[5] || ''),
     item: String(r[7] || ''), // 体力測定の種目名(TUG・握力など)
+    enteredAt: String(r[8] || ''), // 入力日時(2026-11-22〜。それより前の行は空)
   };
 }
 
@@ -915,7 +975,7 @@ function apiGetBootstrap_() {
   var me = CURRENT_STAFF_;
   return {
     apiVersion: 8,
-    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll'],
+    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll', 'cancelCheckin', 'dayResults'],
     // 起動時の往復を1回にするため、ログイン中の職員情報も一緒に返す(apiGetSession を別に呼ばない)
     me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null,
     users: allUsers_(),
@@ -1017,19 +1077,152 @@ function apiSetCheckinDayPart_(userId, dayPart) {
 function apiCheckout_(userId, transport) {
   var allowed = ['施設送迎', 'ご家族送迎', 'その他'];
   if (allowed.indexOf(String(transport)) < 0) throw new Error('送迎区分を選択してください。');
+  // 受付の取り消しと同時に押されても、取り消した受付に帰苑を書かないよう、ロックの中で読み直す(2026-11-25 点検の指摘)
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    invalidateRequestRows_('checkins');
+    invalidateRequestRows_('voids');
+    var today = todayStr_();
+    var rec = null;
+    checkinsOn_(today).forEach(function (c) {
+      if (c.userId === userId) rec = c;
+    });
+    if (!rec) {
+      if (checkinCancelledToday_(userId, today)) throw new Error(CHECKIN_CANCELLED_MESSAGE_);
+      throw new Error('本日の来苑記録がありません。');
+    }
+    var sh = sheet_('checkins');
+    var row = findRowById_(sh, rec.id);
+    if (row < 0) throw new Error('来苑記録が見つかりません。');
+    var checkoutTime = nowTime_();
+    sh.getRange(row, 5, 1, 2).setNumberFormat('@').setValues([[checkoutTime, String(transport)]]);
+    invalidateRequestRows_('checkins');
+    return { id: rec.id, checkoutTime: checkoutTime, transport: String(transport) };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * 本日の受付を取り消す(2026-11-25 現場要望「お休みの方を間違えて押して受付になったとき、あとから取り消したい」)。
+ * 原山さんの決め(11/25): 本日分だけ・職員ならだれでも・その日の記録がある方は取り消さずに知らせる・取り消した日時と人を残す。
+ * 元の受付は消さず、取消記録シートに(受付のID・日時・取り消した職員)を足す(apiVoidRecord と同じ残し方)。
+ * 記録がある方は { cancelled: false, blockers: ['バイタル', ...] } を返す(取り消さない)。
+ */
+function apiCancelCheckin_(userId) {
+  userId = String(userId || '');
+  var target = allUsers_().filter(function (u) { return u.id === userId; })[0];
+  if (!target) throw new Error('利用者が見つかりません。');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    // ほかの端末の受付・記録・取り消しを待ってから読み直す(2台で同時に操作しても、記録のある方を取り消さない)
+    ['checkins', 'voids', 'vitals', 'records', 'cognitive', 'assessments', 'dailyStatus'].forEach(invalidateRequestRows_);
+    var today = todayStr_();
+    var rec = null;
+    checkinsOn_(today).forEach(function (c) { if (c.userId === userId && !rec) rec = c; });
+    if (!rec) {
+      return { cancelled: false, notFound: true, blockers: [], todayCheckins: apiGetTodayCheckins_() };
+    }
+    var blockers = checkinBlockers_(userId, today, rec);
+    if (blockers.length) return { cancelled: false, blockers: blockers, todayCheckins: apiGetTodayCheckins_() };
+    // 同じ方の本日の受付が2行あるとき(古い端末の二重受付など)は、どれも取り消す(1つ残ると受付済みのままになる)
+    var stamp = editStamp_();
+    checkinsOn_(today).filter(function (c) { return c.userId === userId; }).forEach(function (c) {
+      voidRecordNoLock_('checkins', c.id, stamp);
+    });
+    return { cancelled: true, blockers: [], todayCheckins: apiGetTodayCheckins_() };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** その日、この方の受付を取り消すと宙に浮く記録(帰苑・バイタル・運動・脳トレ・体力測定・連絡帳・連絡帳の印刷済み・入浴/食事)の名前 */
+function checkinBlockers_(userId, date, checkin) {
+  var out = [];
+  function mine(list) { return list.some(function (x) { return x.userId === userId; }); }
+  if (checkin && String(checkin.checkoutTime || '').trim()) out.push('帰苑');
+  if (mine(vitalsOn_(date))) out.push('バイタル');
+  if (mine(recordsOn_(date))) out.push('機能訓練');
+  if (mine(cognitiveOn_(date))) out.push('脳トレ');
+  if (mine(assessmentsOn_(date))) out.push('体力測定・評価');
+  var entry = notebookEntry_(userId, date, false);
+  var status = dailyStatusOn_(date).filter(function (st) { return st.userId === userId; });
+  if (entry && (String(entry.comment || '').trim() || entry.hasPhoto)) out.push('連絡帳');
+  if (status.some(function (st) { return st.notebookDone; })) out.push('連絡帳の印刷済み');
+  if (status.some(function (st) { return st.bathed || st.mealDone; })) out.push('入浴・食事');
+  return out;
+}
+
+/** 受付が取り消されているときの知らせ(画面はこの文で見分けて、そのまま職員に見せる) */
+var CHECKIN_CANCELLED_MESSAGE_ = 'この方の本日の受付は取り消されています。記録は保存していません。来所された方なら、受付画面で受付し直してから記録してください。';
+
+/**
+ * 本日分の記録を保存する前に、この方の本日の受付が「取り消されて、生きている受付がない」なら断る
+ * (2026-11-25 点検の指摘: 取り消しのあと、別の端末で開いたままの記録メニューから保存すると記録が宙に浮く)。
+ * 受付がもともとない方(受付なしで記録する今までの使い方)・本日以外の日付の記録は今までどおり保存する。
+ * ロックの中で呼ぶときは、ほかの端末の取り消しを待ったあとの状態で確かめる(受付と取消記録を読み直す)
+ */
+function assertCheckinNotCancelled_(userId, date) {
   var today = todayStr_();
-  var rec = null;
-  checkinsOn_(today).forEach(function (c) {
-    if (c.userId === userId) rec = c;
-  });
-  if (!rec) throw new Error('本日の来苑記録がありません。');
-  var sh = sheet_('checkins');
-  var row = findRowById_(sh, rec.id);
-  if (row < 0) throw new Error('来苑記録が見つかりません。');
-  var checkoutTime = nowTime_();
-  sh.getRange(row, 5, 1, 2).setNumberFormat('@').setValues([[checkoutTime, String(transport)]]);
+  if (date && date !== today) return;
   invalidateRequestRows_('checkins');
-  return { id: rec.id, checkoutTime: checkoutTime, transport: String(transport) };
+  invalidateRequestRows_('voids');
+  if (checkinCancelledToday_(userId, today)) throw new Error(CHECKIN_CANCELLED_MESSAGE_);
+}
+
+/** この方の本日の受付が、あったのにすべて取り消されているか */
+function checkinCancelledToday_(userId, today) {
+  var mine = rowsOnDate_('checkins', today).map(toCheckin_).filter(function (c) { return c.userId === userId; });
+  if (!mine.length) return false;
+  var voided = voidedIds_();
+  return !mine.some(function (c) { return !voided[c.id]; });
+}
+
+/**
+ * 実績確認(2026-11-25 現場要望「日付を選ぶと、その日のご利用者様が一覧で出る」)。読むだけ。職員みんなが使える。
+ * その日に受付した方(取り消した受付は出さない)と、その日の記録の有無を返す。来所予定で受付のない方(お休み)は出さない(原山さんの決め)。
+ * 選べるのは今日まで(明日より先はエラー)。
+ */
+function apiGetDayResults_(date) {
+  date = String(date || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(new Date(date + 'T00:00:00').getTime())) throw new Error('日付の形が違います。');
+  var today = todayStr_();
+  if (date > today) throw new Error('明日より先の日付は選べません。');
+  var users = {};
+  allUsers_().forEach(function (u) { users[u.id] = u; });
+  var vitals = vitalsOn_(date);
+  var records = recordsOn_(date);
+  var cognitive = cognitiveOn_(date);
+  var assessments = assessmentsOn_(date);
+  var statusMap = {};
+  dailyStatusOn_(date).forEach(function (st) { statusMap[st.userId] = st; });
+  var seen = {};
+  var checkins = checkinsOn_(date).filter(function (c) {
+    if (!users[c.userId] || seen[c.userId]) return false; // 同じ方の二重の受付は1行に
+    seen[c.userId] = true;
+    return true;
+  });
+  var notebooks = checkins.length ? notebookEntries_(date, checkins.map(function (c) { return c.userId; }), false) : {};
+  function mine(list, userId) { return list.filter(function (x) { return x.userId === userId; }); }
+  var rows = checkins.map(function (c) {
+    var exIds = {};
+    mine(records, c.userId).forEach(function (r) { exIds[r.exerciseId] = true; });
+    var st = statusMap[c.userId] || {};
+    var nb = notebooks[c.userId];
+    return {
+      userId: c.userId,
+      checkin: { id: c.id, time: c.time, checkoutTime: c.checkoutTime, transport: c.transport, dayPart: c.dayPart || '' },
+      vitalCount: mine(vitals, c.userId).length,
+      exerciseCount: Object.keys(exIds).length,
+      cognitiveCount: mine(cognitive, c.userId).length,
+      assessmentCount: mine(assessments, c.userId).length,
+      notebookDone: !!st.notebookDone,
+      notebookSaved: !!(nb && (String(nb.comment || '').trim() || nb.hasPhoto)),
+    };
+  }).sort(function (a, b) { return timeKey_(a.checkin.time) < timeKey_(b.checkin.time) ? -1 : timeKey_(a.checkin.time) > timeKey_(b.checkin.time) ? 1 : 0; });
+  return { date: date, today: today, rows: rows };
 }
 
 /** 受付画面のポーリング用: 日付跨ぎ検知と他端末のチェックイン反映 */
@@ -1558,7 +1751,8 @@ function apiGetUserPhotos_() {
  * 画面でワイズマン等の一覧ファイルを読み取り、確認した行だけが届く。氏名・年齢は必須。
  * 同じ氏名(空白を除く)の利用者がすでにいれば登録しない(二重登録を防ぐ。直すときは1人ずつ編集)。
  */
-var IMPORT_CARE_LEVELS = ['事業対象者', '要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
+// 「申請中」は 2026-11-22 現場要望「利用者管理画面の介護度に申請中を」で追加(画面の CARE_LEVELS と同じ並び)
+var IMPORT_CARE_LEVELS = ['事業対象者', '要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5', '申請中'];
 var IMPORT_WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土'];
 function apiAdminImportUsers_(list) {
   if (!Array.isArray(list) || !list.length) throw new Error('取り込む利用者がいません');
@@ -1699,6 +1893,7 @@ function apiSaveVitals_(payload) {
     flagged: alerts.length > 0, alerts: alerts,
     conditionNote: safeText_(payload.conditionNote, 300),
   };
+  assertCheckinNotCancelled_(rec.userId, rec.date);
   appendRow_('vitals', [
     rec.id, rec.date, rec.time, rec.userId,
     rec.systolic, rec.diastolic, rec.pulse, rec.temp === null ? '' : rec.temp,
@@ -1787,6 +1982,7 @@ function apiSaveExercise_(payload) {
     userId: payload.userId, exerciseId: payload.exerciseId,
     amount: String(payload.amount), load: String(payload.load), note: note,
   };
+  assertCheckinNotCancelled_(rec.userId, rec.date);
   appendRow_('records', [
     rec.id, rec.date, rec.time, rec.userId, rec.exerciseId, rec.amount, rec.load, rec.note,
     currentStaffName_(),
@@ -1796,7 +1992,9 @@ function apiSaveExercise_(payload) {
 
 /**
  * 15分コマ形式の訓練記録を一括保存する。
- * 1コマ目の準備運動は自動追加し、プルダウンで選んだ最大4種目を保存する(準備運動＋15分×4枠)。
+ * 1コマ目の準備運動は自動追加し、プルダウンで選んだ運動を保存する(準備運動＋15分×4枠)。
+ * 2026-11-22 現場要望「同じ運動も選べるように」: 同じ運動を2コマ以上選べる(同じ日にあとから同じ運動を足すのも可)。
+ * そのかわり、準備運動のほかのコマはその日の合計で4コマまで(以前は1回の保存で4種目まで・重なりは1つにまとめていた)
  */
 var EXERCISE_SLOT_COUNT = 4;
 
@@ -1805,44 +2003,65 @@ function apiSaveExerciseBatch_(payload) {
   if (!userExists) throw new Error('利用者が見つかりません。');
   var requested = Array.isArray(payload.exerciseIds) ? payload.exerciseIds : [];
   var date = todayStr_();
-  var prepRecorded = recordsOn_(date).some(function (r) {
-    return r.userId === String(payload.userId) && r.exerciseId === 'prep';
-  });
-  var ids = prepRecorded ? [] : ['prep'];
+  var userId = String(payload.userId);
+  var picked = [];
   requested.forEach(function (id) {
     id = String(id || '').trim();
-    var selected = ids.filter(function (x) { return x !== 'prep'; }).length;
-    if (id && id !== 'prep' && ids.indexOf(id) < 0 && selected < EXERCISE_SLOT_COUNT) ids.push(id);
+    if (id && id !== 'prep') picked.push(id);
   });
   var byId = {};
   allExercises_().forEach(function (e) { byId[e.id] = e; });
-  ids.forEach(function (id) {
+  picked.forEach(function (id) {
     if (!byId[id]) throw new Error('訓練種目が見つかりません: ' + id);
   });
   var note = safeText_(payload.note, 300);
   // 「その他」は入力した運動名を「負荷」列に残す(この列は15分コマ形式では使っていない)
   var otherText = safeText_(payload.otherText, 40);
-  if (ids.indexOf(OTHER_EXERCISE_ID) >= 0 && !otherText) throw new Error('「その他」の運動の内容を入力してください。');
-  if (!ids.length) return addExerciseNote_(String(payload.userId), note);
+  if (picked.indexOf(OTHER_EXERCISE_ID) >= 0 && !otherText) throw new Error('「その他」の運動の内容を入力してください。');
+  if (!picked.length) {
+    // 運動を選ばずに保存したとき: 準備運動がまだなら準備運動だけを記録、記録済みなら特記事項の書き足し(前と同じ)
+    var prepDone = recordsOn_(date).some(function (r) { return r.userId === userId && r.exerciseId === 'prep'; });
+    if (prepDone) return addExerciseNote_(userId, note);
+  }
   var time = nowTime_();
-  var records = ids.map(function (id, i) {
-    return {
-      id: newId_(), date: date, time: time, userId: String(payload.userId),
-      exerciseId: id, amount: '15分', load: id === OTHER_EXERCISE_ID ? otherText : '', note: i === 0 ? note : '',
-    };
-  });
+  var records;
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    records.forEach(function (rec) {
-      appendRowNoLock_('records', [
-        rec.id, rec.date, rec.time, rec.userId, rec.exerciseId, rec.amount, rec.load, rec.note,
-        currentStaffName_(),
-      ]);
-    });
+    // 準備運動の有無と「1日4コマまで」は、ロックの中で読み直して数える(2026-11-22 点検の指摘: 2台で同時に保存しても5コマ以上入らない)
+    invalidateRequestRows_('records');
+    invalidateRequestRows_('voids');
+    assertCheckinNotCancelled_(userId, date);
+    var todays = recordsOn_(date).filter(function (r) { return r.userId === userId; });
+    var prepRecorded = todays.some(function (r) { return r.exerciseId === 'prep'; });
+    if (picked.length) {
+      var doneSlots = todays.filter(function (r) { return r.exerciseId !== 'prep'; }).length;
+      var left = Math.max(0, EXERCISE_SLOT_COUNT - doneSlots);
+      if (picked.length > left) {
+        throw new Error('運動は準備運動のほかに1日' + EXERCISE_SLOT_COUNT + 'コマまでです。本日はあと' + left + 'コマ記録できます。');
+      }
+    }
+    var ids = (prepRecorded ? [] : ['prep']).concat(picked);
+    if (!prepRecorded && !byId.prep) throw new Error('訓練種目が見つかりません: prep');
+    // 運動を選ばずに保存し、そのあいだに別の端末で準備運動が記録されたときは、特記事項の書き足しにする(ロックを外してから)
+    if (ids.length) {
+      records = ids.map(function (id, i) {
+        return {
+          id: newId_(), date: date, time: time, userId: userId,
+          exerciseId: id, amount: '15分', load: id === OTHER_EXERCISE_ID ? otherText : '', note: i === 0 ? note : '',
+        };
+      });
+      records.forEach(function (rec) {
+        appendRowNoLock_('records', [
+          rec.id, rec.date, rec.time, rec.userId, rec.exerciseId, rec.amount, rec.load, rec.note,
+          currentStaffName_(),
+        ]);
+      });
+    }
   } finally {
     lock.releaseLock();
   }
+  if (!records) return addExerciseNote_(userId, note);
   return { records: records };
 }
 
@@ -1939,7 +2158,7 @@ function notebookStateToday_(userId) {
 /**
  * 本日の機能訓練の記録を1つ直す・取り消す。
  * payload: { userId, recordId, exerciseId?, otherText?, note?, remove? }
- *  - 準備運動は種目を変えられない(特記事項だけ直せる)。ほかの種目は、本日まだ記録していない種目か「その他」に変えられる
+ *  - 準備運動は種目を変えられない(特記事項だけ直せる)。ほかの種目は、停止中でない種目か「その他」に変えられる(同じ日に同じ運動が2回あってもよい。2026-11-22)
  *  - remove=true は、その記録を取り消すだけ(新しい記録は足さない)
  */
 function apiEditExerciseRecord_(payload) {
@@ -1968,12 +2187,7 @@ function apiEditExerciseRecord_(payload) {
     if (!exercise && exerciseId !== old.exerciseId) throw new Error('訓練種目が見つかりません: ' + exerciseId);
     if (!exercise) exercise = { id: exerciseId, name: exerciseId, active: true };
     if (exerciseId !== old.exerciseId && exercise.active === false) throw new Error('停止中の種目には変えられません。');
-    if (exerciseId !== old.exerciseId && exerciseId !== OTHER_EXERCISE_ID) {
-      var dup = recordsOn_(todayStr_()).some(function (r) {
-        return r.userId === userId && r.id !== old.id && r.exerciseId === exerciseId;
-      });
-      if (dup) throw new Error('「' + exercise.name + '」は本日すでに記録されています。');
-    }
+    // 本日すでにある運動にも変えられる(2026-11-22 現場要望「同じ運動も選べるように」。以前は本日まだない運動だけ)
     if (exerciseId === OTHER_EXERCISE_ID && !otherText) throw new Error('「その他」の運動の内容を入力してください。');
     var rec = {
       id: newId_(), date: old.date, time: old.time, userId: userId, exerciseId: exerciseId,
@@ -2047,16 +2261,29 @@ function apiSaveCognitive_(payload) {
   if (!userExists) throw new Error('利用者が見つかりません。');
   var activity = safeText_(payload.activity, 120);
   if (!activity) throw new Error('脳トレの実施内容を入力してください。');
+  var date = recordDateFor_(payload.date);
+  var today = date === todayStr_();
   var rec = {
-    id: newId_(), date: validDateStr_(payload.date || todayStr_()), time: nowTime_(), userId: payload.userId,
+    // 当日以外の日付で入れたときは、実施した時刻が分からないので時刻を空にする(入力日時は右の列に残る)
+    id: newId_(), date: date, time: today ? nowTime_() : '', userId: payload.userId,
     activity: activity, note: safeText_(payload.note, 300),
     durationMinutes: numericOrNull_(payload.durationMinutes, 0, 600, '所要時間'),
     metricValue: numericOrNull_(payload.metricValue, -999999, 999999, '成果数値'),
     metricUnit: safeText_(payload.metricUnit, 12),
+    enteredAt: editStamp_(),
   };
-  appendRow_('cognitive', [rec.id, rec.date, rec.time, rec.userId, rec.activity, rec.note, currentStaffName_(),
-    rec.durationMinutes == null ? '' : rec.durationMinutes,
-    rec.metricValue == null ? '' : rec.metricValue, rec.metricUnit]);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    assertCheckinNotCancelled_(rec.userId, rec.date);
+    var row = withEnteredAt_('cognitive', [rec.id, rec.date, rec.time, rec.userId, rec.activity, rec.note, currentStaffName_(),
+      rec.durationMinutes == null ? '' : rec.durationMinutes,
+      rec.metricValue == null ? '' : rec.metricValue, rec.metricUnit], rec.date, rec.enteredAt);
+    if (row.length <= HEADERS.cognitive.length) rec.enteredAt = '';
+    appendRowNoLock_('cognitive', row);
+  } finally {
+    lock.releaseLock();
+  }
   return rec;
 }
 
@@ -2078,17 +2305,36 @@ function apiSaveAssessment_(payload) {
   var result = safeText_(payload.result, 120);
   if (!result) throw new Error('評価結果を入力してください。');
   var rec = {
-    id: newId_(), date: validDateStr_(payload.date || todayStr_()), userId: payload.userId,
+    id: newId_(), date: recordDateFor_(payload.date), userId: payload.userId,
     type: String(payload.type), result: result, detail: safeText_(payload.detail, 500),
     item: safeText_(payload.item, 40), // 体力測定の種目名(TUG・握力など)
+    enteredAt: editStamp_(),
   };
-  appendRow_('assessments', [rec.id, rec.date, rec.userId, rec.type, rec.result, rec.detail, currentStaffName_(), rec.item]);
+  var lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    assertCheckinNotCancelled_(rec.userId, rec.date);
+    var row = withEnteredAt_('assessments', [rec.id, rec.date, rec.userId, rec.type, rec.result, rec.detail, currentStaffName_(), rec.item],
+      rec.date, rec.enteredAt);
+    if (row.length <= HEADERS.assessments.length) rec.enteredAt = '';
+    appendRowNoLock_('assessments', row);
+  } finally {
+    lock.releaseLock();
+  }
   return rec;
 }
 
 var GRIP_SIDES = ['右', '左'];
 
-/** 体力測定を1種目ずつ、利用者複数名分まとめて保存する。測定日はサーバーの当日日付を自動使用する。 */
+/** 選んだ日の評価記録(体力測定の一括入力で「その日に記録済み」を出すため。2026-11-22) */
+function apiGetAssessmentsOn_(date) {
+  return { date: recordDateFor_(date), assessments: assessmentsOn_(recordDateFor_(date)) };
+}
+
+/**
+ * 体力測定を1種目ずつ、利用者複数名分まとめて保存する。測定日は payload.date(空なら今日)。
+ * 2026-11-22 まではサーバーの当日日付を自動で使っていた(現場要望「過去のデータを入れたい」で日付を選べるように)
+ */
 function apiSaveAssessmentBatch_(payload) {
   var item = safeText_(payload.item, 40);
   if (!item) throw new Error('測定種目を選択してください。');
@@ -2098,7 +2344,8 @@ function apiSaveAssessmentBatch_(payload) {
   var users = {};
   allUsers_().forEach(function (u) { users[u.id] = true; });
   var seen = {};
-  var date = todayStr_();
+  var date = recordDateFor_(payload.date);
+  var enteredAt = editStamp_();
   var records = [];
   entries.forEach(function (entry) {
     var userId = String(entry.userId || '');
@@ -2112,16 +2359,33 @@ function apiSaveAssessmentBatch_(payload) {
     seen[key] = true;
     records.push({
       id: newId_(), date: date, userId: userId, type: '体力測定', item: recItem,
-      result: result, detail: safeText_(entry.detail, 500),
+      result: result, detail: safeText_(entry.detail, 500), enteredAt: enteredAt,
     });
   });
   if (!records.length) throw new Error('保存できる測定結果がありません。');
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
+    if (date === todayStr_()) {
+      // 本日の受付を取り消した方が入っていたら、全員分を保存せずに知らせる(2026-11-25)
+      invalidateRequestRows_('checkins');
+      invalidateRequestRows_('voids');
+      var nameOf = {};
+      allUsers_().forEach(function (u) { nameOf[u.id] = u.name; });
+      var cancelled = [];
+      records.forEach(function (rec) {
+        if (cancelled.indexOf(nameOf[rec.userId]) < 0 && checkinCancelledToday_(rec.userId, date)) cancelled.push(nameOf[rec.userId]);
+      });
+      if (cancelled.length) {
+        throw new Error(cancelled.join('・') + ' さんの本日の受付は取り消されています。どなたの分も保存していません。その方の結果を空にしてから保存し直してください。');
+      }
+    }
+    // 入力日時の列は1回だけ確かめる(全員分で同じ)
+    var stampCell = withEnteredAt_('assessments', [], date, enteredAt);
     records.forEach(function (rec) {
+      if (!stampCell.length) rec.enteredAt = '';
       appendRowNoLock_('assessments', [rec.id, rec.date, rec.userId, rec.type, rec.result,
-        rec.detail, currentStaffName_(), rec.item]);
+        rec.detail, currentStaffName_(), rec.item].concat(stampCell));
     });
   } finally {
     lock.releaseLock();
@@ -2356,6 +2620,12 @@ function notebookEntry_(userId, date, withPhoto) {
 }
 
 /**
+ * 連絡帳「弐番館より」の上限(2026-11-25 原山さん決定。画面 Client.html NOTEBOOK_COMMENT_MAX と同じ)。
+ * 長いと印刷で文字がとても小さくなるため。以前は600字まで受け付けていた(保存済みの長い文章は読むだけならそのまま)
+ */
+var NOTEBOOK_COMMENT_MAX_ = 100;
+
+/**
  * 連絡帳の本文・写真を保存する(利用者×日付で上書き)。
  * payload: { userId, date, comment, photo?(dataURL), removePhoto? }
  * photo を省略した場合は既存の写真を維持する。
@@ -2365,7 +2635,7 @@ function apiSaveNotebookEntry_(payload) {
   var userId = String(payload.userId || '');
   if (!allUsers_().some(function (u) { return u.id === userId; })) throw new Error('利用者が見つかりません。');
   var date = validDateStr_(payload.date || todayStr_());
-  var comment = safeText_(payload.comment, 600);
+  var comment = safeText_(payload.comment, NOTEBOOK_COMMENT_MAX_);
   var photo = null;
   if (payload.photo) {
     photo = String(payload.photo);
@@ -2375,6 +2645,7 @@ function apiSaveNotebookEntry_(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
+    assertCheckinNotCancelled_(userId, date);
     var sh = sheet_('notebooks');
     ensureColumns_(sh, NOTEBOOK_PHOTO_COL - 1 + NOTEBOOK_PHOTO_CELLS);
     var row = 0;
@@ -2914,6 +3185,8 @@ function apiSaveDailyStatus_(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
+    // 入浴・食事・連絡帳の印を付けるときだけ確かめる(印を外すのは取り消したあとでもできる。2026-11-25)
+    if (row[3] || row[4] || row[5]) assertCheckinNotCancelled_(userId, date);
     var sh = sheet_('dailyStatus');
     var idx = findRowById_(sh, id);
     if (idx < 0) appendRowNoLock_('dailyStatus', row);
