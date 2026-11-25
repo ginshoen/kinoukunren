@@ -1938,7 +1938,8 @@ button.record-line { width: 100%; text-align: left; font: inherit; cursor: point
   font-size: 12px;
 }
 .notebook-tools .btn-outline { flex: none; min-height: 42px; padding: 0 16px; }
-.notebook-count { margin-left: auto; font-weight: 800; color: var(--green-dark); }
+.notebook-count { margin-left: auto; font-weight: 800; color: var(--green-dark); white-space: nowrap; }
+.notebook-count.warn { white-space: normal; }
 .notebook-count.warn { color: var(--alert-text); }
 .communication-sheet {
   width: 100%;
@@ -2225,7 +2226,7 @@ button.record-line { width: 100%; text-align: left; font: inherit; cursor: point
 .precaution-banner strong { display: block; font-size: 15px; line-height: 1.6; }
 .precaution-check { display: flex; align-items: center; gap: 8px; margin-top: 9px; font-size: 14px; font-weight: 900; }
 .precaution-check input { width: 24px; height: 24px; accent-color: #a63f20; }
-/* 記録メニューの上の注意点(2026-11-16): 個人目標・既往歴(押して開く)・未登録の項目 */
+/* 記録メニューの上の注意点(2026-11-16): 個人目標・既往歴(2026-11-25 からいつも表示。長いと2行で畳む)・未登録の項目 */
 .care-summary {
   display: grid; gap: 0; padding: 4px 14px; border: 1px solid var(--border); border-radius: 14px; background: #fff;
 }
@@ -2234,16 +2235,32 @@ button.record-line { width: 100%; text-align: left; font: inherit; cursor: point
 .care-label { font-size: 12px; font-weight: 900; color: var(--text-aux); letter-spacing: .04em; }
 .care-text { margin: 0; font-size: 15px; line-height: 1.6; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
 .care-empty { font-size: 14px; color: var(--text-aux); }
-.care-goal.is-long:not(.is-open) .care-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.care-clamp.is-long:not(.is-open) .care-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .care-more { justify-self: start; min-height: 36px; padding: 0; font-size: 14px; font-weight: 800; }
-.care-history summary {
-  display: flex; align-items: center; min-height: 40px; cursor: pointer; list-style: none;
-  font-size: 15px; font-weight: 800; color: var(--green, #176b52);
-}
-.care-history summary::-webkit-details-marker { display: none; }
-.care-history summary::before { content: "▸"; margin-right: 8px; transition: transform .15s ease; }
-.care-history[open] summary::before { transform: rotate(90deg); }
-.care-history[open] summary { margin-bottom: 4px; }
+/* 記録メニューの「受付を取り消す」(2026-11-25): 押すと確かめの枠を出す */
+.checkin-cancel-open { justify-self: start; min-height: 40px; padding: 0; font-size: 14px; font-weight: 800; color: var(--alert-text); }
+.checkin-cancel-box { display: grid; gap: 10px; margin-top: 6px; padding: 12px; border: 1px solid var(--alert-border); border-radius: 12px; background: var(--alert-bg); }
+.checkin-cancel-box p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text); }
+.checkin-cancel-box p b { display: block; margin-bottom: 2px; color: var(--alert-text); }
+.checkin-cancel-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.checkin-cancel-actions button { min-height: 44px; padding: 8px 16px; font-size: 15px; }
+.checkin-cancel-actions .btn-danger { background: var(--alert); color: #fff; border-color: var(--alert); }
+/* 実績確認(2026-11-25): 日付の切り替えと、来所者ごとの記録の有無 */
+.results-date { display: grid; gap: 8px; }
+.results-date-input { width: 100%; min-width: 0; min-height: 44px; font-size: 16px; }
+.results-date-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.results-day-btn { flex: none; min-height: 44px; padding: 6px 12px; font-size: 14px; white-space: nowrap; }
+.results-day-btn:disabled { opacity: .45; }
+.results-date-label { text-align: center; font-size: 16px; font-weight: 800; color: var(--text); }
+.results-date-label small { display: block; font-size: 12px; font-weight: 700; color: var(--text-aux); }
+.results-today { justify-self: center; min-height: 36px; font-size: 14px; }
+.results-row .person-main { min-width: 0; }
+.results-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.results-badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 11.5px; font-weight: 700; line-height: 1.6;
+  color: #5f6368; background: #f1f3f4; }
+.results-badge.done { color: #137333; background: #e6f4ea; }
+.results-row .person-time { white-space: nowrap; }
+@media (max-width: 360px) { .results-day-btn { padding: 6px 8px; font-size: 13px; } }
 .admin-gate { width: 100%; max-width: 440px; display: grid; gap: 14px; }
 .admin-gate .note-area { min-height: 50px; font-size: 20px; letter-spacing: 4px; }
 .admin-gate .btn-primary { width: 100%; }
@@ -3838,11 +3855,21 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
   .adm-user-actions button { min-width: 0; padding: 0 10px; font-size: 13px; white-space: nowrap; }
 }
 @media (prefers-reduced-motion: reduce) { .kana-chev, .kana-acc-head { transition: none; } }
+/* 測定日・実施日の欄(2026-11-22 現場要望)。今日以外を選んだら黄色にして気づけるようにする */
+@media screen {
+  .record-date { display: flex; flex-direction: column; gap: 6px; }
+  .record-date input[type="date"] { min-height: 48px; font-size: 16px; max-width: 260px; }
+  .record-date.is-past { background: #fef7e0; border-color: #f9ab00; }
+  .record-date-note { color: #b06000; font-size: 13px; font-weight: 700; }
+  .record-date-error { color: var(--alert-text); font-size: 13px; font-weight: 700; }
+  .late-entry { color: #b06000; font-weight: 700; }
+  .exercise-slot-note { margin: 4px 2px 0; font-size: 13px; }
+}
 </style>
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261119-1011';window.APP_MOCK=false;window.APP_DEMO=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261125-0941';window.APP_MOCK=false;window.APP_DEMO=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -4374,9 +4401,30 @@ function rpc(name) {
     if (!ttl) clearRpcCache(name);
     else if (!writtenSince(name, requestEpoch)) RPC_CACHE[key] = { data: data, expires: Date.now() + ttl };
     return data;
+  }).catch(function (err) {
+    noteCheckinCancelled(err);
+    throw err;
   }).finally(function () { delete RPC_INFLIGHT[key]; });
   if (ttl) RPC_INFLIGHT[key] = request;
   return request;
+}
+
+/**
+ * 保存しようとした方の本日の受付が、別の端末で取り消されていたとき(サーバーが断る。2026-11-25 点検の指摘)。
+ * 各画面の「保存できませんでした」のあとに、サーバーの文(受付し直してから記録して)を出し直し、受付の一覧を読み直す
+ */
+var CHECKIN_CANCELLED_PATTERN = /本日の受付は取り消されています/;
+function noteCheckinCancelled(err) {
+  var message = String((err && err.message) || err || '');
+  if (!CHECKIN_CANCELLED_PATTERN.test(message)) return false;
+  S.todayStatusCache = null;
+  setTimeout(function () {
+    showSaveError(message);
+    rpc('apiRefreshToday').then(function (res) {
+      if (res && res.todayCheckins) S.todayCheckins = res.todayCheckins;
+    }).catch(function () {});
+  }, 0);
+  return true;
 }
 
 /** 未登録端末を管理者PINでGASへペアリングする。 */
@@ -4403,6 +4451,8 @@ function pairDeviceRpc(pin) {
 
 var S = {
   ready: false,
+  cancelCheckin: null,  // 記録メニューの「受付を取り消す」の確かめ中 {userId, busy, blockers}(2026-11-25)
+  resultsDate: '',      // 実績確認で見ている日(空なら今日。2026-11-25)
   // --- 職員ログイン ---
   session: localStorage.getItem('staffSession') || '', // 署名付きセッション(12時間)
   me: null,             // {id, name, role, jobTitle} ログイン中の職員
@@ -4754,6 +4804,67 @@ function dayLabel(date) {
   var d = new Date(date + 'T00:00:00');
   return (d.getMonth() + 1) + '/' + d.getDate() + '(' + WEEKDAYS[d.getDay()] + ')';
 }
+/**
+ * 脳トレ・HDS-R・MMSE・体力測定の測定日・実施日(2026-11-22 現場要望「実際の測定日を指定して保存」「過去のデータを入れたい」)。
+ * 初めは今日。選べるのは1年前から今日まで(Code.gs recordDateFor_ と同じ。原山さん 11/22 決定)。機能訓練(運動)とバイタルは当日だけ
+ */
+/**
+ * 1年前の同じ日(暦で数える。2/29 の1年前は 2/28)。2026-11-22 点検の指摘: 365日で数えると、2/29 をはさむ年に1年前の同じ日が選べない
+ */
+function oneYearBefore(date) {
+  var p = String(date).split('-');
+  var y = Number(p[0]) - 1, m = Number(p[1]), d = Number(p[2]);
+  var last = new Date(y, m, 0).getDate();
+  return y + '-' + p[1] + '-' + ('0' + Math.min(d, last)).slice(-2);
+}
+function shiftDate(date, days) {
+  var p = String(date).split('-');
+  var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]) + days);
+  return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+}
+function monthDayLabel(date) {
+  var p = String(date).split('-');
+  return Number(p[1]) + '月' + Number(p[2]) + '日';
+}
+/** 選んだ日付を確かめる。空なら今日。範囲の外なら null */
+function recordDateValue(value) {
+  var v = String(value || '').trim();
+  if (!v) return S.today;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || v > S.today || v < oneYearBefore(S.today)) return null;
+  return v;
+}
+/** 測定日の欄(draft.date・draft.dateError を使う)。今日以外を選ぶと黄色にして、どの日の記録になるかを出す */
+function recordDateHtml(draft, action, label) {
+  var date = (draft && draft.date) || S.today;
+  var past = date !== S.today;
+  var error = draft && draft.dateError;
+  return '<div class="card record-date' + (past ? ' is-past' : '') + '"><label class="card-label" for="record-date">' + esc(label) + '</label>' +
+    '<input class="select-plain" id="record-date" type="date" value="' + esc(date) + '" min="' + esc(oneYearBefore(S.today)) +
+    '" max="' + esc(S.today) + '" onchange="' + action + '(this.value)">' +
+    (error ? '<small class="record-date-error" role="alert">' + esc(error) + '</small>' : '') +
+    (past
+      ? '<small class="record-date-note">' + esc(dayLabel(date)) + ' の記録として保存します(今日あとから入力したことも残ります)</small>'
+      : '<small class="section-note">ほかの日に測った結果を入れるときは、日付を変えてください(1年前まで)</small>') +
+    '</div>';
+}
+/** 日付の欄の変更を下書きに入れる。範囲の外なら日付は変えずに知らせる */
+function setRecordDate(draft, value) {
+  var date = recordDateValue(value);
+  var oldest = oneYearBefore(S.today);
+  draft.dateError = date ? '' : '選べるのは1年前(' + oldest.slice(0, 4) + '年' + monthDayLabel(oldest) + ')から今日までです';
+  if (date) draft.date = date;
+}
+/** 保存ボタンの文字。今日以外なら「11月15日の記録として保存」 */
+function recordSaveLabel(date, base) {
+  return date && date !== S.today ? monthDayLabel(date) + 'の記録として保存' : base;
+}
+/** 履歴の「あとから入力」の印(測定日と違う日に入力した記録だけ) */
+function lateEntryMark(r) {
+  var at = String((r && r.enteredAt) || '');
+  if (!at || at.slice(0, 10) === r.date) return '';
+  return ' · <span class="late-entry">あとから入力(' + esc(shortDate(at.slice(0, 10))) + ')</span>';
+}
+
 function monthLabel(m) {
   var p = m.split('-');
   return p[0] + '年' + Number(p[1]) + '月';
@@ -5180,10 +5291,17 @@ function tabBarHtml(active) {
       ' onclick="go(\'' + hash + '\')">' + svg + '<span>' + label + '</span></button>'
     );
   }
+  // 実績確認(2026-11-25 現場要望)。職員みんなに出す。古い Apps Script のままのときは出さない
+  var icoResults =
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/>' +
+    '<line x1="16" y1="2" x2="16" y2="6"/><polyline points="8.5 14.5 11 17 15.5 12.5"/></svg>';
+  var showResults = S.capabilities.indexOf('dayResults') >= 0;
   return (
     '<nav class="tab-bar" aria-label="主要画面の切り替え">' +
     item('checkin', '', '受付', icoScan) +
     item('users', 'users', '利用者', icoUsers) +
+    (showResults ? item('results', 'results', '実績', icoResults) : '') +
     (isAdmin() ? item('admin', 'admin/menu', '管理', icoAdmin) : '') +
     '</nav>'
   );
@@ -5422,8 +5540,7 @@ function goAfterSave(hash) {
 
 window.addEventListener('hashchange', function () {
   navTrack_();
-  // 記録メニューで開いた「既往歴」は、画面を移ったら閉じる(共用の端末で、次に見た職員に開いたまま見せない)
-  S.menuHistoryOpen = '';
+  S.cancelCheckin = null; // 「受付を取り消す」の確かめは、画面を移ったら閉じる
   window.scrollTo(0, 0);
   render();
 });
@@ -5919,6 +6036,7 @@ function renderRoute() {
   if (h.indexOf('admin') === 0 && !isAdmin()) return renderNoPermission(app);
   if (h === 'admin/menu') return renderAdminMenu(app);
   if (h === 'admin/staff') return renderAdminStaff(app, renderId);
+  if (h === 'results') return renderResults(app, renderId);
   if (h === 'users') return renderUserList(app, renderId);
   if (h.indexOf('users/') === 0) return renderUserDetail(app, h.slice(6), renderId);
   if (h.indexOf('arrival/') === 0) return renderArrival(app, h.slice(8));
@@ -6027,6 +6145,12 @@ function renderCheckin(app) {
       '<span class="check-circle">' + (S.toast.type === 'info' ? 'ℹ' : '✓') + '</span><span>' +
       '<span class="t-title" style="display:block;">' + esc(S.toast.title) + '</span>' +
       '<span class="t-sub">' + esc(S.toast.sub) + '</span></span></button>';
+  } else if (S.toast && S.toast.type === 'notice') {
+    // 押しても何もしない知らせ(受付の取り消しのあとなど)
+    toastHtml =
+      '<div class="toast-success toast-info" role="status"><span class="check-circle">✓</span><span>' +
+      '<span class="t-title" style="display:block;">' + esc(S.toast.title) + '</span>' +
+      '<span class="t-sub">' + esc(S.toast.sub) + '</span></span></div>';
   } else if (S.toast && S.toast.type === 'error') {
     toastHtml =
       '<div class="toast-error" role="alert"><span class="x-circle">✕</span><span>' +
@@ -6194,27 +6318,73 @@ function precautionHtml(user, confirmable) {
 
 /**
  * 記録メニューの上に出す、この方の注意点(2026-11-16 現場要望。原山さんの決め)。
- * 運動の禁止事項・注意点と個人目標は常に出し、既往歴は「既往歴を見る」を押したときだけ開く。
+ * 運動の禁止事項・注意点、個人目標、既往歴をいつも出す(2026-11-25 現場要望「既往歴も目標と同じように押さなくても見られるように」。
+ * 11/16 は既往歴だけ押して開く作りだった)。長いもの(60字超)は2行まで出して「続きを見る」。
  * 個人目標は利用者の詳細と同じく、個別目標進捗の最新(latestGoal)を優先し、なければ利用者マスタの個人目標。
  */
 function userMenuCareHtml(user, latestGoal) {
   var goal = String((latestGoal ? latestGoal.goal : user.goal) || '').trim();
   var history = String(user.medicalHistory || '').trim();
-  var open = S.menuHistoryOpen === user.id;
-  var longGoal = goal.length > 60;
+  function row(cls, label, text) {
+    var isLong = text.length > CARE_TEXT_FOLD_CHARS;
+    return '<div class="care-row care-clamp ' + cls + (isLong ? ' is-long' : '') + '"><span class="care-label">' + label + '</span>' +
+      (text ? '<p class="care-text">' + esc(text) + '</p>' +
+        (isLong ? '<button type="button" class="link-plain care-more" onclick="Actions.toggleCareGoal(this)">続きを見る</button>' : '')
+        : '<span class="care-empty">未登録</span>') + '</div>';
+  }
   return precautionHtml(user, false) +
     '<section class="care-summary" aria-label="この方の注意点">' +
     (String(user.precautions || '').trim() ? '' :
       '<div class="care-row"><span class="care-label">運動の禁止事項・注意点</span><span class="care-empty">未登録</span></div>') +
-    '<div class="care-row care-goal' + (longGoal ? ' is-long' : '') + '"><span class="care-label">個人目標</span>' +
-    (goal ? '<p class="care-text">' + esc(goal) + '</p>' +
-      (longGoal ? '<button type="button" class="link-plain care-more" onclick="Actions.toggleCareGoal(this)">続きを見る</button>' : '')
-      : '<span class="care-empty">未登録</span>') + '</div>' +
-    (history
-      ? '<details class="care-row care-history"' + (open ? ' open' : '') + ' ontoggle="Actions.careHistoryToggle(\'' + user.id + '\', this.open)">' +
-        '<summary>既往歴を見る</summary><p class="care-text">' + esc(history) + '</p></details>'
-      : '<div class="care-row"><span class="care-label">既往歴</span><span class="care-empty">未登録</span></div>') +
+    row('care-goal', '個人目標', goal) +
+    row('care-history', '既往歴', history) +
     '</section>';
+}
+/** 記録メニューの個人目標・既往歴で、これより長いと2行で畳んで「続きを見る」を出す */
+var CARE_TEXT_FOLD_CHARS = 60;
+
+/**
+ * 記録メニューの「受付を取り消す」(2026-11-25 現場要望。お休みの方を間違えて押して受付になったとき)。
+ * 本日の受付だけ。1回目で確かめの文を出し、2回目で取り消す(iPad の確認ダイアログは止められることがあるため画面の中で確かめる)。
+ * その日の記録がある方はサーバーが取り消さずに知らせる(原山さんの決め 11/25)
+ */
+function cancelCheckinHtml(user, checkin) {
+  if (!checkin || checkin.pending || S.capabilities.indexOf('cancelCheckin') < 0) return '';
+  var ask = S.cancelCheckin && S.cancelCheckin.userId === user.id ? S.cancelCheckin : null;
+  if (!ask) {
+    return '<button type="button" class="link-plain checkin-cancel-open" onclick="Actions.cancelCheckinAsk(\'' + user.id + '\')">受付を取り消す</button>';
+  }
+  var blocked = ask.blockers && ask.blockers.length;
+  return '<div class="checkin-cancel-box" role="' + (blocked ? 'alert' : 'group') + '">' +
+    (blocked
+      ? '<p><b>受付は取り消していません。</b>本日すでに「' + esc(ask.blockers.join('・')) + '」の記録があります。' + esc(checkinBlockersGuide(ask.blockers)) + '</p>' +
+        '<div class="checkin-cancel-actions"><button type="button" class="btn-outline" onclick="Actions.cancelCheckinClose()">閉じる</button></div>'
+      : '<p><b>' + esc(user.name) + ' さまの本日の受付を取り消しますか？</b>取り消すと、受付画面の「来所予定(未受付)」に戻ります。取り消した日時と職員名は残ります。</p>' +
+        '<div class="checkin-cancel-actions">' +
+        '<button type="button" class="btn-outline" onclick="Actions.cancelCheckinClose()"' + (ask.busy ? ' disabled' : '') + '>やめる</button>' +
+        '<button type="button" class="btn-danger" onclick="Actions.cancelCheckinRun(\'' + user.id + '\')"' + (ask.busy ? ' disabled' : '') + '>' +
+        (ask.busy ? '取り消しています…' : '受付を取り消す') + '</button></div>') +
+    '</div>';
+}
+
+/**
+ * 受付を取り消せなかったときの案内(2026-11-25 点検の指摘: 脳トレ・体力測定・帰苑は、職員があとから取り消す画面がない)。
+ * 記録ごとに、どこで取り消せるか(取り消せないか)を分けて書く
+ */
+var CHECKIN_BLOCKER_WHERE = {
+  'バイタル': 'staff', '機能訓練': 'staff', '連絡帳': 'staff',
+  '入浴・食事': 'admin', '連絡帳の印刷済み': 'admin',
+  '脳トレ': 'none', '体力測定・評価': 'none', '帰苑': 'none',
+};
+function checkinBlockersGuide(blockers) {
+  var by = { staff: [], admin: [], none: [] };
+  (blockers || []).forEach(function (b) { by[CHECKIN_BLOCKER_WHERE[b] || 'none'].push(b); });
+  var out = ['お休みの方の記録なら、'];
+  if (by.staff.length) out.push(by.staff.join('・') + 'は記録メニューのそれぞれの画面で取り消せます' + (by.staff.indexOf('連絡帳') >= 0 ? '(連絡帳は文章と写真を消して保存)' : '') + '。');
+  if (by.admin.length) out.push(by.admin.join('・') + 'は、管理者が「本日の進捗」の画面で外せます。');
+  if (by.none.length) out.push(by.none.join('・') + 'は、今のアプリでは取り消せないため、管理者に相談してください。');
+  out.push('取り消したあと、もう一度お試しください。');
+  return out.join('');
 }
 
 /** 本日の全記録(15秒キャッシュ)。メニューの状況表示に使う */
@@ -6307,7 +6477,7 @@ function renderUserMenu(app, renderId) {
     var statusHtml =
       '<div class="card today-card session-summary">' +
       '<div class="today-status"><span class="status-dot"></span>' +
-      (checkin ? esc(checkin.time) + ' 受付済み' : '受付記録なし') + '</div>' + partHtml +
+      (checkin ? esc(checkin.time) + ' 受付済み' : '受付記録なし') + '</div>' + partHtml + cancelCheckinHtml(user, checkin) +
       // 押すと、その測定を直す画面になる(体調の書き足し・入力間違いの修正。2026-11-17 現場要望)
       (vital
         ? '<button type="button" class="today-vitals today-vitals-edit" onclick="Actions.goVitalEdit(\'' + esc(vital.id) + '\')" aria-label="本日のバイタルを直す・書き足す">' +
@@ -6542,8 +6712,12 @@ function getTodayExerciseRecords(userId, onFresh) {
   });
 }
 
-/** 準備運動のあとに選ぶ15分コマの数(現場要望で4枠。サーバー側 EXERCISE_SLOT_COUNT と合わせる) */
+/** 準備運動のあとに選ぶ15分コマの数(現場要望で4枠。サーバー側 EXERCISE_SLOT_COUNT と合わせる)。2026-11-22 から1日の合計 */
 var EXERCISE_SLOT_COUNT = 4;
+/** その日に記録済みの、準備運動のほかのコマの数 */
+function exerciseSlotsUsed(records) {
+  return (records || []).filter(function (r) { return r.exerciseId !== PREPARATION_EXERCISE_ID; }).length;
+}
 function emptyExerciseSlots() {
   var slots = [];
   for (var i = 0; i < EXERCISE_SLOT_COUNT; i++) slots.push('');
@@ -6552,12 +6726,13 @@ function emptyExerciseSlots() {
 
 /**
  * 実施済みの運動を1つ直す欄(2026-11-17 現場要望「急にメニューが変わったとき、本日実施済みの項目を修正できるように」)。
- * 準備運動は特記事項だけ直せる。ほかは、本日まだ記録していない種目か「その他」に変えられる。元の記録は取り消しとして残る
+ * 準備運動は特記事項だけ直せる。ほかは、停止中でない運動か「その他」に変えられる(同じ運動が2回あってもよい。2026-11-22)。元の記録は取り消しとして残る
  */
 function exerciseEditHtml(r, edit, doneIds) {
   var isPrep = r.exerciseId === PREPARATION_EXERCISE_ID;
   var options = isPrep ? '' : activeExercises().filter(function (ex) {
-    return ex.id !== PREPARATION_EXERCISE_ID && (ex.id === r.exerciseId || ex.id === OTHER_EXERCISE_ID || !doneIds[ex.id]);
+    // 本日すでにある運動にも変えられる(2026-11-22 現場要望「同じ運動も選べるように」)
+    return ex.id !== PREPARATION_EXERCISE_ID;
   }).map(function (ex) {
     return '<option value="' + esc(ex.id) + '"' + (edit.exerciseId === ex.id ? ' selected' : '') + '>' +
       esc(ex.id === OTHER_EXERCISE_ID ? ex.name + '（内容を入力）' : ex.name) + '</option>';
@@ -6596,7 +6771,8 @@ function exerciseOrder(a, b) {
 /** 機能訓練の保存ボタンの文字。運動を記録したあとで、運動を選んでいないときは「特記事項を書き足す」(点検の指摘) */
 function exSaveLabel(records, d) {
   var hasPrep = (records || []).some(function (r) { return r.exerciseId === PREPARATION_EXERCISE_ID; });
-  var picked = ((d && d.slots) || []).some(Boolean);
+  var left = Math.max(0, EXERCISE_SLOT_COUNT - exerciseSlotsUsed(records));
+  var picked = ((d && d.slots) || []).slice(0, left).some(Boolean);
   return hasPrep && !picked ? '特記事項を書き足す' : '選択した運動を記録する';
 }
 
@@ -6636,23 +6812,30 @@ function renderExerciseScan(app, renderId) {
     var d = S.exDraft;
     var doneIds = {};
     records.forEach(function (r) { doneIds[r.exerciseId] = true; });
-    var selectable = activeExercises().filter(function (ex) {
-      return ex.id !== PREPARATION_EXERCISE_ID && (!doneIds[ex.id] || ex.id === OTHER_EXERCISE_ID);
-    });
-    var otherPicked = d.slots.indexOf(OTHER_EXERCISE_ID) >= 0;
+    // 同じ運動も何コマでも選べる(2026-11-22 現場要望)。そのかわり準備運動のほかは1日合計4コマまで。
+    // 記録済みのコマのあとに、残りのコマだけ選ぶ欄を出す(番号は続きから)
+    var doneSlots = exerciseSlotsUsed(records);
+    var left = Math.max(0, EXERCISE_SLOT_COUNT - doneSlots);
+    var selectable = activeExercises().filter(function (ex) { return ex.id !== PREPARATION_EXERCISE_ID; });
     while (d.slots.length < EXERCISE_SLOT_COUNT) d.slots.push('');
-    var slotHtml = emptyExerciseSlots().map(function (_, i) {
-      var selectedElsewhere = {};
-      d.slots.forEach(function (id, j) { if (j !== i && id) selectedElsewhere[id] = true; });
+    var otherPicked = d.slots.slice(0, left).indexOf(OTHER_EXERCISE_ID) >= 0;
+    var slotHtml = d.slots.slice(0, left).map(function (_, i) {
       var options = selectable.map(function (ex) {
-        return '<option value="' + esc(ex.id) + '"' + (d.slots[i] === ex.id ? ' selected' : '') +
-          (selectedElsewhere[ex.id] ? ' disabled' : '') + '>' + esc(ex.id === OTHER_EXERCISE_ID ? ex.name + '（内容を入力）' : ex.name) + '</option>';
+        return '<option value="' + esc(ex.id) + '"' + (d.slots[i] === ex.id ? ' selected' : '') + '>' +
+          esc(ex.id === OTHER_EXERCISE_ID ? ex.name + '（内容を入力）' : ex.name) + '</option>';
       }).join('');
-      return '<label class="exercise-slot"><span class="slot-number">' + (i + 2) + '</span>' +
-        '<span class="slot-main"><b>15分コマ ' + (i + 2) + '</b>' +
-        '<select class="select-plain" aria-label="運動種目' + (i + 1) + '" onchange="Actions.exSlot(' + i + ', this.value)">' +
+      var no = doneSlots + i + 2;
+      return '<label class="exercise-slot"><span class="slot-number">' + no + '</span>' +
+        '<span class="slot-main"><b>15分コマ ' + no + '</b>' +
+        '<select class="select-plain" aria-label="運動種目' + (doneSlots + i + 1) + '" onchange="Actions.exSlot(' + i + ', this.value)">' +
         '<option value="">未実施（連絡帳に表示しない）</option>' + options + '</select></span></label>';
     }).join('') +
+      (doneSlots
+        ? '<p class="section-note exercise-slot-note">' +
+          (left ? '本日は' + doneSlots + 'コマ記録済みです。あと' + left + 'コマ選べます(同じ運動も選べます)'
+            : '本日の' + EXERCISE_SLOT_COUNT + 'コマはすべて記録済みです。変えるときは下の「直す」から') +
+          '</p>'
+        : '') +
       (otherPicked
         ? '<label class="exercise-other"><span class="card-label">「その他」の運動の内容 <span class="required-tag">必須</span></span>' +
           '<input class="note-area" id="ex-other" maxlength="40" placeholder="例: 輪投げ" value="' + esc(d.otherText || '') + '" oninput="Actions.exOther(this.value)"></label>'
@@ -6716,7 +6899,7 @@ function renderCognitive(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
   if (!S.cogDraft) S.cogDraft = {
-    activity: '', free: '', durationMinutes: '', metricValue: '', metricUnit: '点', note: '',
+    activity: '', free: '', durationMinutes: '', metricValue: '', metricUnit: '点', note: '', date: S.today,
   };
   showLoading(app, hasTodayStatusCache());
 
@@ -6751,6 +6934,7 @@ function renderCognitive(app, renderId) {
       '<div class="screen-intro compact-intro"><span class="eyebrow">脳トレ</span><h1>実施内容を記録</h1>' +
       '<p>実施した内容を選ぶか、自由に入力してください。</p></div>' +
       snackbarHtml() +
+      recordDateHtml(d, 'Actions.cogDate', '実施日') +
       '<button class="btn-outline copy-previous" onclick="Actions.cogCopyPrevious()">↻ 前回の脳トレ内容をコピー</button>' +
       '<div class="card"><label class="card-label" for="cog-program">実施プログラム</label>' +
       '<select class="form-select" id="cog-program" onchange="Actions.cogSelect(this.value)">' + options + '</select>' +
@@ -6767,7 +6951,7 @@ function renderCognitive(app, renderId) {
       templateChipsHtml('cognitive', 'cogUseTemplate') +
       '<textarea class="note-area" maxlength="300" placeholder="例: 20問中18問正解。集中して取り組まれた。" oninput="Actions.cogNote(this.value)">' + esc(d.note) + '</textarea></div>' +
       '<div id="cog-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
-      '<button class="btn-primary" id="cog-save" style="flex:none;width:100%;" onclick="Actions.cogSave()">この内容で記録する</button>' +
+      '<button class="btn-primary" id="cog-save" style="flex:none;width:100%;" onclick="Actions.cogSave()">' + esc(recordSaveLabel(d.date, 'この内容で記録する')) + '</button>' +
       '<div><div class="section-head" style="margin-bottom:8px;"><span class="section-title">本日の脳トレ記録</span></div>' +
       '<div class="record-list">' + recordsHtml + '</div></div>' +
       '</div>' + tabBarHtml('') + '</div></div>';
@@ -6782,7 +6966,7 @@ function renderCognitive(app, renderId) {
 function renderAssessment(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
-  if (!S.assessDraft) S.assessDraft = { type: '体力測定', item: '', freeItem: '', result: '', detail: '' };
+  if (!S.assessDraft) S.assessDraft = { type: '体力測定', item: '', freeItem: '', result: '', detail: '', date: S.today };
   if (S.assessDraft.type === '体力測定') return renderFitnessBatch(app, renderId);
   showLoading(app, isRpcFresh('apiGetUserDetail', [user.id]));
 
@@ -6798,7 +6982,7 @@ function renderAssessment(app, renderId) {
     var recentHtml = recent.length
       ? recent.map(function (r) {
           return '<div class="record-line assessment"><b>' + esc(r.item || r.type) + '</b><span>' + esc(r.result) + '</span>' +
-            '<small>' + dayLabel(r.date) + (r.detail ? ' · ' + esc(r.detail) : '') + '</small></div>';
+            '<small>' + dayLabel(r.date) + lateEntryMark(r) + (r.detail ? ' · ' + esc(r.detail) : '') + '</small></div>';
         }).join('')
       : '<div class="empty-note">この評価の記録はまだありません</div>';
 
@@ -6815,6 +6999,7 @@ function renderAssessment(app, renderId) {
       snackbarHtml() +
       '<div class="card"><span class="card-label">評価の種類</span>' +
       '<div class="segment-row">' + typeSegs + '</div></div>' +
+      recordDateHtml(d, 'Actions.assessDate', '測定日') +
       '<div class="card"><span class="card-label">点数</span>' +
       '<input class="note-area" id="assess-result" maxlength="120"' +
       ' placeholder="例: 24/30点" value="' + esc(d.result) + '"' +
@@ -6822,7 +7007,7 @@ function renderAssessment(app, renderId) {
       '<div class="card"><span class="card-label">詳細・所見(任意)</span>' +
       '<textarea class="note-area" maxlength="500" placeholder="例: 前回より0.8秒短縮。" oninput="Actions.assessDetail(this.value)">' + esc(d.detail) + '</textarea></div>' +
       '<div id="assess-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
-      '<button class="btn-primary" id="assess-save" style="flex:none;width:100%;" onclick="Actions.assessSave()">この内容で記録する</button>' +
+      '<button class="btn-primary" id="assess-save" style="flex:none;width:100%;" onclick="Actions.assessSave()">' + esc(recordSaveLabel(d.date, 'この内容で記録する')) + '</button>' +
       '<div><div class="section-head" style="margin-bottom:8px;"><span class="section-title">' + esc(d.type) + ' の記録(直近)</span></div>' +
       '<div class="record-list">' + recentHtml + '</div></div>' +
       '</div>' + tabBarHtml('') + '</div></div>';
@@ -6834,9 +7019,12 @@ function renderAssessment(app, renderId) {
 
 /** 体力測定: 1種目について利用者全員分を同じ画面で入力する。 */
 function renderFitnessBatch(app, renderId) {
-  if (!S.assessBatch) S.assessBatch = { item: FITNESS_ITEMS[0], entries: {}, message: '' };
-  showLoading(app, hasTodayStatusCache());
-  getTodayStatus().then(function (today) {
+  if (!S.assessBatch) S.assessBatch = { item: FITNESS_ITEMS[0], entries: {}, message: '', date: S.today };
+  if (!S.assessBatch.date) S.assessBatch.date = S.today;
+  var pastDay = S.assessBatch.date !== S.today;
+  // 今日以外の測定日を選んだときは、その日の記録を読んで「この日に記録済み」を出す(2026-11-22)
+  showLoading(app, pastDay ? isRpcFresh('apiGetAssessmentsOn', [S.assessBatch.date]) : hasTodayStatusCache());
+  (pastDay ? rpc('apiGetAssessmentsOn', S.assessBatch.date) : getTodayStatus()).then(function (today) {
     if (!isCurrentRender(renderId)) return;
     var d = S.assessBatch;
     var typeSegs = ['体力測定', 'HDS-R', 'MMSE'].map(function (t) {
@@ -6868,26 +7056,26 @@ function renderFitnessBatch(app, renderId) {
         '<div class="assessment-person">' + avatarHtml(u, 'avatar-xs') + '<span><b>' + esc(u.name) + '</b><small>' + esc(u.kana || u.careLevel) + '</small></span></div>' +
         valueHtml +
         '<label><span>所見（任意）</span><input maxlength="500" value="' + esc(entry.detail) + '" placeholder="前回より短縮" oninput="Actions.assessBatchInput(\'' + esc(u.id) + '\',\'detail\',this.value)"></label>' +
-        (prior ? '<div class="assessment-saved">本日記録済み: ' + esc(prior) + '</div>' : '') +
+        (prior ? '<div class="assessment-saved">' + (pastDay ? 'この日に記録済み: ' : '本日記録済み: ') + esc(prior) + '</div>' : '') +
         '</div>';
     }).join('');
     app.innerHTML =
       '<div class="phone-wrap assessment-wide-wrap"><div class="phone assessment-wide">' +
       '<header class="phone-header compact"><button class="back-btn gin-back gin-back--always" onclick="return navBack(\'menu\')" aria-label="前の画面に戻る">戻る</button>' +
       '<div><div class="h-sub">体力測定</div><div class="h-title">種目別 一括入力</div></div>' +
-      '<div class="h-right"><span class="pill-badge">' + esc(dayLabel(S.today)) + '</span></div></header>' +
+      '<div class="h-right"><span class="pill-badge">' + esc(dayLabel(d.date)) + '</span></div></header>' +
       '<div class="phone-body" style="gap:14px;">' +
       '<div class="screen-intro compact-intro"><span class="eyebrow">一括入力</span><h1>利用者全員をまとめて記録</h1>' +
-      '<p>種目を選び、実施した方の測定値だけ入力します。測定日は保存時に自動記録されます。</p></div>' +
+      '<p>測定日と種目を選び、実施した方の測定値だけ入力します。測定日は初め今日になっています。</p></div>' +
       snackbarHtml() +
       (d.message ? '<div class="toast-success" role="status"><span class="check-circle">✓</span><span>' + esc(d.message) + '</span></div>' : '') +
       '<div class="card"><span class="card-label">評価の種類</span><div class="segment-row">' + typeSegs + '</div></div>' +
+      recordDateHtml(d, 'Actions.assessBatchDate', '測定日') +
       '<div class="card assessment-item-select"><label class="card-label" for="fitness-item">測定種目</label>' +
-      '<select class="form-select" id="fitness-item" onchange="Actions.assessBatchItem(this.value)">' + itemOptions + '</select>' +
-      '<span class="auto-date">記録日: ' + esc(S.today) + '（自動）</span></div>' +
+      '<select class="form-select" id="fitness-item" onchange="Actions.assessBatchItem(this.value)">' + itemOptions + '</select></div>' +
       '<div class="assessment-grid"><div class="assessment-grid-head"><b>利用者</b><b>測定値</b><b>所見</b></div>' + rows + '</div>' +
       '<div id="assess-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
-      '<button class="btn-primary" id="assess-save" style="flex:none;width:100%;" onclick="Actions.assessBatchSave()">入力した測定結果を一括保存</button>' +
+      '<button class="btn-primary" id="assess-save" style="flex:none;width:100%;" onclick="Actions.assessBatchSave()">' + esc(recordSaveLabel(d.date, '入力した測定結果を一括保存')) + '</button>' +
       '</div>' + tabBarHtml('') + '</div></div>';
   }).catch(function () {
     if (!isCurrentRender(renderId)) return;
@@ -6965,6 +7153,94 @@ function normalizeUserSearch(value) {
   return text.replace(/\s/g, '').replace(/[ァ-ヶ]/g, function (c) {
     return String.fromCharCode(c.charCodeAt(0) - 0x60);
   }).toLowerCase();
+}
+
+// ---------------------------------------------------------------- 実績確認(2026-11-25 現場要望)
+
+/**
+ * 日付を選ぶと、その日に受付した方を午前の部・午後の部に分けて一覧で出す。読むだけ(職員みんな)。
+ * 取り消した受付・来所予定で受付のない方(お休み)は出さない(原山さんの決め 11/25)。行を押すとその方の詳細
+ */
+function renderResults(app, renderId) {
+  if (S.capabilities.indexOf('dayResults') < 0) return go('');
+  var date = S.resultsDate && S.resultsDate <= S.today ? S.resultsDate : S.today;
+  S.resultsDate = date;
+  var isToday = date === S.today;
+  function shell(body) {
+    return '<div class="phone-wrap"><div class="phone">' +
+      '<header class="phone-header compact">' +
+      '<button class="back-btn gin-back gin-back--always" onclick="return navBack(\'\')" aria-label="前の画面に戻る">戻る</button>' +
+      '<div><div class="h-sub">デイサービス銀松苑</div><div class="h-title">実績確認</div></div>' +
+      '</header>' +
+      '<div class="phone-body" style="gap:12px;">' +
+      '<div class="card results-date"><label class="card-label" for="results-date">見る日</label>' +
+      '<input class="select-plain results-date-input" id="results-date" type="date" value="' + esc(date) + '" max="' + esc(S.today) + '" onchange="Actions.resultsDate(this.value)">' +
+      '<div class="results-date-row">' +
+      '<button type="button" class="btn-outline results-day-btn" onclick="Actions.resultsShift(-1)">◀ 前の日</button>' +
+      '<span class="results-date-label">' + esc(dayLabel(date)) + (isToday ? '<small>今日</small>' : '') + '</span>' +
+      '<button type="button" class="btn-outline results-day-btn" onclick="Actions.resultsShift(1)"' + (isToday ? ' disabled' : '') + '>次の日 ▶</button>' +
+      '</div>' +
+      (isToday ? '' : '<button type="button" class="link-plain results-today" onclick="Actions.resultsDate(\'\')">今日にもどる</button>') + '</div>' +
+      body +
+      '</div>' + tabBarHtml('results') + '</div></div>';
+  }
+  app.innerHTML = shell(loadingHtml());
+  rpc('apiGetDayResults', date).then(function (res) {
+    if (!isCurrentRender(renderId)) return;
+    var usersById = {};
+    S.users.forEach(function (u) { usersById[u.id] = u; });
+    var groups = { '午前': [], '午後': [] };
+    (res.rows || []).forEach(function (r) {
+      var u = usersById[r.userId];
+      if (!u) return;
+      var part = visitDayPart(u, date, r.checkin) === '午後' ? '午後' : '午前';
+      groups[part].push({ r: r, u: u });
+    });
+    var total = groups['午前'].length + groups['午後'].length;
+    function badge(done, text) {
+      return '<span class="results-badge' + (done ? ' done' : '') + '">' + (done ? '✓ ' : '') + esc(text) + '</span>';
+    }
+    function row(x) {
+      var r = x.r, c = r.checkin || {};
+      var time = esc(c.time || '') + (c.checkoutTime ? '〜' + esc(c.checkoutTime) : '');
+      var nb = r.notebookDone ? '連絡帳 印刷済み' : r.notebookSaved ? '連絡帳 入力済み' : '連絡帳';
+      return '<button class="person-row tappable results-row" onclick="go(\'users/' + x.u.id + '\')">' +
+        avatarHtml(x.u, 'avatar-sm') +
+        '<span class="person-main"><span class="person-name">' + esc(x.u.name) + '</span>' +
+        '<span class="person-care">' + esc(x.u.careLevel) + (c.transport ? '・' + esc(c.transport) : '') + '</span>' +
+        '<span class="results-badges">' +
+        badge(r.vitalCount > 0, 'バイタル') +
+        badge(r.exerciseCount > 0, r.exerciseCount > 0 ? '運動 ' + r.exerciseCount + '種目' : '運動') +
+        (r.cognitiveCount > 0 ? badge(true, '脳トレ ' + r.cognitiveCount + '件') : '') +
+        (r.assessmentCount > 0 ? badge(true, '測定 ' + r.assessmentCount + '件') : '') +
+        badge(r.notebookDone || r.notebookSaved, nb) +
+        '</span></span>' +
+        '<span class="person-time">' + time + '</span>' +
+        '<span class="chev" aria-hidden="true">›</span></button>';
+    }
+    var body = '<div class="section-head"><span class="section-title">' + esc(dayLabel(date)) + ' のご利用者</span>' +
+      '<span class="section-note" role="status">' + total + '名(午前 ' + groups['午前'].length + '・午後 ' + groups['午後'].length + ')</span></div>';
+    if (!total) {
+      body += '<div class="empty-state"><strong>この日に受付した方はいません</strong><p>日付を変えてお試しください。</p></div>';
+    } else {
+      body += [['午前', '午前の部', 'am'], ['午後', '午後の部', 'pm']].map(function (p) {
+        var list = groups[p[0]];
+        if (!list.length) return '';
+        return '<div class="checkin-part checkin-part--' + p[2] + '">' +
+          '<div class="checkin-part-head"><span class="checkin-part-title">' + p[1] + '</span>' +
+          '<span class="checkin-part-count">' + list.length + '名</span></div>' +
+          list.map(row).join('') + '</div>';
+      }).join('');
+      body += '<p class="section-note">時刻は来苑〜帰苑。取り消した受付と、受付のない方(お休み)は出ていません。名前を押すと、その方の記録・経過を見られます。</p>';
+    }
+    app.innerHTML = shell(body);
+  }).catch(function (e) {
+    if (!isCurrentRender(renderId)) return;
+    app.innerHTML = shell('<div class="toast-error" role="alert"><span class="x-circle">✕</span><span>' +
+      '<span class="t-title" style="display:block;">実績を読み込めませんでした</span>' +
+      '<span class="t-sub">' + esc((e && e.message) || '電波状況をご確認のうえ、もう一度お試しください') + '</span></span></div>' +
+      '<button class="btn-primary" style="flex:none;width:100%;" onclick="render()">もう一度読み込む</button>');
+  });
 }
 
 function renderUserList(app, renderId) {
@@ -7149,7 +7425,8 @@ function renderUserDetail(app, userId, renderId) {
           if (r.metricValue !== '' && r.metricValue != null) metric.push('成果 ' + esc(r.metricValue) + esc(r.metricUnit || ''));
           return '<div class="record-line"><b>' + dayLabel(r.date) + '</b><span>' + esc(r.activity) + '</span>' +
             (metric.length ? '<small>' + metric.join(' · ') + '</small>' : '') +
-            (r.note ? '<small>' + esc(r.note) + '</small>' : '') + '</div>';
+            (r.note ? '<small>' + esc(r.note) + '</small>' : '') +
+            (lateEntryMark(r) ? '<small>' + lateEntryMark(r).replace(/^ · /, '') + '</small>' : '') + '</div>';
         }).join('')
       : '<div class="empty-note">脳トレ記録はまだありません</div>';
     var cognitiveTrends = cognitiveTrendCards(cognitiveRecords);
@@ -7161,13 +7438,13 @@ function renderUserDetail(app, userId, renderId) {
     var assessmentHtml = fitness.length
       ? fitness.slice(0, 6).map(function (r) {
           return '<div class="record-line assessment"><b>' + esc(r.item || r.type) + '</b><span>' + esc(r.result) + '</span>' +
-            '<small>' + dayLabel(r.date) + (r.detail ? ' · ' + esc(r.detail) : '') + '</small></div>';
+            '<small>' + dayLabel(r.date) + lateEntryMark(r) + (r.detail ? ' · ' + esc(r.detail) : '') + '</small></div>';
         }).join('')
       : '<div class="empty-note">体力測定の記録はまだありません</div>';
     var scoreListHtml = scores.length
       ? scores.slice(0, 6).map(function (r) {
           return '<div class="record-line assessment"><b>' + esc(r.type) + '</b><span>' + esc(r.result) + '</span>' +
-            '<small>' + dayLabel(r.date) + (r.detail ? ' · ' + esc(r.detail) : '') + '</small></div>';
+            '<small>' + dayLabel(r.date) + lateEntryMark(r) + (r.detail ? ' · ' + esc(r.detail) : '') + '</small></div>';
         }).join('')
       : '<div class="empty-note">HDS-R・MMSEの記録はまだありません</div>';
     var scoreChart = scoreChartSvg(scores);
@@ -7680,8 +7957,9 @@ function buildDays(res) {
 
 // ---------------------------------------------------------------- 管理: 利用者管理(管理者PIN必須)
 
-// 事業対象者は 11/11 追加(ワイズマンの一覧にいるため。壱番館と同じ)
-var CARE_LEVELS = ['事業対象者', '要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5'];
+// 事業対象者は 11/11 追加(ワイズマンの一覧にいるため。壱番館と同じ)。申請中は 2026-11-22 現場要望で追加
+// (新規・区分変更とも「申請中」だけ。見込みや今の介護度は備考へ。Code.gs IMPORT_CARE_LEVELS と同じ並び)
+var CARE_LEVELS = ['事業対象者', '要支援1', '要支援2', '要介護1', '要介護2', '要介護3', '要介護4', '要介護5', '申請中'];
 
 /** 職員管理(管理者のみ): 職員の登録・権限設定・PIN再設定・削除 */
 function renderAdminStaff(app, renderId) {
@@ -8089,6 +8367,8 @@ function importAgeFromBirth(value, today) {
 /** 介護度を画面の選択肢にそろえる。読めないときは ''(登録後に1人ずつ選ぶ) */
 function importCareLevel(value) {
   var s = importNfkc(value).replace(/[\s()（）]/g, '');
+  // 「申請中(要介護1見込み)」のように書かれていても「申請中」にする(2026-11-22。見込みは importCandidates が備考に残す)
+  if (/申請中/.test(s)) return '申請中';
   if (/事業対象者/.test(s)) return '事業対象者';
   var x = /(要?介護|要?支援)([1-5])/.exec(s);
   if (!x) return '';
@@ -8219,6 +8499,13 @@ function importCandidates(rows, today, existingUsers) {
     if (known[key]) c.problems.push('登録済み');
     else if (seen[key]) c.problems.push('一覧の中で重複');
     if (c.age === '' || c.age > 130) c.problems.push(cols.birth == null && cols.age == null ? '年齢・生年月日の列がありません' : '年齢が読めません');
+    // 「申請中(要介護1見込み)」などは介護度を「申請中」にし、もとの書き方を備考に残して知らせる(2026-11-22 点検の指摘: 見込みが黙って消えないように)
+    var careText = importNfkc(careRaw).replace(/[\s　]+/g, ' ').trim();
+    if (c.careLevel === '申請中' && careText !== '申請中') {
+      c.extra.note = ('介護度(取り込み時): ' + careText).slice(0, 500);
+      c.extraCount = Object.keys(c.extra).filter(function (k) { return k !== 'birthDate'; }).length;
+      c.notes.push('介護度「' + careText + '」は「申請中」にし、見込みなどは備考へ');
+    }
     if (careRaw && !c.careLevel) c.notes.push('介護度「' + careRaw + '」は選択肢にないため空欄(登録後に選ぶ)');
     else if (/暫/.test(careRaw)) c.notes.push('介護度は暫定');
     seen[key] = true;
@@ -9225,8 +9512,30 @@ function defaultNotebookComment(data, variant) {
  * 連絡帳1枚分(A5横)のHTML。管理者の編集画面・まとめて印刷の両方で使う。
  * opts.editable=true のときだけ本文とバイタル欄を直接編集でき、要素に id を付ける(画面内に1枚だけのとき)。
  */
-/** 連絡文の上限。A5横の「弐番館より」欄に最小の文字で収まる文字数(サーバーは600字まで受け付ける) */
-var NOTEBOOK_COMMENT_MAX = 450;
+/**
+ * 「弐番館より」の上限(2026-11-25 現場要望「長いと文字がとても小さくなる。小さくならない文字数を上限にして、それ以上書けないように」。
+ * 原山さん決定 100字)。自動の文章(約80〜100字)はそのまま入り、バイタル1回の日は14px・2〜3回の日は12.5px前後で収まる
+ * (いちばん小さい9pxにはならない)。サーバー(Code.gs NOTEBOOK_COMMENT_MAX_)も同じ字数で断る。
+ * それより前に保存した長い文章は黙って切らず、印刷はそのまま。直して保存するときだけ上限までに短くしてもらう
+ */
+var NOTEBOOK_COMMENT_MAX = 100;
+
+/** 自動の文章などを上限に収める。超えるときは上限の中の最後の「。」で切る(文の途中で切らない) */
+function fitNotebookComment(text) {
+  text = String(text || '');
+  if (text.length <= NOTEBOOK_COMMENT_MAX) return text;
+  var head = text.slice(0, NOTEBOOK_COMMENT_MAX);
+  var cut = head.lastIndexOf('。');
+  return cut >= 20 ? head.slice(0, cut + 1) : head;
+}
+
+/** 「弐番館より」の残りの字数の表示(超えているときは何字多いか) */
+function notebookCountText(text) {
+  var n = String(text || '').length;
+  return n > NOTEBOOK_COMMENT_MAX
+    ? (n - NOTEBOOK_COMMENT_MAX) + '字多い'
+    : 'あと' + (NOTEBOOK_COMMENT_MAX - n) + '字';
+}
 
 /**
  * 「弐番館より」欄の文字の大きさの段階(印刷の CSS の dense-1〜5)。左ほど大きい。
@@ -9359,13 +9668,34 @@ function notebookVitalLine(v) {
     (v.spo2 != null && v.spo2 !== '' ? ' · SpO2 ' + v.spo2 + '%' : '');
 }
 
+/**
+ * 連絡帳の「本日のプログラム」の行。同じ運動を2コマ以上した日は1行にまとめ、時間を足す(「歩行練習 30分」)。
+ * 2026-11-22 現場要望「同じ運動も選べるように」で原山さんが了承した形。並びは最初に行った順
+ */
+function notebookProgramRows(exercises) {
+  var rows = [], byName = {};
+  (exercises || []).forEach(function (r) {
+    var name = recordExerciseName(r);
+    var row = byName[name];
+    if (!row) { row = byName[name] = { name: name, minutes: 0, others: [] }; rows.push(row); }
+    var amount = String(r.amount || '').trim();
+    var m = /^(\d+)分$/.exec(amount);
+    if (m) row.minutes += Number(m[1]);
+    else if (amount && amount !== '実施' && row.others.indexOf(amount) < 0) row.others.push(amount);
+  });
+  return rows.map(function (row) {
+    // ワンタップ記録(実績のみ)は実施量を持たないため「実施」とだけ添える
+    var parts = (row.minutes ? [row.minutes + '分'] : []).concat(row.others);
+    return { name: row.name, amount: parts.join('・') || '実施' };
+  });
+}
+
 function notebookSheetHtml(data, comment, photo, opts) {
   opts = opts || {};
   var editable = !!opts.editable;
-  var programs = data.exercises.map(function (r, i) {
-    // ワンタップ記録(実績のみ)は実施量を持たないため「実施」とだけ添える
-    var amount = r.amount && r.amount !== '実施' ? r.amount : '実施';
-    return '<li><span>' + (i + 1) + '</span><b>' + esc(recordExerciseName(r)) + '</b><small>' + esc(amount) + '</small></li>';
+  var programRows = notebookProgramRows(data.exercises);
+  var programs = programRows.map(function (r, i) {
+    return '<li><span>' + (i + 1) + '</span><b>' + esc(r.name) + '</b><small>' + esc(r.amount) + '</small></li>';
   }).join('');
   if (!programs) programs = '<li class="planned"><b>本日の訓練記録はまだありません</b></li>';
   var attendance = data.checkin
@@ -9402,7 +9732,7 @@ function notebookSheetHtml(data, comment, photo, opts) {
     ? '<div id="notebook-comment" class="notebook-comment" contenteditable="true" role="textbox" aria-label="施設からの連絡" oninput="Actions.notebookComment(this.innerText)">' + esc(comment) + '</div>'
     : '<div class="notebook-comment">' + esc(comment) + '</div>';
   return (
-    '<section class="communication-sheet' + notebookDensity(comment, data.exercises.length, notebookVitals(data).length) + '" data-user-name="' + esc(data.user.name) + '" aria-label="弐番館デイサービス連絡帳 ' + esc(data.user.name) + ' 様">' +
+    '<section class="communication-sheet' + notebookDensity(comment, programRows.length, notebookVitals(data).length) + '" data-user-name="' + esc(data.user.name) + '" aria-label="弐番館デイサービス連絡帳 ' + esc(data.user.name) + ' 様">' +
     '<header class="notebook-head"><div class="notebook-brand"><img src="' + LOGO + '" alt=""><div><small>機能訓練デイサービス</small><h1>弐番館 連絡帳</h1></div></div>' +
     '<div class="notebook-meta"><div><small>お名前</small><strong>' + esc(data.user.name) + ' 様</strong></div><div><small>ご利用日</small><strong>' + esc(notebookDateLabel(data.date)) + '</strong></div></div></header>' +
     '<p class="notebook-thanks">本日もご利用いただきありがとうございます。</p>' +
@@ -9424,7 +9754,8 @@ function loadNotebookEntry(data) {
   S.notebook.data = data;
   S.notebook.entry = entry;
   if (!S.notebook.loaded) {
-    S.notebook.comment = (entry && entry.comment ? entry.comment : defaultNotebookComment(data, S.notebook.variant || 0)).slice(0, NOTEBOOK_COMMENT_MAX);
+    // 保存済みの文章は上限より長くても切らない(以前の450字までの文章。直して保存するときに短くしてもらう)
+    S.notebook.comment = entry && entry.comment ? String(entry.comment) : fitNotebookComment(defaultNotebookComment(data, S.notebook.variant || 0));
     S.notebook.baseComment = S.notebook.comment; // 職員が書き直した文を見分けるもと(文例の候補)
     S.notebook.photo = entry && entry.photo ? entry.photo : '';
     S.notebook.photoChanged = false;
@@ -9470,7 +9801,7 @@ function renderCommunicationBook(app, renderId) {
       (S.notebook.photo ? '<button class="btn-csv" onclick="Actions.notebookRemovePhoto()">写真を外す</button>' : '') +
       '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
-      '<span id="notebook-photo-status" role="status">' + notebookSavedLabel(S.notebook.entry) + '。黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > 240 ? ' warn' : '') + '">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span>' +
+      '<span id="notebook-photo-status" role="status">' + notebookSavedLabel(S.notebook.entry) + '。黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > NOTEBOOK_COMMENT_MAX ? ' warn' : '') + '" aria-live="polite">' + esc(notebookCountText(S.notebook.comment)) + '</span>' +
       '<small class="notebook-phrase-note">' + esc(NOTEBOOK_PHRASE_NOTE) + '</small></div>' +
       notebookSheetHtml(data, S.notebook.comment, S.notebook.photo, { editable: true, staffName: S.staff });
     app.innerHTML = adminShell('admin/notebook', content);
@@ -9496,7 +9827,7 @@ function renderNotebookEntry(app, renderId) {
   rpc('apiGetCommunicationBook', user.id, S.today).then(function (data) {
     if (!isCurrentRender(renderId)) return;
     loadNotebookEntry(data);
-    var exNames = data.exercises.map(function (r) { return esc(recordExerciseName(r)); }).join('・');
+    var exNames = notebookProgramRows(data.exercises).map(function (r) { return esc(r.name); }).join('・');
     var vitalLines = notebookVitals(data).map(function (v) { return '<span class="vital-line">' + esc(notebookVitalLine(v)) + '</span>'; }).join('');
     var photoHtml = S.notebook.photo
       ? '<img src="' + esc(S.notebook.photo) + '" alt="本日のご様子">'
@@ -9524,7 +9855,7 @@ function renderNotebookEntry(app, renderId) {
       templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<textarea class="note-area" id="notebook-comment-input" maxlength="' + NOTEBOOK_COMMENT_MAX + '" rows="6" oninput="Actions.notebookComment(this.value)">' + esc(S.notebook.comment) + '</textarea>' +
       '<div class="btn-row" style="justify-content:space-between;"><button class="link-plain" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
-      '<span id="notebook-count" class="notebook-count">' + S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字</span></div>' +
+      '<span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > NOTEBOOK_COMMENT_MAX ? ' warn' : '') + '" aria-live="polite">' + esc(notebookCountText(S.notebook.comment)) + '</span></div>' +
       '<small class="notebook-phrase-note">' + esc(NOTEBOOK_PHRASE_NOTE) + '</small></div>' +
       '<div class="section-note" id="notebook-saved">' + notebookSavedLabel(S.notebook.entry) + '</div>' +
       '<div id="notebook-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
@@ -9585,7 +9916,8 @@ function drawNotebookBatch(app) {
   var missing = books.filter(function (b) { return !b.entry || !b.entry.updatedAt; });
   var noPhoto = books.filter(function (b) { return !(b.entry && b.entry.hasPhoto); });
   var sheets = books.map(function (b) {
-    var comment = (b.entry && b.entry.comment ? b.entry.comment : defaultNotebookComment(b, 0)).slice(0, NOTEBOOK_COMMENT_MAX);
+    // 保存済みの文章はそのまま印刷する(上限より前の長い文章も切らない)。自動の文章は上限に収める
+    var comment = b.entry && b.entry.comment ? String(b.entry.comment) : fitNotebookComment(defaultNotebookComment(b, 0));
     return notebookSheetHtml(b, comment, b.entry ? b.entry.photo : '', { staffName: b.entry && b.entry.updatedBy });
   }).join('');
   var listHtml = books.map(function (b) {
@@ -9887,7 +10219,6 @@ var Actions = {
   },
   /** 対応開始: 利用者を選び、記録メニュー(ハブ)を開く */
   startSession: function (userId) {
-    S.menuHistoryOpen = ''; // 記録メニューに入るたびに既往歴は閉じた状態から
     S.currentUserId = userId;
     sessionStorage.setItem('currentUserId', userId);
     S.toast = null;
@@ -10214,8 +10545,7 @@ var Actions = {
         var ex = exerciseById(r.exerciseId);
         if (r.exerciseId === OTHER_EXERCISE_ID && r.load) otherText = r.load;
         return r.exerciseId && r.exerciseId !== PREPARATION_EXERCISE_ID && ex && ex.active !== false;
-      }).map(function (r) { return r.exerciseId; })
-        .filter(function (id, i, all) { return all.indexOf(id) === i; }).slice(0, EXERCISE_SLOT_COUNT);
+      }).map(function (r) { return r.exerciseId; }).slice(0, EXERCISE_SLOT_COUNT); // 同じ運動の2コマもそのまま写す(2026-11-22)
       while (ids.length < EXERCISE_SLOT_COUNT) ids.push('');
       var notes = (res.exercises || []).map(function (r) { return r.note; }).filter(String);
       S.exDraft = { slots: ids, otherText: otherText, note: notes.join('。').slice(0, 300), message: res.exerciseDate ? dayLabel(res.exerciseDate) + 'の内容をコピーしました' : '前回記録はありません' };
@@ -10224,11 +10554,12 @@ var Actions = {
   },
   exBatchSave: function () {
     var d = S.exDraft || { slots: [], note: '' };
-    var ids = [];
-    (d.slots || []).forEach(function (id) { if (id && ids.indexOf(id) < 0) ids.push(id); });
     var err = document.getElementById('ex-error');
     var hasPrep = false;
     var cached = S.exerciseCache[S.currentUserId];
+    // 同じ運動を2コマ選んだときも2コマとして送る(2026-11-22)。画面に出ている残りのコマの分だけ
+    var left = Math.max(0, EXERCISE_SLOT_COUNT - exerciseSlotsUsed((cached && cached.data) || []));
+    var ids = (d.slots || []).slice(0, left).filter(Boolean);
     ((cached && cached.data) || []).forEach(function (r) { if (r.exerciseId === PREPARATION_EXERCISE_ID) hasPrep = true; });
     // 運動を記録したあとは、特記事項だけを書き足せる(休憩時間に行った介護整体など。2026-11-17 現場要望)
     var noteOnly = !ids.length && hasPrep;
@@ -10353,16 +10684,28 @@ var Actions = {
     var last = S.lastSaved;
     if (!last || !last.id) return;
     S.lastSaved = null;
-    rpc('apiVoidRecord', last.kind, last.id).then(function () {
+    // 受付の取り消しは、その日の記録がないかサーバーが確かめる方で(2026-11-25。ほかの端末で記録が入っていたら取り消さない)
+    var userId = S.currentUserId;
+    var useCancel = last.kind === 'checkins' && userId && S.capabilities.indexOf('cancelCheckin') >= 0;
+    var request = useCancel ? rpc('apiCancelCheckin', userId).then(function (res) {
+      if (!res.cancelled && !res.notFound) {
+        S.cancelCheckin = { userId: userId, busy: false, blockers: res.blockers || [] };
+        render();
+        return Promise.reject({ handled: true });
+      }
+      return res;
+    }) : rpc('apiVoidRecord', last.kind, last.id);
+    request.then(function (res) {
       delete S.exerciseCache[S.currentUserId];
       S.todayStatusCache = null;
       if (last.kind === 'checkins') {
         // 受付の取り消しは受付画面へ戻す(来所予定の一覧に「受付する」が再表示される)
-        S.todayCheckins = S.todayCheckins.filter(function (c) { return c.id !== last.id; });
+        S.todayCheckins = res && res.todayCheckins ? res.todayCheckins : S.todayCheckins.filter(function (c) { return c.id !== last.id; });
         return go('');
       }
       render();
-    }).catch(function () {
+    }).catch(function (e) {
+      if (e && e.handled) return; // 記録があって取り消さなかった(記録メニューの欄で知らせた)
       S.lastSaved = last;
       showSaveError('取り消しできませんでした。もう一度お試しください');
     });
@@ -10442,6 +10785,7 @@ var Actions = {
 
   // --- 脳トレ記録 ---
   cogSelect: function (value) { S.cogDraft.activity = value; render(); },
+  cogDate: function (value) { setRecordDate(S.cogDraft, value); render(); },
   cogFree: function (value) { S.cogDraft.free = value.slice(0, 120); },
   cogDuration: function (value) { S.cogDraft.durationMinutes = value; },
   cogMetricValue: function (value) { S.cogDraft.metricValue = value; },
@@ -10458,6 +10802,7 @@ var Actions = {
       if (!p) return showSaveError('前回の脳トレ記録はありません');
       var menuMatch = (S.cognitiveMenu || []).some(function (m) { return m.name === p.activity; });
       S.cogDraft = {
+        date: (S.cogDraft && S.cogDraft.date) || S.today,
         activity: menuMatch ? p.activity : '__free__', free: menuMatch ? '' : p.activity,
         durationMinutes: p.durationMinutes == null ? '' : String(p.durationMinutes),
         metricValue: p.metricValue == null ? '' : String(p.metricValue), metricUnit: p.metricUnit || '点', note: p.note || '',
@@ -10470,14 +10815,16 @@ var Actions = {
     var activity = (d.activity === '__free__' ? d.free : d.activity || '').trim();
     var err = document.getElementById('cog-error');
     if (!activity) { if (err) err.textContent = '実施内容を選ぶか入力してください'; return; }
+    var date = recordDateValue(d.date);
+    if (!date) { if (err) err.textContent = '実施日は1年前から今日までで選んでください'; return; }
     var btn = document.getElementById('cog-save');
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
     rpc('apiSaveCognitive', {
-      userId: S.currentUserId, date: S.today, activity: activity, note: (d.note || '').trim(),
+      userId: S.currentUserId, date: date, activity: activity, note: (d.note || '').trim(),
       durationMinutes: d.durationMinutes, metricValue: d.metricValue, metricUnit: d.metricUnit,
     })
       .then(function (rec) {
-        S.lastSaved = { kind: 'cognitive', id: rec.id, label: '脳トレ(' + activity + ')を記録しました' };
+        S.lastSaved = { kind: 'cognitive', id: rec.id, label: (rec.date !== S.today ? monthDayLabel(rec.date) + 'の' : '') + '脳トレ(' + activity + ')を記録しました' };
         S.cogDraft = null;
         S.todayStatusCache = null;
         clearRpcCache();
@@ -10485,13 +10832,19 @@ var Actions = {
       })
       .catch(function (e) {
         if (err) err.textContent = (e && e.message) || '保存できませんでした';
-        if (btn) { btn.disabled = false; btn.textContent = 'この内容で記録する'; }
+        if (btn) { btn.disabled = false; btn.textContent = recordSaveLabel(date, 'この内容で記録する'); }
       });
   },
 
   // --- 体力測定・評価記録 ---
+  assessDate: function (value) { setRecordDate(S.assessDraft, value); render(); },
+  assessBatchDate: function (value) {
+    setRecordDate(S.assessBatch, value);
+    S.assessBatch.message = '';
+    render();
+  },
   assessType: function (type) {
-    if (!S.assessDraft) S.assessDraft = { type: type, item: '', freeItem: '', result: '', detail: '' };
+    if (!S.assessDraft) S.assessDraft = { type: type, item: '', freeItem: '', result: '', detail: '', date: S.today };
     S.assessDraft.type = type;
     render();
   },
@@ -10523,18 +10876,21 @@ var Actions = {
     });
     var err = document.getElementById('assess-error');
     if (!entries.length) { if (err) err.textContent = '実施した利用者の測定値を1件以上入力してください'; return; }
+    var date = recordDateValue(d.date);
+    if (!date) { if (err) err.textContent = '測定日は1年前から今日までで選んでください'; return; }
     var btn = document.getElementById('assess-save');
     if (btn) { btn.disabled = true; btn.textContent = '一括保存中…'; }
-    rpc('apiSaveAssessmentBatch', { item: d.item, entries: entries }).then(function (res) {
+    rpc('apiSaveAssessmentBatch', { item: d.item, entries: entries, date: date }).then(function (res) {
       var people = {};
       (res.records || []).forEach(function (r) { people[r.userId] = true; });
-      S.assessBatch = { item: d.item, entries: {}, message: Object.keys(people).length + '名分を保存しました（' + res.date + '）' };
+      // 保存したら測定日は今日に戻す(HDS-R・MMSE・脳トレと同じ。2026-11-22 点検の指摘: 過去の日付が残ると取り違えの元)
+      S.assessBatch = { item: d.item, entries: {}, date: S.today, message: Object.keys(people).length + '名分を保存しました（' + dayLabel(res.date) + 'の記録）' };
       S.todayStatusCache = null;
       clearRpcCache();
       render();
     }).catch(function (e) {
       if (err) err.textContent = (e && e.message) || '一括保存できませんでした';
-      if (btn) { btn.disabled = false; btn.textContent = '入力した測定結果を一括保存'; }
+      if (btn) { btn.disabled = false; btn.textContent = recordSaveLabel(date, '入力した測定結果を一括保存'); }
     });
   },
   assessItem: function (el) {
@@ -10555,18 +10911,21 @@ var Actions = {
     var item = d.type === '体力測定' ? (d.item || d.freeItem || '').trim() : '';
     if (d.type === '体力測定' && !item) { if (err) err.textContent = '測定種目を選ぶか入力してください'; return; }
     if (!(d.result || '').trim()) { if (err) err.textContent = (d.type === '体力測定' ? '結果' : '点数') + 'を入力してください'; return; }
+    var date = recordDateValue(d.date);
+    if (!date) { if (err) err.textContent = '測定日は1年前から今日までで選んでください'; return; }
     var btn = document.getElementById('assess-save');
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
-    rpc('apiSaveAssessment', { userId: S.currentUserId, date: S.today, type: d.type, item: item, result: d.result.trim(), detail: (d.detail || '').trim() })
+    rpc('apiSaveAssessment', { userId: S.currentUserId, date: date, type: d.type, item: item, result: d.result.trim(), detail: (d.detail || '').trim() })
       .then(function (rec) {
-        S.lastSaved = { kind: 'assessments', id: rec.id, label: (item || d.type) + ' の記録を保存しました' };
-        S.assessDraft = { type: d.type, item: '', freeItem: '', result: '', detail: '' };
+        S.lastSaved = { kind: 'assessments', id: rec.id, label: (rec.date !== S.today ? monthDayLabel(rec.date) + 'の' : '') + (item || d.type) + ' の記録を保存しました' };
+        // 次の方の入力で日付を取り違えないよう、測定日は今日に戻す
+        S.assessDraft = { type: d.type, item: '', freeItem: '', result: '', detail: '', date: S.today };
         clearRpcCache();
         render();
       })
       .catch(function (e) {
         if (err) err.textContent = (e && e.message) || '保存できませんでした';
-        if (btn) { btn.disabled = false; btn.textContent = 'この内容で記録する'; }
+        if (btn) { btn.disabled = false; btn.textContent = recordSaveLabel(date, 'この内容で記録する'); }
       });
   },
   openNotebook: function (userId) {
@@ -10644,7 +11003,6 @@ var Actions = {
     });
   },
   logout: function () {
-    S.menuHistoryOpen = '';
     saveSession('', null);
     sessionStorage.removeItem('currentUserId');
     S.currentUserId = '';
@@ -11052,12 +11410,13 @@ var Actions = {
     render();
   },
   notebookComment: function (value) {
-    S.notebook.comment = String(value || '').slice(0, NOTEBOOK_COMMENT_MAX);
+    // 入力欄の maxlength で上限より先は打てない。以前の長い文章を短くしている途中は切らない(黙って消さない)
+    S.notebook.comment = String(value || '');
     S.notebook.dirty = true;
     var count = document.getElementById('notebook-count');
     if (count) {
-      count.textContent = S.notebook.comment.length + ' / ' + NOTEBOOK_COMMENT_MAX + '文字';
-      count.classList.toggle('warn', S.notebook.comment.length > 240);
+      count.textContent = notebookCountText(S.notebook.comment);
+      count.classList.toggle('warn', S.notebook.comment.length > NOTEBOOK_COMMENT_MAX);
     }
   },
   /** 画面上の文章欄(管理者=編集できる紙面 / 職員=入力欄)へ現在の文章を反映する */
@@ -11076,15 +11435,24 @@ var Actions = {
     Actions.notebookComment(S.notebook.comment); // 文字数カウンターも更新
   },
   notebookUseTemplate: function (text) {
-    S.notebook.comment = ((S.notebook.comment || '').trim() ? S.notebook.comment.trim() + '。' : '') + text;
-    S.notebook.comment = S.notebook.comment.slice(0, NOTEBOOK_COMMENT_MAX);
+    var next = ((S.notebook.comment || '').trim() ? S.notebook.comment.trim() + '。' : '') + text;
+    if (next.length > NOTEBOOK_COMMENT_MAX) {
+      // 上限を超えるときは足さずに知らせる(途中で切れた文にしない)
+      var count = document.getElementById('notebook-count');
+      if (count) {
+        count.textContent = '定型文を足すと' + NOTEBOOK_COMMENT_MAX + '字を超えるため、足していません';
+        count.classList.add('warn');
+      }
+      return;
+    }
+    S.notebook.comment = next;
     Actions.syncNotebookCommentBox(false);
   },
   resetNotebookComment: function () {
     if (!S.notebook.data) return;
     // 押すたびに言い回しを変えて作り直す(編集した文章は破棄される)
     S.notebook.variant = (S.notebook.variant || 0) + 1;
-    S.notebook.comment = defaultNotebookComment(S.notebook.data, S.notebook.variant).slice(0, NOTEBOOK_COMMENT_MAX);
+    S.notebook.comment = fitNotebookComment(defaultNotebookComment(S.notebook.data, S.notebook.variant));
     S.notebook.baseComment = S.notebook.comment;
     Actions.syncNotebookCommentBox(true);
   },
@@ -11125,8 +11493,8 @@ var Actions = {
     if (commentBox) {
       var text = String(commentBox.innerText || '');
       if (text !== S.notebook.comment) S.notebook.dirty = true;
-      S.notebook.comment = text.slice(0, NOTEBOOK_COMMENT_MAX);
-      if (text.length > NOTEBOOK_COMMENT_MAX) commentBox.textContent = S.notebook.comment;
+      // 紙面の欄は maxlength を付けられないので、超えたときは切らずに字数の欄で知らせ、保存のときに止める
+      S.notebook.comment = text;
     }
   },
   /** 連絡帳の本文・写真を保存する。backToMenu=true は職員の入力画面(保存後に記録メニューへ戻る) */
@@ -11136,6 +11504,18 @@ var Actions = {
     if (!data) return Promise.resolve();
     var btn = document.getElementById('notebook-save');
     var err = document.getElementById('notebook-error');
+    var tooLong = S.notebook.comment.trim().length - NOTEBOOK_COMMENT_MAX;
+    if (tooLong > 0) {
+      // 上限(100字)を超えた文章は保存しない(2026-11-25 原山さん決定)
+      var longMessage = '「弐番館より」が' + tooLong + '字多いため保存していません。' + NOTEBOOK_COMMENT_MAX + '字以内に短くしてください。';
+      if (err) err.textContent = longMessage; else showSaveError(longMessage);
+      var countEl = document.getElementById('notebook-count');
+      if (countEl) { countEl.textContent = notebookCountText(S.notebook.comment.trim()); countEl.classList.add('warn'); }
+      // 断ったことは呼び手に返すが、ボタンから呼んだとき(受け手なし)に未処理のエラーにしない(2026-11-25 点検の指摘)
+      var refused = Promise.reject(new Error(longMessage));
+      refused.catch(function () {});
+      return refused;
+    }
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
     var payload = { userId: data.user.id, date: data.date, comment: S.notebook.comment.trim() };
     // 書き直した文を文例の候補として送る(お名前・数字・体調の言葉などを含む文は、サーバーが集めない。2026-11-17)
@@ -11173,9 +11553,18 @@ var Actions = {
   /** asPdf=true か iPhone・iPad のときはPDFにする(ホーム画面のアプリでは印刷画面が出ないため。notebookUsesPdf) */
   printNotebook: function (asPdf) {
     Actions.readNotebookCommentBox();
+    // 直した文章が100字を超えているときは印刷しない(印刷のあとの保存が止まり、紙とシートが食い違い「印刷済み」も付かないため。
+    // 2026-11-25 点検の指摘)。直していない保存済みの長い文章は、今までどおりそのまま印刷する
+    var over = S.notebook.comment.trim().length - NOTEBOOK_COMMENT_MAX;
+    if (S.notebook.dirty && over > 0) {
+      var count = document.getElementById('notebook-count');
+      if (count) { count.textContent = notebookCountText(S.notebook.comment.trim()); count.classList.add('warn'); }
+      showSaveError('「弐番館より」が' + over + '字多いため、印刷していません。' + NOTEBOOK_COMMENT_MAX + '字以内に短くしてから、もう一度印刷してください。');
+      return;
+    }
     var sheet = document.querySelector('.communication-sheet');
     if (sheet) {
-      sheet.className = 'communication-sheet' + notebookDensity(S.notebook.comment, S.notebook.data ? S.notebook.data.exercises.length : 0, S.notebook.data ? notebookVitals(S.notebook.data).length : 0);
+      sheet.className = 'communication-sheet' + notebookDensity(S.notebook.comment, S.notebook.data ? notebookProgramRows(S.notebook.data.exercises).length : 0, S.notebook.data ? notebookVitals(S.notebook.data).length : 0);
       // 文章が欄に収まるいちばん大きな文字に(2026-11-17)。いちばん小さい文字でも切れるときは知らせる
       if (!confirmNotebookOverflow(fitNotebookSheets([sheet]).overflow)) return;
     }
@@ -11203,14 +11592,60 @@ var Actions = {
     setTimeout(function () { document.title = oldTitle; }, 500);
     markDone();
   },
-  /** 記録メニューの「既往歴を見る」を開いた・閉じた(同じ画面の描き直しでは開いたまま。画面を移ると閉じる) */
-  careHistoryToggle: function (userId, open) {
-    if (open) S.menuHistoryOpen = userId;
-    else if (S.menuHistoryOpen === userId) S.menuHistoryOpen = '';
+  /** 実績確認: 日付を選んだ(空なら今日。明日より先は今日にする) */
+  resultsDate: function (value) {
+    var v = String(value || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || v > S.today) v = S.today;
+    S.resultsDate = v;
+    render();
   },
-  /** 長い個人目標の「続きを見る」 */
+  /** 実績確認: 前の日・次の日 */
+  resultsShift: function (days) {
+    var next = shiftDate(S.resultsDate || S.today, days);
+    if (next > S.today) return;
+    S.resultsDate = next;
+    render();
+  },
+  /** 記録メニューの「受付を取り消す」: 確かめの文を出す */
+  cancelCheckinAsk: function (userId) {
+    S.cancelCheckin = { userId: userId, busy: false, blockers: [] };
+    render();
+  },
+  cancelCheckinClose: function () {
+    S.cancelCheckin = null;
+    render();
+  },
+  /** 受付を取り消す。記録がある方はサーバーが断るので、その記録の名前を出す */
+  cancelCheckinRun: function (userId) {
+    if (!S.cancelCheckin || S.cancelCheckin.userId !== userId || S.cancelCheckin.busy) return;
+    S.cancelCheckin.busy = true;
+    render();
+    var u = null;
+    S.users.forEach(function (x) { if (x.id === userId) u = x; });
+    var name = u ? u.name + ' さま' : '';
+    rpc('apiCancelCheckin', userId).then(function (res) {
+      S.todayCheckins = res.todayCheckins || S.todayCheckins;
+      S.todayStatusCache = null;
+      delete S.exerciseCache[userId];
+      if (res.cancelled || res.notFound) {
+        S.cancelCheckin = null;
+        S.lastSaved = null;
+        S.toast = { type: 'notice', title: name + 'の受付を取り消しました', sub: res.notFound ? 'ほかの端末で先に取り消されていました。' : '来所予定(未受付)に戻りました。' };
+        var shown = S.toast;
+        setTimeout(function () { if (S.toast === shown) { S.toast = null; if (location.hash.replace(/^#\/?/, '') === '') render(); } }, 8000);
+        return go('');
+      }
+      S.cancelCheckin = { userId: userId, busy: false, blockers: res.blockers || [] };
+      render();
+    }).catch(function (e) {
+      S.cancelCheckin = { userId: userId, busy: false, blockers: [] };
+      render();
+      showSaveError(((e && e.message) || '受付を取り消せませんでした') + '。電波状況をご確認のうえ、もう一度お試しください');
+    });
+  },
+  /** 長い個人目標・既往歴の「続きを見る」 */
   toggleCareGoal: function (btn) {
-    var row = btn.closest('.care-goal');
+    var row = btn.closest('.care-clamp');
     if (!row) return;
     var opened = row.classList.toggle('is-open');
     btn.textContent = opened ? '閉じる' : '続きを見る';
@@ -11658,6 +12093,20 @@ var Mock = (function () {
     var d = new Date();
     return d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2);
   }
+  // 測定日・実施日(Code.gs recordDateFor_ と同じ: 空は今日、明日以降と1年より前は断る)
+  function mockRecordDate(value) {
+    var t = todayStr();
+    var v = String(value || '').trim();
+    if (!v) return t;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('日付の形式が正しくありません。');
+    if (v > t) throw new Error('明日以降の日付では記録できません。');
+    if (v < oneYearBefore(t)) throw new Error('記録できるのは1年前までです。');
+    return v;
+  }
+  function mockStamp() {
+    var d = new Date();
+    return todayStr() + ' ' + nowTime() + ':' + ('0' + d.getSeconds()).slice(-2);
+  }
   function seed() {
     var exercises = [
       { id: 'prep', name: '準備運動', shortName: '準備運動', amountLabel: '実施時間', amountOptions: ['15分'], qrCode: '' },
@@ -11931,7 +12380,24 @@ function mockCollectPhrases(db, list, style) {
   // 2026-11-16 の入れ替えと同じ(Code.gs の applyFieldCognitiveMenu_)。旧メニューは停止で残す
   var MOCK_COG_MENU = ['箸つまみ', '顔合わせ', '置き換え課題', 'エルジパズル', '紅白パズル', '白黒パズル', '輪かけ', 'ペグボード',
     '計算コマ置き（＋−）', '計算コマ置き（×÷）', 'ナンプレ'];
-  function mockCogMenu(db) {
+  /** 確認版(モック): 受付を取り消すと宙に浮く、その日の記録の名前(サーバーの checkinBlockers_ と同じ順) */
+function mockDayBlockers(db, userId, date, checkin) {
+  function mine(list) { return (list || []).some(function (x) { return x.date === date && x.userId === userId; }); }
+  var out = [];
+  if (checkin && String(checkin.checkoutTime || '').trim()) out.push('帰苑');
+  if (mine(db.vitals)) out.push('バイタル');
+  if (mine(db.records)) out.push('機能訓練');
+  if (mine(db.cognitive)) out.push('脳トレ');
+  if (mine(db.assessments)) out.push('体力測定・評価');
+  var nb = (db.notebooks || {})[date + '|' + userId];
+  var st = (db.dailyStatus || []).filter(function (x) { return x.date === date && x.userId === userId; });
+  if (nb && (String(nb.comment || '').trim() || nb.hasPhoto)) out.push('連絡帳');
+  if (st.some(function (x) { return x.notebookDone; })) out.push('連絡帳の印刷済み');
+  if (st.some(function (x) { return x.bathed || x.mealDone; })) out.push('入浴・食事');
+  return out;
+}
+
+function mockCogMenu(db) {
     if (!db.cognitiveMenu) {
       db.cognitiveMenu = ['計算プリント', '漢字プリント', '間違い探し', '塗り絵', 'パズル', '音読', '回想法・昔話']
         .map(function (n, i) { return { id: 'cm' + (i + 1), name: n, active: true }; });
@@ -11952,7 +12418,7 @@ function mockCollectPhrases(db, list, style) {
       var me = mockMe();
       var photos = db.photos || {};
       db.users.forEach(function (x) { x.hasPhoto = !!photos[x.id]; });
-      return { apiVersion: 8, me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), templates: (db.templates || []).filter(function (t) { return t.active !== false; }), notebookPhrases: mockUsedPhrases(db), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+      return { apiVersion: 8, me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll', 'cancelCheckin', 'dayResults'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), templates: (db.templates || []).filter(function (t) { return t.active !== false; }), notebookPhrases: mockUsedPhrases(db), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
     },
     apiAdminSaveCognitiveMenu: function (p) {
       var db = load();
@@ -12082,6 +12548,43 @@ function mockCollectPhrases(db, list, style) {
       rec.dayPart = part;
       save(db);
       return { record: { id: rec.id, userId: userId, dayPart: part }, todayCheckins: fns.apiGetTodayCheckins() };
+    },
+    apiCancelCheckin: function (userId) {
+      var db = load();
+      var t = todayStr();
+      var mineList = db.checkins.filter(function (c) { return c.userId === userId && c.date === t; });
+      if (!mineList.length) return { cancelled: false, notFound: true, blockers: [], todayCheckins: fns.apiGetTodayCheckins() };
+      var blockers = mockDayBlockers(db, userId, t, mineList[0]);
+      if (blockers.length) return { cancelled: false, blockers: blockers, todayCheckins: fns.apiGetTodayCheckins() };
+      db.checkins = db.checkins.filter(function (c) { return !(c.userId === userId && c.date === t); });
+      save(db);
+      return { cancelled: true, blockers: [], todayCheckins: fns.apiGetTodayCheckins() };
+    },
+    apiGetDayResults: function (date) {
+      var db = load();
+      var t = todayStr();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ''))) throw new Error('日付の形が違います。');
+      if (date > t) throw new Error('明日より先の日付は選べません。');
+      var seen = {};
+      var rows = db.checkins.filter(function (c) {
+        if (c.date !== date || seen[c.userId]) return false;
+        seen[c.userId] = true;
+        return true;
+      }).map(function (c) {
+        function mine(list) { return (list || []).filter(function (x) { return x.date === date && x.userId === c.userId; }); }
+        var exIds = {};
+        mine(db.records).forEach(function (r) { exIds[r.exerciseId] = true; });
+        var st = mine(db.dailyStatus)[0] || {};
+        var nb = (db.notebooks || {})[date + '|' + c.userId];
+        return {
+          userId: c.userId,
+          checkin: { id: c.id, time: c.time, checkoutTime: c.checkoutTime || '', transport: c.transport || '', dayPart: c.dayPart || '' },
+          vitalCount: mine(db.vitals).length, exerciseCount: Object.keys(exIds).length,
+          cognitiveCount: mine(db.cognitive).length, assessmentCount: mine(db.assessments).length,
+          notebookDone: !!st.notebookDone, notebookSaved: !!(nb && (String(nb.comment || '').trim() || nb.hasPhoto)),
+        };
+      }).sort(function (a, b) { return timeKey(a.checkin.time) < timeKey(b.checkin.time) ? -1 : timeKey(a.checkin.time) > timeKey(b.checkin.time) ? 1 : 0; });
+      return { date: date, today: t, rows: rows };
     },
     apiCheckout: function (userId, transport) {
       var db = load();
@@ -12257,10 +12760,12 @@ function mockCollectPhrases(db, list, style) {
       var prepRecorded = db.records.some(function (r) { return r.userId === p.userId && r.date === t && r.exerciseId === 'prep'; });
       var ids = prepRecorded ? [] : ['prep'];
       if ((p.exerciseIds || []).indexOf('other') >= 0 && !String(p.otherText || '').trim()) throw new Error('「その他」の運動の内容を入力してください。');
-      (p.exerciseIds || []).forEach(function (id) {
-        var selected = ids.filter(function (x) { return x !== 'prep'; }).length;
-        if (id && id !== 'prep' && ids.indexOf(id) < 0 && selected < EXERCISE_SLOT_COUNT) ids.push(id);
-      });
+      // Code.gs と同じ: 同じ運動も選べる・準備運動のほかは1日合計4コマまで(2026-11-22)
+      var picked = (p.exerciseIds || []).filter(function (id) { return id && id !== 'prep'; });
+      var doneSlots = db.records.filter(function (r) { return r.userId === p.userId && r.date === t && r.exerciseId !== 'prep'; }).length;
+      var left = Math.max(0, EXERCISE_SLOT_COUNT - doneSlots);
+      if (picked.length > left) throw new Error('運動は準備運動のほかに1日' + EXERCISE_SLOT_COUNT + 'コマまでです。本日はあと' + left + 'コマ記録できます。');
+      ids = ids.concat(picked);
       if (!ids.length) return mockAddExerciseNote(db, p.userId, String(p.note || '').trim());
       var records = ids.map(function (id, i) {
         db.seq += 1;
@@ -12281,9 +12786,6 @@ function mockCollectPhrases(db, list, style) {
       var exId = String(p.exerciseId || old.exerciseId);
       if (old.exerciseId === 'prep' && exId !== 'prep') throw new Error('準備運動はほかの運動に変えられません。特記事項だけ直せます。');
       if (old.exerciseId !== 'prep' && exId === 'prep') throw new Error('準備運動には変えられません。');
-      if (exId !== old.exerciseId && exId !== 'other' && db.records.some(function (r) { return r.userId === p.userId && r.date === t && r.id !== old.id && r.exerciseId === exId; })) {
-        throw new Error('この運動は本日すでに記録されています。');
-      }
       var otherText = String(p.otherText || '').trim();
       if (exId === 'other' && !otherText) throw new Error('「その他」の運動の内容を入力してください。');
       var note = String(p.note || '').trim().slice(0, 300);
@@ -12329,18 +12831,19 @@ function mockCollectPhrases(db, list, style) {
         .sort(exerciseOrder);
     },
     apiSaveCognitive: function (p) {
+      var date = mockRecordDate(p.date);
       var db = load(); db.seq += 1;
-      var rec = { id: 'm' + db.seq, date: p.date || todayStr(), time: nowTime(), userId: p.userId, activity: p.activity, note: p.note || '', durationMinutes: p.durationMinutes === '' ? null : Number(p.durationMinutes), metricValue: p.metricValue === '' ? null : Number(p.metricValue), metricUnit: p.metricUnit || '' };
+      var rec = { id: 'm' + db.seq, date: date, time: date === todayStr() ? nowTime() : '', enteredAt: mockStamp(), userId: p.userId, activity: p.activity, note: p.note || '', durationMinutes: p.durationMinutes === '' ? null : Number(p.durationMinutes), metricValue: p.metricValue === '' ? null : Number(p.metricValue), metricUnit: p.metricUnit || '' };
       db.cognitive.push(rec); save(db); return rec;
     },
     apiSaveAssessment: function (p) {
       var db = load(); db.seq += 1;
-      var rec = { id: 'm' + db.seq, date: p.date || todayStr(), userId: p.userId, type: p.type, result: p.result, detail: p.detail || '', item: p.item || '' };
+      var rec = { id: 'm' + db.seq, date: mockRecordDate(p.date), enteredAt: mockStamp(), userId: p.userId, type: p.type, result: p.result, detail: p.detail || '', item: p.item || '' };
       db.assessments.push(rec); save(db); return rec;
     },
     apiSaveAssessmentBatch: function (p) {
       var db = load();
-      var date = todayStr();
+      var date = mockRecordDate(p.date);
       var seen = {};
       var records = [];
       (p.entries || []).forEach(function (entry) {
@@ -12348,11 +12851,15 @@ function mockCollectPhrases(db, list, style) {
         if (!entry.userId || seen[entry.userId + '|' + item] || !String(entry.result || '').trim()) return;
         seen[entry.userId + '|' + item] = true;
         db.seq += 1;
-        var rec = { id: 'm' + db.seq, date: date, userId: entry.userId, type: '体力測定', item: item, result: String(entry.result).trim(), detail: String(entry.detail || '').trim() };
+        var rec = { id: 'm' + db.seq, date: date, enteredAt: mockStamp(), userId: entry.userId, type: '体力測定', item: item, result: String(entry.result).trim(), detail: String(entry.detail || '').trim() };
         db.assessments.push(rec); records.push(rec);
       });
       save(db);
       return { records: records, date: date };
+    },
+    apiGetAssessmentsOn: function (date) {
+      var d = mockRecordDate(date);
+      return { date: d, assessments: load().assessments.filter(function (a) { return a.date === d; }) };
     },
     apiGetCommunicationBook: function (userId, date) {
       var db = load();
@@ -12386,7 +12893,7 @@ function mockCollectPhrases(db, list, style) {
       var prev = db.notebooks[key] || {};
       var photo = p.removePhoto ? '' : (p.photo || prev.photo || '');
       var me = mockMe();
-      db.notebooks[key] = { userId: p.userId, date: p.date || todayStr(), comment: String(p.comment || '').slice(0, 600), hasPhoto: !!photo, photo: photo,
+      db.notebooks[key] = { userId: p.userId, date: p.date || todayStr(), comment: (function (c) { if (c.length > NOTEBOOK_COMMENT_MAX) throw new Error(NOTEBOOK_COMMENT_MAX + '文字以内で入力してください。'); return c; })(String(p.comment || '').trim()), hasPhoto: !!photo, photo: photo,
         updatedBy: me ? me.name : 'プレビュー', updatedAt: todayStr() + ' ' + nowTime() + ':00' };
       if (p.phrases) { try { mockCollectPhrases(db, p.phrases, p.phraseStyle); } catch (e) { /* 連絡帳の保存は止めない */ } }
       save(db);
