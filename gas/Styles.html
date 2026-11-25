@@ -2687,6 +2687,34 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .numeric-trend-svg .trend-latest { fill: var(--green-dark); font-weight: 900; }
 .admin-trends { grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
 
+/* ---------- 脳トレ: 手書きメモの形(2026-11-25 前回の内容・行ごとのレベル/番号/所要時間/内容・様子) ---------- */
+.cog-prev { gap: 8px; }
+.cog-set { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--input-bg); }
+.cog-set + .cog-set { margin-top: 8px; }
+.cog-set-date { color: var(--green-dark); font-size: 12px; font-weight: 800; }
+.cog-set-line { display: grid; gap: 2px; }
+.cog-set-line span { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.cog-set-line small { color: var(--text-aux); font-size: 13px; line-height: 1.5; }
+.cog-set-note { margin-top: 4px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.cog-set-note b { margin-right: 8px; color: var(--text-sub); font-size: 12px; }
+.cog-prev .copy-previous { margin-top: 8px; }
+.cog-rows { display: grid; gap: 10px; margin-top: 8px; }
+.cog-row { display: grid; gap: 8px; padding: 10px 12px 12px; border: 1px solid var(--border); border-radius: 12px; }
+.cog-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.cog-row-head b { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #f3e8fd; color: #8430b5; font-size: 13px; }
+.cog-row-remove { min-height: 40px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--alert-text); font: inherit; font-size: 13px; font-weight: 700; }
+.cog-row-grid { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; }
+.cog-row-grid label,
+.cog-row-content { display: grid; gap: 5px; min-width: 0; color: var(--text-sub); font-size: 12px; font-weight: 700; }
+.cog-row-grid input {
+  width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--input-bg); color: var(--text); font: inherit; font-size: 16px; font-weight: 800;
+}
+.cog-row .cog-free { min-height: 44px; }
+.cog-row-metric { margin-top: 0; grid-template-columns: 1fr .8fr; }
+.cog-metric-open { justify-self: start; min-height: 40px; padding: 6px 4px; border: 0; background: none; color: var(--green-dark); font: inherit; font-size: 13px; font-weight: 700; }
+.cog-add-row { margin-top: 10px; width: 100%; }
+
 /* ---------- 体力測定: 種目別一括グリッド ---------- */
 .assessment-wide-wrap { align-items: flex-start; }
 .phone.assessment-wide { max-width: 1040px; }
@@ -2810,6 +2838,8 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 @media (max-width: 700px) {
   .cognitive-metric-grid { grid-template-columns: 1fr 1fr; }
   .cognitive-metric-grid label:last-child { grid-column: 1 / -1; }
+  .cognitive-metric-grid.cog-row-metric { grid-template-columns: 1fr .8fr; }
+  .cognitive-metric-grid.cog-row-metric label:last-child { grid-column: auto; }
   .assessment-grid-head { display: none; }
   .assessment-grid-row { grid-template-columns: 1fr 1fr; }
   .assessment-person { grid-column: 1 / -1; }
@@ -3076,6 +3106,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
   .slot-main select,
   .assessment-grid-row input,
   .cognitive-metric-grid input,
+  .cog-row-grid input,
   .select-plain,
   .form-grid input,
   .form-grid select {
@@ -3092,6 +3123,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
   .slot-main select:focus,
   .assessment-grid-row input:focus,
   .cognitive-metric-grid input:focus,
+  .cog-row-grid input:focus,
   .select-plain:focus,
   .form-grid input:focus,
   .form-grid select:focus {
