@@ -64,13 +64,16 @@ var HEADER_ALIASES = {
 var TRAILING_HEADERS = {
   checkins: ['午前午後'],
   // 2026-11-22 現場要望「実際の測定日を指定して保存」: 脳トレ・評価記録を当日以外の日付で入れたとき、いつ入力したかを残す列
-  cognitive: ['入力日時'],
+  // 2026-11-25 現場要望「脳トレを手書きメモの形に」: 教材のレベルとプリントの番号(短い文字)。入力日時の右の L・M列
+  cognitive: ['入力日時', 'レベル', '番号'],
   assessments: ['入力日時'],
 };
 /** TRAILING_HEADERS の列の見出しのセルに付ける説明のメモと、保存できないときの文に使う名前 */
 var TRAILING_NOTES = {
   午前午後: { label: '午前・午後の部', note: '午前午後(受付で選んだ午前の部・午後の部。前の版へ戻せるよう見出しは空けています)' },
   入力日時: { label: '入力日時', note: '入力日時(実際に入力した日時。測定日・実施日と違う日に入力したかが分かる。前の版へ戻せるよう見出しは空けています)' },
+  レベル: { label: '脳トレのレベル', note: 'レベル(脳トレの教材のレベル。2026-11-25〜。前の版へ戻せるよう見出しは空けています)' },
+  番号: { label: '脳トレの番号', note: '番号(脳トレのプリントの番号。2026-11-25〜。前の版へ戻せるよう見出しは空けています)' },
 };
 var DAY_PARTS_ = ['午前', '午後'];
 // 注意: 8列目(H列)を午前・午後に使っている。将来チェックインの HEADERS に列を足すときは、この列とぶつかるので
@@ -185,6 +188,7 @@ var API_REGISTRY = {
   apiSaveExercise: { fn: apiSaveExercise_, auth: 'staff' },
   apiSaveExerciseBatch: { fn: apiSaveExerciseBatch_, auth: 'staff' },
   apiSaveCognitive: { fn: apiSaveCognitive_, auth: 'staff' },
+  apiSaveCognitiveSet: { fn: apiSaveCognitiveSet_, auth: 'staff' },
   apiSaveAssessment: { fn: apiSaveAssessment_, auth: 'staff' },
   apiSaveAssessmentBatch: { fn: apiSaveAssessmentBatch_, auth: 'staff' },
   apiGetAssessmentsOn: { fn: apiGetAssessmentsOn_, auth: 'staff' },
@@ -815,6 +819,8 @@ function toCognitive_(r) {
     durationMinutes: numOrNull_(r[7] == null ? '' : r[7]),
     metricValue: numOrNull_(r[8] == null ? '' : r[8]), metricUnit: String(r[9] || ''),
     enteredAt: String(r[10] || ''), // 入力日時(2026-11-22〜。それより前の行は空)
+    level: String(r[11] == null ? '' : r[11]), // 教材のレベル(2026-11-25〜。それより前の行は空)
+    number: String(r[12] == null ? '' : r[12]), // プリントの番号(2026-11-25〜)
   };
 }
 
@@ -975,7 +981,7 @@ function apiGetBootstrap_() {
   var me = CURRENT_STAFF_;
   return {
     apiVersion: 8,
-    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll', 'cancelCheckin', 'dayResults'],
+    capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll', 'cancelCheckin', 'dayResults', 'cognitiveSet'],
     // 起動時の往復を1回にするため、ログイン中の職員情報も一緒に返す(apiGetSession を別に呼ばない)
     me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null,
     users: allUsers_(),
@@ -2255,36 +2261,91 @@ function apiEditVital_(payload) {
   }
 }
 
-/** 脳トレの実施内容を記録する。 */
+/** 脳トレの実施内容を1件記録する(前の画面との互換のため残す)。 */
 function apiSaveCognitive_(payload) {
+  var res = apiSaveCognitiveSet_({
+    userId: payload.userId, date: payload.date, note: payload.note,
+    items: [{
+      activity: payload.activity, level: payload.level, number: payload.number,
+      durationMinutes: payload.durationMinutes, metricValue: payload.metricValue, metricUnit: payload.metricUnit,
+    }],
+  });
+  return res.records[0];
+}
+
+var COGNITIVE_SET_MAX_ = 8;      // 1回に記録できる行の数(手書きメモの「実施プログラム」の行)
+var COGNITIVE_CODE_MAX_ = 20;    // レベル・番号の字数
+
+/**
+ * 脳トレを手書きメモの形でまとめて記録する(2026-11-25 現場要望)。
+ * payload: { userId, date, note(様子。その日の分をまとめて1つ), items: [{ activity, level, number, durationMinutes, metricValue, metricUnit }] }
+ * 行ごとに脳トレ記録の行を1つ作り、様子はどの行にも同じ文で残す(同じ時刻・同じ様子の行は画面で1回分として見せる)。
+ * 1行でも直すところがあれば、どの行も保存しない。
+ */
+function apiSaveCognitiveSet_(payload) {
+  payload = payload || {};
   var userExists = allUsers_().some(function (u) { return u.id === payload.userId; });
   if (!userExists) throw new Error('利用者が見つかりません。');
-  var activity = safeText_(payload.activity, 120);
-  if (!activity) throw new Error('脳トレの実施内容を入力してください。');
+  var items = Array.isArray(payload.items) ? payload.items : [];
+  if (!items.length) throw new Error('脳トレの実施内容を入力してください。');
+  if (items.length > COGNITIVE_SET_MAX_) throw new Error('一度に記録できるのは' + COGNITIVE_SET_MAX_ + '行までです。');
   var date = recordDateFor_(payload.date);
   var today = date === todayStr_();
-  var rec = {
-    // 当日以外の日付で入れたときは、実施した時刻が分からないので時刻を空にする(入力日時は右の列に残る)
-    id: newId_(), date: date, time: today ? nowTime_() : '', userId: payload.userId,
-    activity: activity, note: safeText_(payload.note, 300),
-    durationMinutes: numericOrNull_(payload.durationMinutes, 0, 600, '所要時間'),
-    metricValue: numericOrNull_(payload.metricValue, -999999, 999999, '成果数値'),
-    metricUnit: safeText_(payload.metricUnit, 12),
-    enteredAt: editStamp_(),
-  };
+  var note = safeText_(payload.note, 300);
+  var time = today ? nowTime_() : ''; // 当日以外の日付で入れたときは、実施した時刻が分からないので空にする
+  var enteredAt = editStamp_();
+  var recs = items.map(function (it, i) {
+    it = it || {};
+    var where = items.length > 1 ? (i + 1) + '行目の' : '';
+    var activity = safeText_(it.activity, 120);
+    if (!activity) throw new Error(where + '実施内容を選ぶか入力してください。');
+    var level, number;
+    try {
+      level = safeText_(it.level, COGNITIVE_CODE_MAX_);
+      number = safeText_(it.number, COGNITIVE_CODE_MAX_);
+    } catch (e) {
+      throw new Error(where + 'レベル・番号は' + COGNITIVE_CODE_MAX_ + '文字以内で入力してください。');
+    }
+    return {
+      id: newId_(), date: date, time: time, userId: payload.userId,
+      activity: activity, note: note, level: level, number: number,
+      durationMinutes: numericOrNull_(it.durationMinutes, 0, 600, where + '所要時間'),
+      metricValue: numericOrNull_(it.metricValue, -999999, 999999, where + '成果数値'),
+      metricUnit: safeText_(it.metricUnit, 12),
+      enteredAt: enteredAt,
+    };
+  });
   var lock = LockService.getScriptLock();
   lock.waitLock(10000);
   try {
-    assertCheckinNotCancelled_(rec.userId, rec.date);
-    var row = withEnteredAt_('cognitive', [rec.id, rec.date, rec.time, rec.userId, rec.activity, rec.note, currentStaffName_(),
-      rec.durationMinutes == null ? '' : rec.durationMinutes,
-      rec.metricValue == null ? '' : rec.metricValue, rec.metricUnit], rec.date, rec.enteredAt);
-    if (row.length <= HEADERS.cognitive.length) rec.enteredAt = '';
-    appendRowNoLock_('cognitive', row);
+    assertCheckinNotCancelled_(payload.userId, date);
+    var staffName = currentStaffName_();
+    var extrasOk = true;
+    try {
+      ensureTrailingHeader_(sheet_('cognitive'), 'cognitive');
+    } catch (e) {
+      // 列が使えないとき: 当日でレベル・番号がなければ今までどおり保存する。そうでなければ保存しない
+      var needExtras = !today || recs.some(function (r) { return r.level || r.number; });
+      if (needExtras) throw e;
+      extrasOk = false;
+    }
+    var rows = recs.map(function (rec) {
+      var row = [rec.id, rec.date, rec.time, rec.userId, rec.activity, rec.note, staffName,
+        rec.durationMinutes == null ? '' : rec.durationMinutes,
+        rec.metricValue == null ? '' : rec.metricValue, rec.metricUnit];
+      if (extrasOk) return row.concat([rec.enteredAt, rec.level, rec.number]);
+      rec.enteredAt = '';
+      return row;
+    });
+    // appendRowsNoLock_ は HEADERS の幅で切るので使わない(右の入力日時・レベル・番号まで書く)
+    var sh = sheet_('cognitive');
+    sh.getRange(sh.getLastRow() + 1, 1, rows.length, rows[0].length).setNumberFormat('@')
+      .setValues(rows.map(function (r) { return r.map(String); }));
+    invalidateRequestRows_('cognitive');
   } finally {
     lock.releaseLock();
   }
-  return rec;
+  return { records: recs };
 }
 
 function numericOrNull_(value, min, max, label) {
@@ -3217,6 +3278,8 @@ function apiGetPreviousRecordSet_(userId) {
       .sort(exerciseOrder_),
     exerciseDate: lastExerciseDate,
     cognitive: cognitive.length ? cognitive[cognitive.length - 1] : null,
+    // 前回の脳トレの日の記録すべて(2026-11-25 手書きメモの「前回やった内容や様子」)
+    cognitiveSet: cognitive.length ? cognitive.filter(function (r) { return r.date === cognitive[cognitive.length - 1].date; }) : [],
   };
 }
 
