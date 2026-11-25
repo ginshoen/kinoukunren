@@ -2697,6 +2697,34 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 .numeric-trend-svg .trend-latest { fill: var(--green-dark); font-weight: 900; }
 .admin-trends { grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); }
 
+/* ---------- 脳トレ: 手書きメモの形(2026-11-25 前回の内容・行ごとのレベル/番号/所要時間/内容・様子) ---------- */
+.cog-prev { gap: 8px; }
+.cog-set { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--input-bg); }
+.cog-set + .cog-set { margin-top: 8px; }
+.cog-set-date { color: var(--green-dark); font-size: 12px; font-weight: 800; }
+.cog-set-line { display: grid; gap: 2px; }
+.cog-set-line span { font-size: 15px; font-weight: 700; overflow-wrap: anywhere; }
+.cog-set-line small { color: var(--text-aux); font-size: 13px; line-height: 1.5; }
+.cog-set-note { margin-top: 4px; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.cog-set-note b { margin-right: 8px; color: var(--text-sub); font-size: 12px; }
+.cog-prev .copy-previous { margin-top: 8px; }
+.cog-rows { display: grid; gap: 10px; margin-top: 8px; }
+.cog-row { display: grid; gap: 8px; padding: 10px 12px 12px; border: 1px solid var(--border); border-radius: 12px; }
+.cog-row-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
+.cog-row-head b { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #f3e8fd; color: #8430b5; font-size: 13px; }
+.cog-row-remove { min-height: 40px; padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: #fff; color: var(--alert-text); font: inherit; font-size: 13px; font-weight: 700; }
+.cog-row-grid { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; }
+.cog-row-grid label,
+.cog-row-content { display: grid; gap: 5px; min-width: 0; color: var(--text-sub); font-size: 12px; font-weight: 700; }
+.cog-row-grid input {
+  width: 100%; min-width: 0; min-height: 44px; padding: 8px 10px; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--input-bg); color: var(--text); font: inherit; font-size: 16px; font-weight: 800;
+}
+.cog-row .cog-free { min-height: 44px; }
+.cog-row-metric { margin-top: 0; grid-template-columns: 1fr .8fr; }
+.cog-metric-open { justify-self: start; min-height: 40px; padding: 6px 4px; border: 0; background: none; color: var(--green-dark); font: inherit; font-size: 13px; font-weight: 700; }
+.cog-add-row { margin-top: 10px; width: 100%; }
+
 /* ---------- 体力測定: 種目別一括グリッド ---------- */
 .assessment-wide-wrap { align-items: flex-start; }
 .phone.assessment-wide { max-width: 1040px; }
@@ -2820,6 +2848,8 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
 @media (max-width: 700px) {
   .cognitive-metric-grid { grid-template-columns: 1fr 1fr; }
   .cognitive-metric-grid label:last-child { grid-column: 1 / -1; }
+  .cognitive-metric-grid.cog-row-metric { grid-template-columns: 1fr .8fr; }
+  .cognitive-metric-grid.cog-row-metric label:last-child { grid-column: auto; }
   .assessment-grid-head { display: none; }
   .assessment-grid-row { grid-template-columns: 1fr 1fr; }
   .assessment-person { grid-column: 1 / -1; }
@@ -3086,6 +3116,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
   .slot-main select,
   .assessment-grid-row input,
   .cognitive-metric-grid input,
+  .cog-row-grid input,
   .select-plain,
   .form-grid input,
   .form-grid select {
@@ -3102,6 +3133,7 @@ button, a, input, select, textarea, .person-row, .menu-action, .exercise-row, .s
   .slot-main select:focus,
   .assessment-grid-row input:focus,
   .cognitive-metric-grid input:focus,
+  .cog-row-grid input:focus,
   .select-plain:focus,
   .form-grid input:focus,
   .form-grid select:focus {
@@ -3869,7 +3901,7 @@ details.user-extra > .form-grid { padding-bottom: 12px; }
 
   </head>
   <body>
-<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261125-0941';window.APP_MOCK=false;window.APP_DEMO=false;</script>
+<script>window.GAS_API_URL='https://script.google.com/macros/s/AKfycbwZXC8fcXBOKT4qIa1vb0EN4MEidEWytZ-HLvsViKN_hH_etIX6_f7MHkVpP449pIJy/exec';window.GAS_API_TOKEN='';window.APP_BUILD='20261125-1328';window.APP_MOCK=false;window.APP_DEMO=false;</script>
     <div id="app">
       <div style="padding: 48px; text-align: center; color: #7a8a7d; font-weight: 700">
         読み込み中…
@@ -4483,7 +4515,7 @@ var S = {
   templates: [],        // 種別ごとの定型文
   notebookPhrases: [],  // 連絡帳の文例(「使う」にしたもの)
   phraseAdmin: { loaded: false, loading: false, list: [], error: '', editId: '' }, // 管理画面「連絡帳の文例」
-  cogDraft: null,       // 脳トレ記録下書き {activity, free, durationMinutes, metricValue, metricUnit, note}
+  cogDraft: null,       // 脳トレ記録下書き {date, note(様子), rows:[{activity, free, level, number, durationMinutes, metricOpen, metricValue, metricUnit}]}
   assessDraft: null,    // 評価記録下書き {type, item, freeItem, result, detail}
   assessBatch: null,    // 体力測定一括入力 {item, entries, message}
   exerciseCache: {},    // userId -> {data, expires}（画面往復時の再通信を削減）
@@ -6895,33 +6927,115 @@ function renderExerciseScan(app, renderId) {
 
 // ---------------------------------------------------------------- 1d 脳トレ記録
 
+/** 直前の保存の取り消し。一緒に保存した行(ids)があれば順に取り消し、取り消せた行は last.ids から外す */
+function voidRecordIds(last) {
+  var ids = (last.ids && last.ids.length) ? last.ids.slice() : [last.id];
+  return ids.reduce(function (p, id) {
+    return p.then(function () {
+      return rpc('apiVoidRecord', last.kind, id).then(function (res) {
+        if (last.ids) last.ids = last.ids.filter(function (x) { return x !== id; });
+        return res;
+      });
+    });
+  }, Promise.resolve());
+}
+var COG_ROWS_MAX = 8;   // 1回に記録できる行(サーバーの COGNITIVE_SET_MAX_ と同じ)
+var COG_CODE_MAX = 20;  // レベル・番号の字数
+function cogBlankRow() {
+  return { activity: '', free: '', level: '', number: '', durationMinutes: '', metricOpen: false, metricValue: '', metricUnit: '点' };
+}
+function cogNewDraft() {
+  return { date: S.today, note: '', rows: [cogBlankRow()] };
+}
+/** 脳トレ1件の「レベル・番号・所要時間・成果」の短い説明(履歴・前回の欄) */
+function cogRecordMeta(r) {
+  var parts = [];
+  if (r.level) parts.push('レベル ' + esc(r.level));
+  if (r.number) parts.push('番号 ' + esc(r.number));
+  if (r.durationMinutes !== '' && r.durationMinutes != null) parts.push('所要 ' + esc(r.durationMinutes) + '分');
+  if (r.metricValue !== '' && r.metricValue != null) parts.push('成果 ' + esc(r.metricValue) + esc(r.metricUnit || ''));
+  return parts.join(' · ');
+}
+/**
+ * 一緒に保存した脳トレの行(同じ日・同じ時刻・同じ様子)を1回分にまとめる。様子はどの行にも同じ文で入っているので1回だけ出す。
+ * 2026-11-25 より前の記録(1件ずつ保存)も、時刻と様子が同じなら1回分になる。並びは渡した順のまま
+ */
+function groupCognitiveSets(records) {
+  var groups = [];
+  (records || []).forEach(function (r) {
+    var g = groups[groups.length - 1];
+    if (g && g.date === r.date && g.time === r.time && g.note === (r.note || '')) { g.items.push(r); return; }
+    groups.push({ date: r.date, time: r.time, note: r.note || '', items: [r] });
+  });
+  return groups;
+}
+/** 2回分以上の様子を「。」でつなぐ(文の終わりの「。」は重ねない。2026-11-25 点検の指摘) */
+function joinCogNotes(notes) {
+  notes = (notes || []).filter(Boolean);
+  if (notes.length <= 1) return (notes[0] || '').slice(0, 300);
+  var last = notes[notes.length - 1];
+  return (notes.map(function (n) { return n.replace(/。+$/, ''); }).join('。') + (/。$/.test(last) ? '。' : '')).slice(0, 300);
+}
+/** 1回分の脳トレ(行と様子)の表示 */
+function cogGroupHtml(g, withDate) {
+  return '<div class="cog-set">' +
+    (withDate ? '<div class="cog-set-date">' + esc(dayLabel(g.date)) + (g.time ? ' ' + esc(g.time) : '') + '</div>' : '') +
+    g.items.map(function (r) {
+      var meta = cogRecordMeta(r);
+      return '<div class="cog-set-line"><span>' + esc(r.activity) + '</span>' + (meta ? '<small>' + meta + '</small>' : '') + '</div>';
+    }).join('') +
+    (g.note ? '<div class="cog-set-note"><b>様子</b>' + esc(g.note) + '</div>' : '') +
+    '</div>';
+}
+function cogRowHtml(row, i, count, options) {
+  var opts = options.replace('value="' + esc(row.activity) + '"', 'value="' + esc(row.activity) + '" selected');
+  return '<div class="cog-row">' +
+    '<div class="cog-row-head"><b>' + (i + 1) + '</b>' +
+    (count > 1 ? '<button class="cog-row-remove" type="button" onclick="Actions.cogRemoveRow(' + i + ')" aria-label="' + (i + 1) + '行目を消す">この行を消す</button>' : '') + '</div>' +
+    '<div class="cog-row-grid">' +
+    '<label><span>レベル</span><input maxlength="' + COG_CODE_MAX + '" value="' + esc(row.level) + '" placeholder="例 3" oninput="Actions.cogRow(' + i + ',\'level\',this.value)"></label>' +
+    '<label><span>番号</span><input maxlength="' + COG_CODE_MAX + '" value="' + esc(row.number) + '" placeholder="例 12" oninput="Actions.cogRow(' + i + ',\'number\',this.value)"></label>' +
+    '<label><span>所要時間</span><span class="input-with-unit"><input type="number" min="0" max="600" step="0.1" inputmode="decimal" value="' + esc(row.durationMinutes) + '" placeholder="例 12" oninput="Actions.cogRow(' + i + ',\'durationMinutes\',this.value)"><b>分</b></span></label>' +
+    '</div>' +
+    '<label class="cog-row-content"><span>内容</span><select class="form-select" onchange="Actions.cogSelect(' + i + ',this.value)">' + opts + '</select></label>' +
+    (row.activity === '__free__' ? '<input class="note-area cog-free" maxlength="120" placeholder="プログラム名を入力" value="' + esc(row.free) + '" oninput="Actions.cogRow(' + i + ',\'free\',this.value)">' : '') +
+    (row.metricOpen
+      ? '<div class="cognitive-metric-grid cog-row-metric"><label><span>成果・達成度</span><input type="number" step="0.1" inputmode="decimal" value="' + esc(row.metricValue) + '" placeholder="例 18" oninput="Actions.cogRow(' + i + ',\'metricValue\',this.value)"></label>' +
+        '<label><span>単位</span><select class="form-select compact" onchange="Actions.cogRow(' + i + ',\'metricUnit\',this.value)">' + COG_METRIC_UNITS.map(function (unit) {
+          return '<option value="' + esc(unit) + '"' + (row.metricUnit === unit ? ' selected' : '') + '>' + esc(unit) + '</option>';
+        }).join('') + '</select></label></div>'
+      : '<button class="cog-metric-open" type="button" onclick="Actions.cogMetricOpen(' + i + ')">＋ 成果の数値も記録する</button>') +
+    '</div>';
+}
+
 function renderCognitive(app, renderId) {
   var user = currentUser();
   if (!user) return go('');
-  if (!S.cogDraft) S.cogDraft = {
-    activity: '', free: '', durationMinutes: '', metricValue: '', metricUnit: '点', note: '', date: S.today,
-  };
-  showLoading(app, hasTodayStatusCache());
+  if (!S.cogDraft || !S.cogDraft.rows) S.cogDraft = cogNewDraft();
+  showLoading(app, hasTodayStatusCache() && isRpcFresh('apiGetPreviousRecordSet', [user.id]));
 
-  getTodayStatus().then(function (today) {
+  // 前回の内容は読めなくても記録はできるようにする(欄に「読み込めませんでした」と出す)
+  var prevRequest = rpc('apiGetPreviousRecordSet', user.id).catch(function () { return { failed: true }; });
+  Promise.all([getTodayStatus(), prevRequest]).then(function (both) {
     if (!isCurrentRender(renderId)) return;
+    var today = both[0], prev = both[1] || {};
     var d = S.cogDraft;
     var menu = (S.cognitiveMenu || []).filter(function (m) { return m.active; });
-    var options = '<option value="">実施したプログラムを選択</option>' + menu.map(function (m) {
-      return '<option value="' + esc(m.name) + '"' + (d.activity === m.name ? ' selected' : '') + '>' + esc(m.name) + '</option>';
-    }).join('');
-    options += '<option value="__free__"' + (d.activity === '__free__' ? ' selected' : '') + '>その他（記載式）</option>';
+    var options = '<option value="">プログラムを選択</option>' + menu.map(function (m) {
+      return '<option value="' + esc(m.name) + '">' + esc(m.name) + '</option>';
+    }).join('') + '<option value="__free__">その他（記載式）</option>';
+    var prevSet = prev.cognitiveSet || (prev.cognitive ? [prev.cognitive] : []);
+    var prevHtml = prev.failed
+      ? '<div class="empty-note">前回の記録を読み込めませんでした</div>'
+      : prevSet.length
+        ? groupCognitiveSets(prevSet).map(function (g) { return cogGroupHtml(g, true); }).join('') +
+          '<button class="btn-outline copy-previous" onclick="Actions.cogCopyPrevious()">↻ 前回と同じ内容を入れる</button>'
+        : '<div class="empty-note">前回の脳トレ記録はありません</div>';
     var todayRecords = (today.cognitiveRecords || []).filter(function (c) { return c.userId === user.id; });
     var recordsHtml = todayRecords.length
-      ? todayRecords.map(function (r) {
-          var metric = [];
-          if (r.durationMinutes !== '' && r.durationMinutes != null) metric.push('所要 ' + esc(r.durationMinutes) + '分');
-          if (r.metricValue !== '' && r.metricValue != null) metric.push('成果 ' + esc(r.metricValue) + esc(r.metricUnit || ''));
-          return '<div class="record-line"><b>' + esc(r.time) + '</b><span>' + esc(r.activity) + '</span>' +
-            (metric.length ? '<small>' + metric.join(' · ') + '</small>' : '') +
-            (r.note ? '<small>' + esc(r.note) + '</small>' : '') + '</div>';
-        }).join('')
+      ? groupCognitiveSets(todayRecords).map(function (g) { return cogGroupHtml(g, false).replace('<div class="cog-set">', '<div class="cog-set"><div class="cog-set-date">' + esc(g.time) + '</div>'); }).join('')
       : '<div class="empty-note">本日の脳トレ記録はまだありません</div>';
+    var rows = d.rows.map(function (row, i) { return cogRowHtml(row, i, d.rows.length, options); }).join('');
 
     app.innerHTML =
       '<div class="phone-wrap"><div class="phone">' +
@@ -6931,25 +7045,20 @@ function renderCognitive(app, renderId) {
       '<div class="h-right"><span class="pill-badge">' + esc(user.careLevel) + '</span></div>' +
       '</header>' +
       '<div class="phone-body" style="gap:14px;">' +
-      '<div class="screen-intro compact-intro"><span class="eyebrow">脳トレ</span><h1>実施内容を記録</h1>' +
-      '<p>実施した内容を選ぶか、自由に入力してください。</p></div>' +
+      '<div class="screen-intro compact-intro"><span class="eyebrow">脳トレ</span><h1>脳トレ記録</h1>' +
+      '<p>実施したプログラムを1行ずつ入れ、最後に様子を書いてください。</p></div>' +
       snackbarHtml() +
-      recordDateHtml(d, 'Actions.cogDate', '実施日') +
-      '<button class="btn-outline copy-previous" onclick="Actions.cogCopyPrevious()">↻ 前回の脳トレ内容をコピー</button>' +
-      '<div class="card"><label class="card-label" for="cog-program">実施プログラム</label>' +
-      '<select class="form-select" id="cog-program" onchange="Actions.cogSelect(this.value)">' + options + '</select>' +
-      (d.activity === '__free__' ? '<input class="note-area" id="cog-free" maxlength="120" placeholder="プログラム名を入力" value="' + esc(d.free) + '"' +
-        ' oninput="Actions.cogFree(this.value)" style="min-height:44px;margin-top:10px;">' : '') + '</div>' +
-      '<div class="card"><span class="card-label">数値記録（任意）</span>' +
-      '<div class="cognitive-metric-grid"><label><span>所要時間</span><span class="input-with-unit"><input type="number" min="0" max="600" step="0.1" inputmode="decimal" value="' + esc(d.durationMinutes) + '" oninput="Actions.cogDuration(this.value)" placeholder="例 12"><b>分</b></span></label>' +
-      '<label><span>成果・達成度</span><input type="number" step="0.1" inputmode="decimal" value="' + esc(d.metricValue) + '" oninput="Actions.cogMetricValue(this.value)" placeholder="例 18"></label>' +
-      '<label><span>単位</span><select class="form-select compact" onchange="Actions.cogMetricUnit(this.value)">' + COG_METRIC_UNITS.map(function (unit) {
-        return '<option value="' + esc(unit) + '"' + (d.metricUnit === unit ? ' selected' : '') + '>' + esc(unit) + '</option>';
-      }).join('') + '</select></label></div>' +
-      '<p class="section-note">所要時間や成果数値は蓄積され、利用者詳細で推移グラフになります。</p></div>' +
-      '<div class="card"><span class="card-label">結果・所見(任意)</span>' +
+      '<div class="card cog-prev"><span class="card-label">前回やった内容や様子</span>' + prevHtml + '</div>' +
+      recordDateHtml(d, 'Actions.cogDate', '日付') +
+      '<div class="card"><span class="card-label">実施プログラム</span>' +
+      '<div class="cog-rows">' + rows + '</div>' +
+      (d.rows.length < COG_ROWS_MAX
+        ? '<button class="btn-outline cog-add-row" type="button" onclick="Actions.cogAddRow()">＋ 行を足す</button>'
+        : '<p class="section-note">一度に入れられるのは' + COG_ROWS_MAX + '行までです</p>') +
+      '<p class="section-note">所要時間や成果の数値は蓄積され、利用者詳細で推移グラフになります。</p></div>' +
+      '<div class="card"><span class="card-label">様子（任意）</span>' +
       templateChipsHtml('cognitive', 'cogUseTemplate') +
-      '<textarea class="note-area" maxlength="300" placeholder="例: 20問中18問正解。集中して取り組まれた。" oninput="Actions.cogNote(this.value)">' + esc(d.note) + '</textarea></div>' +
+      '<textarea class="note-area" maxlength="300" placeholder="例: 集中して取り組まれた。" oninput="Actions.cogNote(this.value)">' + esc(d.note) + '</textarea></div>' +
       '<div id="cog-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
       '<button class="btn-primary" id="cog-save" style="flex:none;width:100%;" onclick="Actions.cogSave()">' + esc(recordSaveLabel(d.date, 'この内容で記録する')) + '</button>' +
       '<div><div class="section-head" style="margin-bottom:8px;"><span class="section-title">本日の脳トレ記録</span></div>' +
@@ -7419,13 +7528,14 @@ function renderUserDetail(app, userId, renderId) {
 
     var cognitiveRecords = res.cognitiveRecords || [];
     var cognitiveHtml = cognitiveRecords.length
-      ? cognitiveRecords.slice(0, 5).map(function (r) {
-          var metric = [];
-          if (r.durationMinutes !== '' && r.durationMinutes != null) metric.push('所要 ' + esc(r.durationMinutes) + '分');
-          if (r.metricValue !== '' && r.metricValue != null) metric.push('成果 ' + esc(r.metricValue) + esc(r.metricUnit || ''));
+      ? cognitiveRecords.slice(0, 5).map(function (r, i, list) {
+          var meta = cogRecordMeta(r);
+          // 一緒に保存した行(同じ日・時刻・様子)は、様子を最後の行にだけ出す(2026-11-25 様子はまとめて1つ)
+          var next = list[i + 1];
+          var sameSet = next && next.date === r.date && next.time === r.time && (next.note || '') === (r.note || '');
           return '<div class="record-line"><b>' + dayLabel(r.date) + '</b><span>' + esc(r.activity) + '</span>' +
-            (metric.length ? '<small>' + metric.join(' · ') + '</small>' : '') +
-            (r.note ? '<small>' + esc(r.note) + '</small>' : '') +
+            (meta ? '<small>' + meta + '</small>' : '') +
+            (r.note && !sameSet ? '<small>' + esc(r.note) + '</small>' : '') +
             (lateEntryMark(r) ? '<small>' + lateEntryMark(r).replace(/^ · /, '') + '</small>' : '') + '</div>';
         }).join('')
       : '<div class="empty-note">脳トレ記録はまだありません</div>';
@@ -8933,7 +9043,12 @@ function monthlyIndividualHtml(data) {
   var notes = [];
   (data.vitals || []).forEach(function (v) { if (v.flagged) notes.push(dayLabel(v.date) + ': ' + v.alerts.join(' / ')); });
   (data.exercises || []).forEach(function (r) { if (r.note) notes.push(dayLabel(r.date) + ': ' + r.note); });
-  (data.cognitiveRecords || []).forEach(function (r) { if (r.note) notes.push(dayLabel(r.date) + ': ' + r.note); });
+  // 脳トレの様子は一緒に保存した行に同じ文が入っているので、同じ日の同じ文は1回だけ(2026-11-25)
+  var cogNoteSeen = {};
+  (data.cognitiveRecords || []).forEach(function (r) {
+    var key = r.date + '\n' + r.note;
+    if (r.note && !cogNoteSeen[key]) { cogNoteSeen[key] = true; notes.push(dayLabel(r.date) + ': ' + r.note); }
+  });
   var latestGoal = (data.goals || [])[0];
   return '<section class="monthly-individual-sheet" aria-label="個人月次報告書">' +
     '<header><div><small>機能訓練デイサービス 弐番館</small><h1>個人月次報告書</h1></div><div><b>' + esc(monthLabel(data.month)) + '</b><strong>' + esc(data.user.name) + ' 様</strong></div></header>' +
@@ -9500,7 +9615,10 @@ function defaultNotebookComment(data, variant) {
   if (parts[0].indexOf('意欲') >= 0 || style === 'strong' || style === 'mixed') familyWords = familyWords.replace('意欲的に取り組まれました。', '');
   if (familyWords) parts.push(familyWords);
   if (data.cognitiveRecords && data.cognitiveRecords.length) {
-    parts.push('脳トレは「' + data.cognitiveRecords.map(function (r) { return r.activity; }).join('、') + '」を実施しました。');
+    // 同じプログラムを何行か入れた日も名前は1回だけ(2026-11-25 点検の指摘)
+    var cogNames = [];
+    data.cognitiveRecords.forEach(function (r) { if (cogNames.indexOf(r.activity) < 0) cogNames.push(r.activity); });
+    parts.push('脳トレは「' + cogNames.join('、') + '」を実施しました。');
   }
   var closings = notebookPhrasePool(NOTEBOOK_CLOSINGS_BY_STYLE[style] || NOTEBOOK_CLOSINGS_BY_STYLE.other, style, '締め', names.length > 0, c.eased);
   var hasCare = familyWords.indexOf(FAMILY_CARE_CLOSING) >= 0;
@@ -10694,7 +10812,7 @@ var Actions = {
         return Promise.reject({ handled: true });
       }
       return res;
-    }) : rpc('apiVoidRecord', last.kind, last.id);
+    }) : voidRecordIds(last);
     request.then(function (res) {
       delete S.exerciseCache[S.currentUserId];
       S.todayStatusCache = null;
@@ -10706,7 +10824,7 @@ var Actions = {
       render();
     }).catch(function (e) {
       if (e && e.handled) return; // 記録があって取り消さなかった(記録メニューの欄で知らせた)
-      S.lastSaved = last;
+      S.lastSaved = last; // 一緒に保存した行の一部だけ取り消せたときは、残りの行だけをもう一度取り消す(last.ids を減らしてある)
       showSaveError('取り消しできませんでした。もう一度お試しください');
     });
   },
@@ -10784,56 +10902,109 @@ var Actions = {
   },
 
   // --- 脳トレ記録 ---
-  cogSelect: function (value) { S.cogDraft.activity = value; render(); },
+  cogSelect: function (i, value) { S.cogDraft.rows[i].activity = value; render(); },
   cogDate: function (value) { setRecordDate(S.cogDraft, value); render(); },
-  cogFree: function (value) { S.cogDraft.free = value.slice(0, 120); },
-  cogDuration: function (value) { S.cogDraft.durationMinutes = value; },
-  cogMetricValue: function (value) { S.cogDraft.metricValue = value; },
-  cogMetricUnit: function (value) { S.cogDraft.metricUnit = value.slice(0, 12); },
+  /** 行の欄(level・number・durationMinutes・free・metricValue・metricUnit)。再描画しない(入力中の欄を保つ) */
+  cogRow: function (i, field, value) {
+    var row = S.cogDraft && S.cogDraft.rows[i];
+    if (!row) return;
+    var max = { level: COG_CODE_MAX, number: COG_CODE_MAX, free: 120, metricUnit: 12 }[field];
+    row[field] = max ? String(value || '').slice(0, max) : value;
+  },
+  cogMetricOpen: function (i) { S.cogDraft.rows[i].metricOpen = true; render(); },
+  cogAddRow: function () {
+    if (S.cogDraft.rows.length >= COG_ROWS_MAX) return;
+    S.cogDraft.rows.push(cogBlankRow());
+    render();
+  },
+  cogRemoveRow: function (i) {
+    if (S.cogDraft.rows.length <= 1) return;
+    S.cogDraft.rows.splice(i, 1);
+    render();
+  },
   cogNote: function (value) { S.cogDraft.note = value.slice(0, 300); },
   cogUseTemplate: function (text) {
     S.cogDraft.note = ((S.cogDraft.note || '').trim() ? S.cogDraft.note.trim() + '。' : '') + text;
     S.cogDraft.note = S.cogDraft.note.slice(0, 300);
     render();
   },
+  /** 前回の日の脳トレ(全部の行と様子)を入力欄に写す。日付はそのまま */
   cogCopyPrevious: function () {
     rpc('apiGetPreviousRecordSet', S.currentUserId).then(function (res) {
-      var p = res.cognitive;
-      if (!p) return showSaveError('前回の脳トレ記録はありません');
-      var menuMatch = (S.cognitiveMenu || []).some(function (m) { return m.name === p.activity; });
+      var set = res.cognitiveSet || (res.cognitive ? [res.cognitive] : []);
+      if (!set.length) return showSaveError('前回の脳トレ記録はありません');
+      var menuNames = (S.cognitiveMenu || []).map(function (m) { return m.name; });
+      var str = function (v) { return v == null ? '' : String(v); };
+      var groups = groupCognitiveSets(set);
       S.cogDraft = {
         date: (S.cogDraft && S.cogDraft.date) || S.today,
-        activity: menuMatch ? p.activity : '__free__', free: menuMatch ? '' : p.activity,
-        durationMinutes: p.durationMinutes == null ? '' : String(p.durationMinutes),
-        metricValue: p.metricValue == null ? '' : String(p.metricValue), metricUnit: p.metricUnit || '点', note: p.note || '',
+        dateError: '',
+        note: joinCogNotes(groups.map(function (g) { return g.note; })),
+        rows: set.slice(0, COG_ROWS_MAX).map(function (p) {
+          var menuMatch = menuNames.indexOf(p.activity) >= 0;
+          return {
+            activity: menuMatch ? p.activity : '__free__', free: menuMatch ? '' : p.activity,
+            level: str(p.level).slice(0, COG_CODE_MAX), number: str(p.number).slice(0, COG_CODE_MAX),
+            durationMinutes: str(p.durationMinutes),
+            metricOpen: p.metricValue != null && p.metricValue !== '',
+            metricValue: str(p.metricValue), metricUnit: p.metricUnit || '点',
+          };
+        }),
       };
       render();
     }).catch(function (e) { showSaveError((e && e.message) || '前回記録を取得できませんでした'); });
   },
   cogSave: function () {
     var d = S.cogDraft;
-    var activity = (d.activity === '__free__' ? d.free : d.activity || '').trim();
     var err = document.getElementById('cog-error');
-    if (!activity) { if (err) err.textContent = '実施内容を選ぶか入力してください'; return; }
+    var fail = function (msg) { if (err) err.textContent = msg; };
+    var filled = function (v) { return String(v == null ? '' : v).trim() !== ''; };
+    var items = [], problem = '';
+    d.rows.forEach(function (row, i) {
+      var activity = (row.activity === '__free__' ? row.free : row.activity || '').trim();
+      var touched = activity || filled(row.level) || filled(row.number) || filled(row.durationMinutes) || filled(row.metricValue);
+      if (!touched) return; // 何も入れていない行は使わない
+      if (!activity && !problem) problem = (d.rows.length > 1 ? (i + 1) + '行目の' : '') + '内容を選ぶか入力してください';
+      items.push({
+        activity: activity, level: String(row.level || '').trim(), number: String(row.number || '').trim(),
+        durationMinutes: row.durationMinutes, metricValue: row.metricOpen ? row.metricValue : '', metricUnit: row.metricUnit,
+      });
+    });
+    if (problem) return fail(problem);
+    if (!items.length) return fail('実施したプログラムを選ぶか入力してください');
     var date = recordDateValue(d.date);
-    if (!date) { if (err) err.textContent = '実施日は1年前から今日までで選んでください'; return; }
+    if (!date) return fail('日付は1年前から今日までで選んでください');
+    var note = (d.note || '').trim();
     var btn = document.getElementById('cog-save');
     if (btn) { btn.disabled = true; btn.textContent = '保存中…'; }
-    rpc('apiSaveCognitive', {
-      userId: S.currentUserId, date: date, activity: activity, note: (d.note || '').trim(),
-      durationMinutes: d.durationMinutes, metricValue: d.metricValue, metricUnit: d.metricUnit,
-    })
-      .then(function (rec) {
-        S.lastSaved = { kind: 'cognitive', id: rec.id, label: (rec.date !== S.today ? monthDayLabel(rec.date) + 'の' : '') + '脳トレ(' + activity + ')を記録しました' };
-        S.cogDraft = null;
-        S.todayStatusCache = null;
-        clearRpcCache();
-        render();
-      })
-      .catch(function (e) {
-        if (err) err.textContent = (e && e.message) || '保存できませんでした';
-        if (btn) { btn.disabled = false; btn.textContent = recordSaveLabel(date, 'この内容で記録する'); }
-      });
+    var request;
+    if (S.capabilities.indexOf('cognitiveSet') >= 0) {
+      request = rpc('apiSaveCognitiveSet', { userId: S.currentUserId, date: date, note: note, items: items })
+        .then(function (res) { return res.records; });
+    } else {
+      // 前の版のサーバー: 1件ずつ保存する(レベル・番号は残らない)
+      var saved = [];
+      request = items.reduce(function (p, it) {
+        return p.then(function () {
+          return rpc('apiSaveCognitive', { userId: S.currentUserId, date: date, activity: it.activity, note: note,
+            durationMinutes: it.durationMinutes, metricValue: it.metricValue, metricUnit: it.metricUnit })
+            .then(function (rec) { saved.push(rec); });
+        });
+      }, Promise.resolve()).then(function () { return saved; });
+    }
+    request.then(function (recs) {
+      var first = recs[0];
+      var names = items.map(function (it) { return it.activity; });
+      S.lastSaved = { kind: 'cognitive', id: first.id, ids: recs.map(function (r) { return r.id; }),
+        label: (first.date !== S.today ? monthDayLabel(first.date) + 'の' : '') + '脳トレ(' + (names.length > 2 ? names.slice(0, 2).join('・') + ' ほか' + (names.length - 2) + '件' : names.join('・')) + ')を記録しました' };
+      S.cogDraft = null;
+      S.todayStatusCache = null;
+      clearRpcCache();
+      render();
+    }).catch(function (e) {
+      fail((e && e.message) || '保存できませんでした');
+      if (btn) { btn.disabled = false; btn.textContent = recordSaveLabel(date, 'この内容で記録する'); }
+    });
   },
 
   // --- 体力測定・評価記録 ---
@@ -12418,7 +12589,7 @@ function mockCogMenu(db) {
       var me = mockMe();
       var photos = db.photos || {};
       db.users.forEach(function (x) { x.hasPhoto = !!photos[x.id]; });
-      return { apiVersion: 8, me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll', 'cancelCheckin', 'dayResults'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), templates: (db.templates || []).filter(function (t) { return t.active !== false; }), notebookPhrases: mockUsedPhrases(db), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
+      return { apiVersion: 8, me: me ? { id: me.id, name: me.name, role: me.role, jobTitle: me.jobTitle } : null, capabilities: ['checkout', 'cognitive', 'cognitiveMetrics', 'assessments', 'batchExercise', 'batchAssessment', 'communicationBook', 'staffLogin', 'userPhotos', 'cognitiveMenu', 'careDashboard', 'handoffs', 'templates', 'goalProgress', 'monthlyIndividual', 'exerciseSlots4', 'notebookEntries', 'notebookBatchPrint', 'exerciseMaster', 'gripSides', 'vitalsAll', 'cancelCheckin', 'dayResults', 'cognitiveSet'], users: sortUsersKana(db.users), exercises: db.exercises, cognitiveMenu: mockCogMenu(db), templates: (db.templates || []).filter(function (t) { return t.active !== false; }), notebookPhrases: mockUsedPhrases(db), today: todayStr(), staff: me ? me.name : 'プレビュー', role: me ? me.role : 'staff', todayCheckins: fns.apiGetTodayCheckins() };
     },
     apiAdminSaveCognitiveMenu: function (p) {
       var db = load();
@@ -12831,10 +13002,22 @@ function mockCogMenu(db) {
         .sort(exerciseOrder);
     },
     apiSaveCognitive: function (p) {
+      return fns.apiSaveCognitiveSet({ userId: p.userId, date: p.date, note: p.note, items: [p] }).records[0];
+    },
+    apiSaveCognitiveSet: function (p) {
       var date = mockRecordDate(p.date);
-      var db = load(); db.seq += 1;
-      var rec = { id: 'm' + db.seq, date: date, time: date === todayStr() ? nowTime() : '', enteredAt: mockStamp(), userId: p.userId, activity: p.activity, note: p.note || '', durationMinutes: p.durationMinutes === '' ? null : Number(p.durationMinutes), metricValue: p.metricValue === '' ? null : Number(p.metricValue), metricUnit: p.metricUnit || '' };
-      db.cognitive.push(rec); save(db); return rec;
+      var items = p.items || [];
+      if (!items.length) throw new Error('脳トレの実施内容を入力してください。');
+      if (items.length > 8) throw new Error('一度に記録できるのは8行までです。');
+      var db = load(); var time = date === todayStr() ? nowTime() : ''; var stamp = mockStamp();
+      var num = function (v) { return v === '' || v == null ? null : Number(v); };
+      var recs = items.map(function (it) {
+        if (!String(it.activity || '').trim()) throw new Error('実施内容を選ぶか入力してください。');
+        if (String(it.level || '').length > 20 || String(it.number || '').length > 20) throw new Error('レベル・番号は20文字以内で入力してください。');
+        db.seq += 1;
+        return { id: 'm' + db.seq, date: date, time: time, enteredAt: stamp, userId: p.userId, activity: it.activity, note: p.note || '', level: it.level || '', number: it.number || '', durationMinutes: num(it.durationMinutes), metricValue: num(it.metricValue), metricUnit: it.metricUnit || '' };
+      });
+      recs.forEach(function (r) { db.cognitive.push(r); }); save(db); return { records: recs };
     },
     apiSaveAssessment: function (p) {
       var db = load(); db.seq += 1;
@@ -12973,7 +13156,8 @@ function mockCogMenu(db) {
       var ex = db.records.filter(function (r) { return r.userId === userId && r.date < t; });
       var exDate = ''; ex.forEach(function (r) { if (r.date > exDate) exDate = r.date; });
       var cog = db.cognitive.filter(function (r) { return r.userId === userId && r.date < t; }).sort(function (a, b) { return (a.date + timeKey(a.time)) < (b.date + timeKey(b.time)) ? -1 : 1; });
-      return { vital: vs.length ? vs[vs.length - 1] : null, exercises: ex.filter(function (r) { return r.date === exDate; }), exerciseDate: exDate, cognitive: cog.length ? cog[cog.length - 1] : null };
+      var lastCog = cog.length ? cog[cog.length - 1] : null;
+      return { vital: vs.length ? vs[vs.length - 1] : null, exercises: ex.filter(function (r) { return r.date === exDate; }), exerciseDate: exDate, cognitive: lastCog, cognitiveSet: lastCog ? cog.filter(function (r) { return r.date === lastCog.date; }) : [] };
     },
     apiSaveHandoff: function (p) {
       var db = load(); if (!db.handoffs) db.handoffs = []; db.seq += 1;
