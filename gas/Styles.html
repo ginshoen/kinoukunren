@@ -2055,7 +2055,7 @@ button.record-line { width: 100%; text-align: left; font: inherit; cursor: point
   .notebook-meta div { min-width: 40mm; padding: 1mm 2mm; }
   .notebook-meta small { font-size: 11px; }
   .notebook-meta strong { font-size: 18px; margin-top: 0; }
-  .notebook-thanks { margin: 1mm 0 2.5mm; font-size: 15px; }
+  .notebook-thanks { margin: .5mm 0 2mm; font-size: 15px; }
   .notebook-layout { flex: 1 1 auto; min-height: 0; grid-template-columns: 1.12fr .88fr; gap: 2.5mm; height: auto; }
   /* 左列は縦並び。「弐番館より」欄が残りの高さをちょうど使い、長文でも下の欄へはみ出さない */
   .notebook-left { display: flex !important; flex-direction: column; gap: 3mm; min-height: 0; }
@@ -2063,17 +2063,19 @@ button.record-line { width: 100%; text-align: left; font: inherit; cursor: point
   .notebook-left > .notebook-box.facility { flex: 1 1 0; min-height: 0; }
   .notebook-box { padding: 4mm 3mm 2mm; border-radius: 6px; border-width: 1.5px; }
   .notebook-box h2 { top: -10px; left: 12px; font-size: 13.5px; padding: 2px 9px; border-radius: 5px; }
-  /* 準備運動＋4コマ=5種目でも記入欄を狭めないよう、種目は2列に並べる */
-  .notebook-box.program ol { grid-template-columns: 1fr 1fr; gap: 1px 4mm; }
-  .notebook-box.program li { min-height: 21px; grid-template-columns: 19px 1fr auto; gap: 5px; }
+  /* 準備運動＋4コマ=5種目でも記入欄を狭めないよう、種目は2列に並べる。
+     2026-11-27「弐番館より」の文字を大きくするため、種目名を 15→14px にして「筋力トレーニング」などが2行に折り返さないようにした
+     (折り返すと種目の欄が伸び、そのぶん「弐番館より」の欄が低くなっていた) */
+  .notebook-box.program ol { grid-template-columns: 1fr 1fr; gap: 1px 3mm; }
+  .notebook-box.program li { min-height: 19px; grid-template-columns: 17px 1fr auto; gap: 3px; }
   .notebook-box.program li.planned { grid-column: 1 / -1; }
-  .notebook-box.program li > span { width: 18px; height: 18px; font-size: 12px; }
-  .notebook-box.program li b { font-size: 15px; }
-  .notebook-box.program li small { font-size: 13px; }
+  .notebook-box.program li > span { width: 17px; height: 17px; font-size: 11.5px; }
+  .notebook-box.program li b { font-size: 14px; line-height: 1.25; }
+  .notebook-box.program li small { font-size: 12px; }
   .notebook-vitals { margin-top: 1.5mm; padding-top: 1.5mm; font-size: 13px; }
   .notebook-vital-grid { margin-top: 1.5mm; padding-top: 0; gap: 1.5mm; }
-  /* 未測定でも手書きできる高さ(約9mm)を残しつつ、項目名・値・単位を詰めて並べる */
-  .nv-cell { grid-template-columns: 1fr auto; grid-template-areas: 'label unit' 'value value'; align-items: baseline; gap: 0 1mm; padding: 1mm 2mm; border-radius: 4px; min-height: 10.5mm; box-sizing: border-box; text-align: left; }
+  /* 未測定でも手書きできる高さ(約8.5mm。2026-11-27 に 10.5mm から詰めた)を残しつつ、項目名・値・単位を詰めて並べる */
+  .nv-cell { grid-template-columns: 1fr auto; grid-template-areas: 'label unit' 'value value'; align-items: baseline; gap: 0 1mm; padding: 1mm 2mm; border-radius: 4px; min-height: 8.5mm; box-sizing: border-box; text-align: left; }
   .nv-label { grid-area: label; font-size: 11px; white-space: nowrap; }
   .nv-unit { grid-area: unit; font-size: 9.5px; white-space: nowrap; }
   .nv-value { grid-area: value; font-size: 17px; min-height: 0; text-align: center; white-space: nowrap; }
@@ -2084,8 +2086,15 @@ button.record-line { width: 100%; text-align: left; font: inherit; cursor: point
   .notebook-photo-frame img { max-height: none; border-radius: 5px; }
   .notebook-photo-empty span { font-size: 26px; }
   .notebook-photo-empty small { display: none; } /* 管理画面の「写真を選ぶ」案内は紙に出さない */
-  /* 文章は欄からはみ出さないよう、長さに応じて段階的に文字を小さくする(Client.html の notebookDensity) */
+  /* 文章は欄に収まるいちばん大きな文字にする(Client.html の fitNotebookSheets が印刷の直前に測って段階を選ぶ)。
+     2026-11-27 現場「文字が小さく、空白がある」: 15.5px より大きくならなかったので、欄が空いていれば 22px まで大きくする段階(grow-1〜6)を足した */
   .notebook-comment { flex: 1 1 0; min-height: 0; overflow: hidden; font-size: 15.5px; line-height: 1.5; }
+  .communication-sheet.grow-6 .notebook-comment { font-size: 22px; line-height: 1.45; }
+  .communication-sheet.grow-5 .notebook-comment { font-size: 21px; line-height: 1.45; }
+  .communication-sheet.grow-4 .notebook-comment { font-size: 20px; line-height: 1.45; }
+  .communication-sheet.grow-3 .notebook-comment { font-size: 19px; line-height: 1.45; }
+  .communication-sheet.grow-2 .notebook-comment { font-size: 18px; line-height: 1.45; }
+  .communication-sheet.grow-1 .notebook-comment { font-size: 17px; line-height: 1.45; }
   .communication-sheet.dense-1 .notebook-comment { font-size: 14px; line-height: 1.5; }
   .communication-sheet.dense-2 .notebook-comment { font-size: 12.5px; line-height: 1.45; }
   .communication-sheet.dense-3 .notebook-comment { font-size: 11px; line-height: 1.4; }
@@ -2127,6 +2136,17 @@ button.record-line { width: 100%; text-align: left; font: inherit; cursor: point
 .notebook-batch-list li { display: flex; justify-content: space-between; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #f3f6f4; font-size: 14px; }
 .notebook-batch-list li small { color: var(--text-aux); text-align: right; }
 .notebook-batch-list li.missing { background: #fff6e0; }
+/* 自動の文章で省いた体調のことの知らせ(入力画面・まとめて印刷の一覧。紙には出さない。2026-11-27) */
+.notebook-dropped { display: grid; gap: 4px; margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: #fff6e0; border: 1px solid #f0d28a; color: #5a4300; font-size: 14px; line-height: 1.55; }
+.notebook-dropped[hidden] { display: none; }
+.notebook-dropped b { font-size: 15px; }
+.notebook-dropped ul { margin: 0; padding-left: 1.2em; }
+.notebook-dropped-mark { color: #8a5a00; font-weight: 700; }
+@media print { .notebook-dropped { display: none !important; } }
+/* 印刷の前の「A5 の紙を入れて」(2026-11-27) */
+.notebook-paper-note { display: grid; gap: 2px; padding: 10px 12px; border-radius: 12px; background: #fff6e0; border: 1px solid #f0d28a; font-size: 14px; line-height: 1.5; color: #5a4300; }
+.notebook-paper-note b { font-size: 15px; }
+.notebook-paper-note strong { font-size: 17px; }
 .notebook-batch-sheets { display: grid; gap: 18px; max-width: 1080px; margin: 0 auto; }
 .notebook-batch-sheets .communication-sheet { overflow-x: auto; }
 @media screen and (max-width: 720px) {
