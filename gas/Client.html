@@ -1770,6 +1770,37 @@ function printRulesCss() {
   return S.printRulesCss;
 }
 
+/**
+ * 画面の写し(html2canvas の写しの文書)を、紙に印刷するときと同じ CSS にする(2026-11-27)。
+ * 画面だけの指定(@media screen)を外し、印刷の指定(@media print)は、その場所で中身に置き換える。
+ * 以前は印刷の指定を文書の最後に足していたため、印刷の指定より後ろに書いた普通の指定(連絡帳のバイタル欄など)との
+ * 勝ち負けが紙と逆になり、iPad・iPhone の PDF だけ欄の高さが変わっていた。文字の大きさは紙の並び(fitNotebookSheets)で
+ * 測って選ぶので、PDF では「弐番館より」の下に空きが出ることがあった(バイタル未測定の日で約5mm)
+ */
+function applyPrintCssInPlace(doc) {
+  var skipped = 0;
+  Array.prototype.forEach.call(doc.styleSheets, function (sheet) {
+    var rules;
+    try { rules = sheet.cssRules; } catch (e) { return; }
+    if (!rules) return;
+    for (var k = rules.length - 1; k >= 0; k--) {
+      var media = rules[k].media && rules[k].media.mediaText;
+      if (!media) continue;
+      if (/screen/.test(media) && !/print/.test(media)) { sheet.deleteRule(k); continue; }
+      if (/(^|[\s,])print([\s,]|$)/.test(media)) {
+        var inner = Array.prototype.map.call(rules[k].cssRules || [], function (r) { return r.cssText; });
+        sheet.deleteRule(k);
+        for (var j = inner.length - 1; j >= 0; j--) {
+          try { sheet.insertRule(inner[j], k); } catch (e) { if (!/^@page/i.test(inner[j])) skipped += 1; } // @page は入れられなくてよい
+        }
+      }
+    }
+  });
+  // 入れられなかった指定があれば知らせる(端末のブラウザが受け付けない書き方があると、PDF の見た目が紙と変わるため)
+  if (skipped && typeof console !== 'undefined' && console.warn) console.warn('連絡帳のPDF: 印刷の指定を ' + skipped + ' 件入れられませんでした');
+  return skipped;
+}
+
 /** 連絡帳の写真をPDFに入れるときに使える形か(JPEG の data URL)。使えれば {src, width, height} */
 function notebookPdfPhoto(pdf, sheet) {
   var img = sheet.querySelector('.notebook-photo-frame img');
@@ -1794,7 +1825,6 @@ function notebookPdfPhoto(pdf, sheet) {
 function notebookSheetsToPdf(sheets, onProgress, opts) {
   opts = opts || {};
   return ensurePdfLibs().then(function () {
-    var css = printRulesCss();
     var pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5', compress: true });
     // 片面・A5・等倍で印刷するようプリンタへ伝える設定を入れる(2026-11-04 現場要望「片面・A5に自動で」)。
     // 対応するプリンタ・アプリではこの設定が既定になる。従わない機種もあるため、画面の案内も残す
@@ -1825,19 +1855,8 @@ function notebookSheetsToPdf(sheets, onProgress, opts) {
           return !!(node.classList && node.classList.contains('communication-sheet') && node.getAttribute('data-pdf-target') !== token);
         },
         onclone: function (doc) {
-          // 画面用(@media screen)の指定は印刷では効かないため外す(色・文字の大きさを紙と同じにする)
-          Array.prototype.forEach.call(doc.styleSheets, function (sheet) {
-            var rules;
-            try { rules = sheet.cssRules; } catch (e) { return; }
-            if (!rules) return;
-            for (var k = rules.length - 1; k >= 0; k--) {
-              var media = rules[k].media && rules[k].media.mediaText;
-              if (media && /screen/.test(media) && !/print/.test(media)) sheet.deleteRule(k);
-            }
-          });
-          var style = doc.createElement('style');
-          style.textContent = css;
-          doc.head.appendChild(style);
+          // 紙に印刷するときと同じ CSS にする(画面だけの指定を外し、印刷の指定をその場所で効かせる。色・文字の大きさ・欄の高さを紙と同じに)
+          applyPrintCssInPlace(doc);
           var el = doc.querySelector('[data-pdf-target="' + token + '"]');
           if (!el) return;
           // 印刷と同じ 200×137mm(A5横から余白5mmを除いた大きさ)にそろえる
@@ -1928,7 +1947,7 @@ function notebookSheetsToPdf(sheets, onProgress, opts) {
   });
 }
 
-var NOTEBOOK_PDF_GROUP_SIZE = 5;          // iPad・iPhone の「PDFにして印刷」は、この人数ずつのPDFに分ける(2026-11-18)
+var NOTEBOOK_PDF_GROUP_SIZE = 5;          // 11/18〜11/26 は iPad・iPhone のまとめて印刷をこの人数ずつに分けていた。11/27 から分けない(makeNotebookPdf の groupSize の仕組みは残す)
 var NOTEBOOK_PDF_PAGE_TIMEOUT_MS = 30000; // 1枚を画像にするのを待つ長さ。これを超えたら作り直す
 
 /** promise が ms 以内に終わらなければ、notebookTimeout の印を付けたエラーにする */
@@ -2026,6 +2045,8 @@ function showPdfReady(parts, total, problem) {
     body =
       '<div class="pdf-ready-title">連絡帳のPDFができました(' + total + '枚)</div>' +
       '<p>「印刷・共有する」を押し、出てきたメニューから<b>「プリント」</b>を選んでください。' + paper + '</p>' +
+      (total > 1 ? '<p>複合機に <b>A5 の紙が ' + total + '枚以上</b> 入っているか、先に確かめてください。途中で止まったら、A5 を足して複合機の画面の指示どおりに続けてください。</p>' : '') +
+      '<p class="section-note">メニューに「カンタン入出力」(リコーのアプリ)があれば、それを選んでも印刷できます。用紙サイズ(A5)とトレイを選べます。</p>' +
       '<button class="btn-primary" id="pdf-share" onclick="Actions.sharePdf(0)">印刷・共有する</button>' +
       '<button class="btn-outline" onclick="Actions.openPdf(0)">PDFを開く</button>';
   }
@@ -5357,45 +5378,92 @@ function familyNotebookTopics(notes) {
   return { topics: topics, kept: kept };
 }
 
-function familyNotebookTextFrom(topics, kept) {
+/**
+ * 読み取れた内容から、ご家族向けの文を1文ずつ作る(2026-11-27 「弐番館より」60字に合わせて、短い言い方 short と種類 kind を持たせた)。
+ * kind: health=体調の気がかり(いちばん残す) / info=お知らせ / positive=よかったこと / care=「お大事に」 / kept=職員が書いた文
+ */
+function familyNotebookItemsFrom(topics, kept) {
   topics = Object.assign({}, topics); // 下で書き換えるので写しを使う
   var out = [];
   var care = false;
-  if (topics.unwell) { out.push('少し体調がすぐれないご様子でしたので、様子を見ながら無理のない範囲で過ごしていただきました。'); care = true; }
-  else if (topics.good) out.push('体調はお変わりなく過ごされました。');
-  if (topics.bpHigh) out.push('血圧が少し高めでしたので、時間をおいて測り直し、様子を見ながら過ごしていただきました。');
-  else if (topics.bpLow) out.push('血圧が少し低めでしたので、様子を見ながら過ごしていただきました。');
-  if (topics.fever) { out.push('体温が少し高めでしたので、様子を見ながら過ごしていただきました。'); care = true; }
+  function add(kind, text, short, rank) { out.push({ kind: kind, text: text, short: short || text, rank: rank || 0 }); }
+  if (topics.unwell) { add('health', '少し体調がすぐれないご様子でしたので、様子を見ながら無理のない範囲で過ごしていただきました。', '少し体調がすぐれず、無理なく過ごされました。', 3); care = true; }
+  else if (topics.good) add('info', '体調はお変わりなく過ごされました。');
+  if (topics.bpHigh) add('health', '血圧が少し高めでしたので、時間をおいて測り直し、様子を見ながら過ごしていただきました。', '血圧が少し高めで、測り直して様子を見ました。', 4);
+  else if (topics.bpLow) add('health', '血圧が少し低めでしたので、様子を見ながら過ごしていただきました。', '血圧が少し低めで、様子を見ました。', 4);
+  if (topics.fever) { add('health', '体温が少し高めでしたので、様子を見ながら過ごしていただきました。', '体温が少し高めで、様子を見ました。', 2); care = true; }
   var lightUsed = false;
   if (topics.pain && topics.pain.length) {
     var label = topics.pain.slice(0, 2).map(familyPainLabel).join('や');
-    if (topics.light) { out.push(label + 'があると伺いましたので、負荷を軽めにして、無理のない範囲で運動を行いました。'); lightUsed = true; }
-    else out.push(label + 'があると伺いました。');
+    if (topics.light) { add('health', label + 'があると伺いましたので、負荷を軽めにして、無理のない範囲で運動を行いました。', label + 'があり、負荷を軽めにしました。', 6); lightUsed = true; }
+    else add('health', label + 'があると伺いました。', null, 6);
     care = true;
   } else if (topics.painBetter) {
-    out.push(familyPainLabel(topics.painBetter) + 'は和らいできているとのことでした。');
+    add('info', familyPainLabel(topics.painBetter) + 'は和らいできているとのことでした。');
   } else if (topics.painNone) {
-    out.push(familyPainLabel(topics.painNone) + 'はないとのことでした。');
+    add('info', familyPainLabel(topics.painNone) + 'はないとのことでした。');
   }
-  if (topics.cold) { out.push('咳などのかぜのような様子が少し見られました。'); care = true; }
-  if (topics.swelling) out.push('むくみが少し見られました。');
-  if (topics.dizzy) { out.push('ふらつきが見られたため、職員がそばで見守りながら安全に運動を行いました。'); care = true; }
+  if (topics.cold) { add('health', '咳などのかぜのような様子が少し見られました。', 'かぜのような様子が見られました。', 5); care = true; }
+  if (topics.swelling) add('health', 'むくみが少し見られました。', null, 7);
+  if (topics.dizzy) { add('health', 'ふらつきが見られたため、職員がそばで見守りながら安全に運動を行いました。', 'ふらつきがあり、職員がそばで見守りました。', 1); care = true; }
   if (topics.tired) {
-    if (topics.light && !lightUsed) { out.push('少しお疲れのご様子でしたので、負荷を軽めにして、無理のない範囲で取り組まれました。'); lightUsed = true; }
-    else if (topics.rest) { out.push('少しお疲れのご様子でしたので、途中で休憩をとりながら取り組まれました。'); topics.rest = false; }
-    else out.push('少しお疲れのご様子でしたので、ペースを調整しながら取り組まれました。');
+    if (topics.light && !lightUsed) { add('health', '少しお疲れのご様子でしたので、負荷を軽めにして、無理のない範囲で取り組まれました。', '少しお疲れで、負荷を軽めにしました。', 8); lightUsed = true; }
+    else if (topics.rest) { add('health', '少しお疲れのご様子でしたので、途中で休憩をとりながら取り組まれました。', '少しお疲れで、休憩しながら取り組まれました。', 8); topics.rest = false; }
+    else add('health', '少しお疲れのご様子でしたので、ペースを調整しながら取り組まれました。', '少しお疲れで、ペースを調整しました。', 8);
   }
-  if (topics.sleepy) out.push('少し眠そうなご様子も見られました。');
-  if (topics.light && !lightUsed) out.push('体調に合わせて負荷を軽めにし、無理のない範囲で運動を行いました。');
-  if (topics.rest) out.push('途中で休憩をとりながら取り組まれました。');
-  if (topics.skip) out.push('体調に合わせて、一部の運動はお休みしました。');
-  if (topics.seitai) out.push(topics.seitai.inBreak ? '休憩の時間に、介護整体も受けていただきました。' : '運動のほかに、介護整体も受けていただきました。');
-  if (topics.eager) out.push('意欲的に取り組まれました。');
-  if (topics.smile) out.push('笑顔も見られ、楽しそうに過ごされました。');
-  if (topics.steady) out.push('安定した動きで取り組まれました。');
-  out = out.concat(kept);
-  if (care && !kept.some(function (t) { return /お大事に/.test(t); })) out.push(FAMILY_CARE_CLOSING);
-  return out.join('');
+  if (topics.sleepy) add('health', '少し眠そうなご様子も見られました。', '少し眠そうなご様子でした。', 8);
+  if (topics.light && !lightUsed) add('health', '体調に合わせて負荷を軽めにし、無理のない範囲で運動を行いました。', '体調に合わせて負荷を軽めにしました。', 9);
+  if (topics.rest) add('health', '途中で休憩をとりながら取り組まれました。', '休憩しながら取り組まれました。', 9);
+  if (topics.skip) add('health', '体調に合わせて、一部の運動はお休みしました。', '一部の運動はお休みしました。', 9);
+  if (topics.seitai) add('info', topics.seitai.inBreak ? '休憩の時間に、介護整体も受けていただきました。' : '運動のほかに、介護整体も受けていただきました。', '介護整体も受けていただきました。');
+  if (topics.eager) add('positive', '意欲的に取り組まれました。');
+  if (topics.smile) add('positive', '笑顔も見られ、楽しそうに過ごされました。', '笑顔も見られました。');
+  if (topics.steady) add('positive', '安定した動きで取り組まれました。');
+  (kept || []).forEach(function (t) { add(/お大事に/.test(t) ? 'care' : 'kept', t); });
+  if (care && !(kept || []).some(function (t) { return /お大事に/.test(t); })) add('care', FAMILY_CARE_CLOSING);
+  return out;
+}
+
+function familyNotebookTextFrom(topics, kept) {
+  return familyNotebookItemsFrom(topics, kept).map(function (it) { return it.text; }).join('');
+}
+
+/**
+ * 自動の文章を「弐番館より」の上限(max 字)に収める(2026-11-27 上限60字。原山さん・職員が案A「上限60字・写真と配置は今のまま」を選択)。
+ * 以前は上限の中の最後の「。」で切っていたため、体調の文(血圧・痛みなど)が後ろにあると消えていた。
+ * 収まらないときは、次の順に減らす(文の並びは変えない)。体調の文(health)はいちばん最後まで残す:
+ *  1) 締めの文 2) よかったこと・職員の文 3) 体調の文などを短い言い方に 4) お知らせ(体調お変わりなし・介護整体・脳トレ)
+ *  5) 書き出しを短い言い方に 6) 「お大事に」 7) それでも長ければ体調の文を大事さの順(rank)の低いものから。最後は上限の中の最後の「。」で切る
+ * items: [{ kind, text, short }]。kind: opening / health / info / positive / kept / care / closing
+ * dropped(配列)を渡すと、入りきらず省いた体調の文(health)を、もとの言い方で入れて返す(2026-11-27 原山さん「省いた時に知らせる」)
+ */
+var NOTEBOOK_SHORT_OPENING_MAX = 40; // 短い書き出しの長さの上限(これより長いときは運動の名前を出さない)
+
+function fitNotebookItems(items, max, dropped) {
+  var list = items.map(function (it) { return { kind: it.kind, text: it.text, short: it.short || it.text, use: 'text', on: true }; });
+  var total = function () { return list.reduce(function (n, it) { return n + (it.on ? it[it.use].length : 0); }, 0); };
+  var steps = [
+    function () { list.forEach(function (it) { if (it.kind === 'closing') it.on = false; }); },
+    function () { list.forEach(function (it) { if (it.kind === 'positive' || it.kind === 'kept') it.on = false; }); },
+    function () { list.forEach(function (it) { if (it.kind !== 'opening') it.use = 'short'; }); },
+    function () { list.forEach(function (it) { if (it.kind === 'info') it.on = false; }); },
+    function () { list.forEach(function (it) { if (it.kind === 'opening') it.use = 'short'; }); },
+    function () { list.forEach(function (it) { if (it.kind === 'care') it.on = false; }); },
+  ];
+  for (var i = 0; i < steps.length && total() > max; i++) steps[i]();
+  // 体調の文は、大事さの順(rank)の低いものから省く(同じ順なら後ろから)。残った文は今の並びのまま(2026-11-27 原山さん「大事さの順に残す」)
+  var healthOrder = [];
+  list.forEach(function (it, idx) { if (it.kind === 'health') healthOrder.push(idx); });
+  healthOrder.sort(function (x, y) { return ((items[y].rank || 0) - (items[x].rank || 0)) || (y - x); });
+  for (var k = 0; k < healthOrder.length && total() > max; k++) list[healthOrder[k]].on = false;
+  var text = list.filter(function (it) { return it.on; }).map(function (it) { return it[it.use]; }).join('');
+  if (text.length > max) {
+    var head = text.slice(0, max);
+    var cut = head.lastIndexOf('。');
+    text = cut >= 20 ? head.slice(0, cut + 1) : head;
+  }
+  if (dropped) list.forEach(function (it) { if (it.kind === 'health' && (!it.on || text.indexOf(it[it.use]) < 0)) dropped.push(it.text); });
+  return text;
 }
 
 /**
@@ -5685,36 +5753,46 @@ function notebookPhrasePool(builtin, style, place, hasNames, eased) {
   return extra.length ? builtin.concat(extra) : builtin;
 }
 
-function defaultNotebookComment(data, variant) {
+/** dropped(配列)を渡すと、60字に入りきらず省いた体調の文を入れて返す(入力画面で知らせるため) */
+function defaultNotebookComment(data, variant, dropped) {
   var seed = notebookSeed(((data.user && data.user.id) || '') + '|' + (data.date || '')) + Math.abs(Number(variant) || 0);
   function pick(list, salt) { return list[(seed + (salt || 0) * 7) % list.length]; }
   var c = notebookCommentContext(data);
   var read = c.read, t = c.topics, ex = c.ex, style = c.style;
-  var parts = [];
+  var items = []; // { kind, text, short }。最後に上限(NOTEBOOK_COMMENT_MAX)に収める
   var names = style === 'strong' ? ex.strong : style === 'gentle' ? ex.gentle : ex.strong.concat(ex.gentle, ex.other);
   var exNames = notebookExNames(names);
+  var opening;
   if (style === 'rest') {
-    parts.push(pick(notebookPhrasePool(NOTEBOOK_OPENINGS_REST, 'rest', '書き出し', false, c.eased)));
+    opening = pick(notebookPhrasePool(NOTEBOOK_OPENINGS_REST, 'rest', '書き出し', false, c.eased));
   } else {
-    parts.push(pick(notebookPhrasePool(NOTEBOOK_OPENINGS_BY_STYLE[style], style, '書き出し', names.length > 0, c.eased))
+    opening = pick(notebookPhrasePool(NOTEBOOK_OPENINGS_BY_STYLE[style], style, '書き出し', names.length > 0, c.eased))
       .split('{ex}').join(exNames)
       .replace('{strong}', notebookExNames(ex.strong))
-      .replace('{gentle}', notebookExNames(ex.gentle)));
+      .replace('{gentle}', notebookExNames(ex.gentle));
   }
-  var familyWords = familyNotebookTextFrom(t, read.kept);
+  // 上限に収まらないときの短い書き出し(行った運動の名前は残す)。運動の名前が長い日(管理画面で40字まで登録できる)は名前を出さない
+  // (名前は紙の「本日のプログラム」にある。2026-11-27 点検の指摘「長い種目名が2つ並ぶ日は気がかりが消える」)
+  var shortOpening = style !== 'rest' && names.length ? '本日は' + exNames + 'などに取り組まれました。' : opening;
+  if (shortOpening.length > NOTEBOOK_SHORT_OPENING_MAX) shortOpening = '本日も運動に取り組まれました。';
+  items.push({ kind: 'opening', text: opening, short: shortOpening });
+  var family = familyNotebookItemsFrom(t, read.kept);
   // 「しっかり」系の書き出しのあとに「意欲的に取り組まれました。」を重ねない
-  if (parts[0].indexOf('意欲') >= 0 || style === 'strong' || style === 'mixed') familyWords = familyWords.replace('意欲的に取り組まれました。', '');
-  if (familyWords) parts.push(familyWords);
+  if (opening.indexOf('意欲') >= 0 || style === 'strong' || style === 'mixed') family = family.filter(function (it) { return it.text !== '意欲的に取り組まれました。'; });
+  items = items.concat(family);
   if (data.cognitiveRecords && data.cognitiveRecords.length) {
     // 同じプログラムを何行か入れた日も名前は1回だけ(2026-11-25 点検の指摘)
     var cogNames = [];
     data.cognitiveRecords.forEach(function (r) { if (cogNames.indexOf(r.activity) < 0) cogNames.push(r.activity); });
-    parts.push('脳トレは「' + cogNames.join('、') + '」を実施しました。');
+    items.push({ kind: 'info', text: '脳トレは「' + cogNames.join('、') + '」を実施しました。' });
   }
   var closings = notebookPhrasePool(NOTEBOOK_CLOSINGS_BY_STYLE[style] || NOTEBOOK_CLOSINGS_BY_STYLE.other, style, '締め', names.length > 0, c.eased);
-  var hasCare = familyWords.indexOf(FAMILY_CARE_CLOSING) >= 0;
-  if (data.exercises.length && !hasCare && parts.join('').length < NOTEBOOK_CLOSING_IF_SHORTER) parts.push(pick(closings, 1).split('{ex}').join(exNames));
-  return parts.join('');
+  var hasCare = family.some(function (it) { return it.text.indexOf(FAMILY_CARE_CLOSING) >= 0; });
+  var soFar = items.map(function (it) { return it.text; }).join('').length;
+  if (data.exercises.length && !hasCare && soFar < NOTEBOOK_CLOSING_IF_SHORTER) items.push({ kind: 'closing', text: pick(closings, 1).split('{ex}').join(exNames) });
+  // 上限(画面の NOTEBOOK_COMMENT_MAX)。上限を読めない場面(一部のテスト)では今までどおり全部つなぐ
+  var max = typeof NOTEBOOK_COMMENT_MAX === 'number' ? NOTEBOOK_COMMENT_MAX : Infinity;
+  return fitNotebookItems(items, max, dropped);
 }
 
 /**
@@ -5725,9 +5803,13 @@ function defaultNotebookComment(data, variant) {
  * 「弐番館より」の上限(2026-11-25 現場要望「長いと文字がとても小さくなる。小さくならない文字数を上限にして、それ以上書けないように」。
  * 原山さん決定 100字)。自動の文章(約80〜100字)はそのまま入り、バイタル1回の日は14px・2〜3回の日は12.5px前後で収まる
  * (いちばん小さい9pxにはならない)。サーバー(Code.gs NOTEBOOK_COMMENT_MAX_)も同じ字数で断る。
- * それより前に保存した長い文章は黙って切らず、印刷はそのまま。直して保存するときだけ上限までに短くしてもらう
+ * それより前に保存した長い文章は黙って切らず、印刷はそのまま。直して保存するときだけ上限までに短くしてもらう。
+ * 2026-11-27 100 → 60字(現場「制限文字数は少なくなったが、文字が小さく空白がある」。原山さん・職員が案A「上限60字・写真と配置は今のまま」を選択)。
+ * 上の 14px などは Linux の文字で測った値で、Apple の端末の文字では 100字が 10〜12.5px にしかならなかった。60字なら約15.5〜17px。
+ * サーバー(Code.gs NOTEBOOK_COMMENT_MAX_)は100字のまま(古い画面のまま開いている端末からの保存を断らないため)。
+ * 自動の文章は defaultNotebookComment → fitNotebookItems で、体調の文を残して60字に収める
  */
-var NOTEBOOK_COMMENT_MAX = 100;
+var NOTEBOOK_COMMENT_MAX = 60;
 
 /** 自動の文章などを上限に収める。超えるときは上限の中の最後の「。」で切る(文の途中で切らない) */
 function fitNotebookComment(text) {
@@ -5736,6 +5818,29 @@ function fitNotebookComment(text) {
   var head = text.slice(0, NOTEBOOK_COMMENT_MAX);
   var cut = head.lastIndexOf('。');
   return cut >= 20 ? head.slice(0, cut + 1) : head;
+}
+
+/**
+ * 自動の文章で、60字に入りきらず省いた体調の文の知らせ(入力画面だけ。紙には出さない。2026-11-27 原山さん「省いた時に知らせる」)。
+ * 省いた文がなければ空の枠(あとで差し替えられるよう id だけ置く)
+ */
+function notebookDroppedHtml(list) {
+  list = list || [];
+  if (!list.length) return '<div id="notebook-dropped" class="notebook-dropped no-print" hidden></div>';
+  return '<div id="notebook-dropped" class="notebook-dropped no-print" role="note">' +
+    '<b>⚠ 字数（' + NOTEBOOK_COMMENT_MAX + '字）に入りきらず、自動の文章から省いた体調のことがあります</b>' +
+    '<ul>' + list.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>' +
+    '<span>ご家族に伝えたいときは、ほかの文を消して短くし、書き足してください。</span></div>';
+}
+
+/**
+ * 保存済みの文章から変えていないか(前後の空白は見ない)。上限を下げる前に保存した長い文章(60字にした 11/27 より前の61〜100字など)は、
+ * 文を変えずに写真だけ足す・替えるときは保存・印刷を止めない(2026-11-27 点検の指摘)
+ */
+function notebookCommentUnchanged() {
+  var entry = S.notebook.entry;
+  if (!entry || entry.comment == null) return false;
+  return String(S.notebook.comment || '').trim() === String(entry.comment || '').trim();
 }
 
 /** 「弐番館より」の残りの字数の表示(超えているときは何字多いか) */
@@ -5750,7 +5855,12 @@ function notebookCountText(text) {
  * 「弐番館より」欄の文字の大きさの段階(印刷の CSS の dense-1〜5)。左ほど大きい。
  * 2026-11-17 現場要望「連絡帳の文字を全て一回り大きく」で全体を大きくし、段階を1つ足した
  */
-var NOTEBOOK_DENSITY_LEVELS = ['', ' dense-1', ' dense-2', ' dense-3', ' dense-4', ' dense-5'];
+var NOTEBOOK_DENSITY_LEVELS = [' grow-6', ' grow-5', ' grow-4', ' grow-3', ' grow-2', ' grow-1', '', ' dense-1', ' dense-2', ' dense-3', ' dense-4', ' dense-5'];
+/**
+ * 先頭の grow-6〜1(22〜17px)は、欄が空いているときだけ fitNotebookSheets が選ぶ大きい段階(2026-11-27 現場「文字が小さく、空白がある」)。
+ * 目安(notebookDensity)は '' 以下の段階から選ぶ(大きくするのは実際に測れたときだけ)
+ */
+var NOTEBOOK_GROW_LEVELS = 6;
 /**
  * 各段階で欄に入る全角の文字数の目安(バイタルの回数 0〜5回 → 段階ごと)。ヘッドレスChrome(Linux)の印刷の見た目で
  * 測った値の約9割。印刷・PDFの直前には fitNotebookSheets で実際に測り直すので、これは画面の見本と、測れなかったときの予備
@@ -5771,11 +5881,11 @@ function notebookDensity(comment, exerciseCount, vitalCount) {
   var caps = NOTEBOOK_COMMENT_CAPS[Math.min(Math.max(Number(vitalCount) || 0, 0), NOTEBOOK_COMMENT_CAPS.length - 1)];
   // 種目が多い日はプログラム欄が伸びるので、1行(2種目)ふえるごとに約1割を差し引く
   var rows = Math.ceil(Math.max(0, Math.min(Number(exerciseCount) || 0, 8) - 6) / 2);
-  var level = NOTEBOOK_DENSITY_LEVELS.length - 1;
+  var level = caps.length - 1;
   for (var i = 0; i < caps.length; i++) {
     if (n <= caps[i] * (1 - rows * 0.1)) { level = i; break; }
   }
-  return NOTEBOOK_DENSITY_LEVELS[level] + (exerciseCount > 8 ? ' compact-print' : '');
+  return NOTEBOOK_DENSITY_LEVELS[NOTEBOOK_GROW_LEVELS + level] + (exerciseCount > 8 ? ' compact-print' : '');
 }
 
 /**
@@ -5862,6 +5972,18 @@ function confirmNotebookOverflow(overflowSheets, batch) {
   return window.confirm((who ? who + 'の' : '') + '連絡帳は「弐番館より」の文章が長く、いちばん小さい文字でも紙の欄に収まらず、終わりの方が切れます。\n\n' +
     (batch ? '「キャンセル」を押し、その方の連絡帳を開いて文章を短くしてから印刷してください。'
       : '「キャンセル」を押して文章を短くしてから印刷してください。') +
+    'このまま印刷するときは「OK」を押してください。');
+}
+
+/**
+ * まとめて印刷の前に、自動の文章で体調のことを省いた方がいれば確かめる(2026-11-27 点検の指摘「見直さないままご家族に届く」)。
+ * 「キャンセル」なら false(印刷しない)
+ */
+function confirmNotebookDropped(names) {
+  if (!names || !names.length) return true;
+  var who = names.slice(0, 5).map(function (n) { return n + ' 様'; }).join('、') + (names.length > 5 ? 'ほか' + (names.length - 5) + '名' : '');
+  return window.confirm(who + 'の連絡帳は、自動の文章が60字に入りきらず、体調のことを一部省いています。\n\n' +
+    '書き足すときは「キャンセル」を押し、その方の連絡帳を開いて書き足して保存してから印刷してください。' +
     'このまま印刷するときは「OK」を押してください。');
 }
 
@@ -5964,7 +6086,9 @@ function loadNotebookEntry(data) {
   S.notebook.entry = entry;
   if (!S.notebook.loaded) {
     // 保存済みの文章は上限より長くても切らない(以前の450字までの文章。直して保存するときに短くしてもらう)
-    S.notebook.comment = entry && entry.comment ? String(entry.comment) : fitNotebookComment(defaultNotebookComment(data, S.notebook.variant || 0));
+    var dropped = [];
+    S.notebook.comment = entry && entry.comment ? String(entry.comment) : fitNotebookComment(defaultNotebookComment(data, S.notebook.variant || 0, dropped));
+    S.notebook.autoDropped = entry && entry.comment ? [] : dropped; // 自動の文章で省いた体調の文(保存済みの文章なら知らせない)
     S.notebook.baseComment = S.notebook.comment; // 職員が書き直した文を見分けるもと(文例の候補)
     S.notebook.photo = entry && entry.photo ? entry.photo : '';
     S.notebook.photoChanged = false;
@@ -5974,7 +6098,7 @@ function loadNotebookEntry(data) {
 }
 
 function resetNotebookState() {
-  S.notebook = { data: null, entry: null, photo: '', comment: '', baseComment: '', variant: 0, loaded: false, dirty: false, photoChanged: false };
+  S.notebook = { data: null, entry: null, photo: '', comment: '', baseComment: '', variant: 0, loaded: false, dirty: false, photoChanged: false, autoDropped: [] };
 }
 
 function notebookSavedLabel(entry) {
@@ -6011,6 +6135,7 @@ function renderCommunicationBook(app, renderId) {
       '<button class="btn-csv" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
       templateChipsHtml('notebook', 'notebookUseTemplate') +
       '<span id="notebook-photo-status" role="status">' + notebookSavedLabel(S.notebook.entry) + '。黄色の文章欄はクリックして編集できます。</span><span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > NOTEBOOK_COMMENT_MAX ? ' warn' : '') + '" aria-live="polite">' + esc(notebookCountText(S.notebook.comment)) + '</span>' +
+      notebookDroppedHtml(S.notebook.autoDropped) +
       '<small class="notebook-phrase-note">' + esc(NOTEBOOK_PHRASE_NOTE) + '</small></div>' +
       notebookSheetHtml(data, S.notebook.comment, S.notebook.photo, { editable: true, staffName: S.staff });
     app.innerHTML = adminShell('admin/notebook', content);
@@ -6065,6 +6190,7 @@ function renderNotebookEntry(app, renderId) {
       '<textarea class="note-area" id="notebook-comment-input" maxlength="' + NOTEBOOK_COMMENT_MAX + '" rows="6" oninput="Actions.notebookComment(this.value)">' + esc(S.notebook.comment) + '</textarea>' +
       '<div class="btn-row" style="justify-content:space-between;"><button class="link-plain" onclick="Actions.resetNotebookComment()">↻ 文章を自動作成し直す</button>' +
       '<span id="notebook-count" class="notebook-count' + (S.notebook.comment.length > NOTEBOOK_COMMENT_MAX ? ' warn' : '') + '" aria-live="polite">' + esc(notebookCountText(S.notebook.comment)) + '</span></div>' +
+      notebookDroppedHtml(S.notebook.autoDropped) +
       '<small class="notebook-phrase-note">' + esc(NOTEBOOK_PHRASE_NOTE) + '</small></div>' +
       '<div class="section-note" id="notebook-saved">' + notebookSavedLabel(S.notebook.entry) + '</div>' +
       '<div id="notebook-error" class="section-note" style="color:var(--alert-text);min-height:18px;"></div>' +
@@ -6108,6 +6234,16 @@ function defaultNotebookBatchPart(date) {
 
 var NOTEBOOK_PART_LABELS = { all: '全員', '午前': '午前の部', '午後': '午後の部' };
 
+/**
+ * 印刷の前の「A5 の紙を入れて」の知らせ(2026-11-27)。11/18 の試しで、5枚の印刷でも3枚で止まり、
+ * 止まったあと端末の用紙の一覧から A5 が消えていた(複合機の A5 が途中で切れた疑い)。紙はアプリでは足せないので、
+ * 押す前に要る枚数を大きく見せる
+ */
+function notebookPaperNoteHtml(count) {
+  return '<div class="notebook-paper-note" role="note"><b>先に複合機の A5 の紙を確かめてください</b>' +
+    '<span>この印刷で <strong>A5 を ' + count + '枚</strong> 使います。足りないと途中で止まります。</span></div>';
+}
+
 /** 読み込んだ連絡帳を、選んだ部(全員/午前の部/午後の部)だけにして描く。部の切り替えでは読み込み直さない */
 function drawNotebookBatch(app) {
   var loaded = S.notebookBatchAll || { date: S.notebookBatchDate, books: [] };
@@ -6124,15 +6260,19 @@ function drawNotebookBatch(app) {
   S.notebookBatch = books; // 印刷・連絡帳完了は表示している部の方だけ
   var missing = books.filter(function (b) { return !b.entry || !b.entry.updatedAt; });
   var noPhoto = books.filter(function (b) { return !(b.entry && b.entry.hasPhoto); });
+  var droppedBy = {}; // 自動の文章で体調の文を省いた方(一覧で知らせる。紙には出さない)
   var sheets = books.map(function (b) {
     // 保存済みの文章はそのまま印刷する(上限より前の長い文章も切らない)。自動の文章は上限に収める
-    var comment = b.entry && b.entry.comment ? String(b.entry.comment) : fitNotebookComment(defaultNotebookComment(b, 0));
+    var dropped = [];
+    var comment = b.entry && b.entry.comment ? String(b.entry.comment) : fitNotebookComment(defaultNotebookComment(b, 0, dropped));
+    if (dropped.length) droppedBy[b.user.id] = dropped;
     return notebookSheetHtml(b, comment, b.entry ? b.entry.photo : '', { staffName: b.entry && b.entry.updatedBy });
   }).join('');
   var listHtml = books.map(function (b) {
     var done = b.entry && b.entry.updatedAt;
     return '<li class="' + (done ? 'done' : 'missing') + '"><span>' + esc(b.user.name) + ' 様</span>' +
-      '<small>' + (done ? '入力済み' : '未入力(自動作成の文章で印刷)') + (b.entry && b.entry.hasPhoto ? ' · 写真あり' : ' · 写真なし') + '</small></li>';
+      '<small>' + (done ? '入力済み' : '未入力(自動作成の文章で印刷)') + (b.entry && b.entry.hasPhoto ? ' · 写真あり' : ' · 写真なし') +
+      (droppedBy[b.user.id] ? '<br><span class="notebook-dropped-mark">⚠ 字数に入りきらず省いた体調のこと: ' + esc(droppedBy[b.user.id].join('')) + '</span>' : '') + '</small></li>';
   }).join('');
   var partChips = '<div class="gin-chips notebook-part-chips" role="group" aria-label="印刷する方">' +
     ['午前', '午後', 'all'].map(function (k) {
@@ -6141,6 +6281,14 @@ function drawNotebookBatch(app) {
     }).join('') + '</div>' +
     (unknown && part !== 'all' ? '<p class="section-note">午前・午後が分からない方が' + unknown + '名います(受付の時刻がなく、区分も未登録)。「全員」で印刷してください。</p>' : '');
   var who = part === 'all' ? '' : NOTEBOOK_PART_LABELS[part] + 'の';
+  // 自動の文章で体調のことを省いた方(未入力の方)。一覧は高さが限られ見落としやすいので、印刷ボタンの上にまとめて出し、押したときにも確かめる
+  var droppedBooks = books.filter(function (b) { return droppedBy[b.user.id]; });
+  S.notebookBatchDropped = droppedBooks.map(function (b) { return b.user.name; });
+  var droppedNote = droppedBooks.length
+    ? '<div class="notebook-dropped" role="note"><b>⚠ 自動の文章で、体調のことを省いた方が ' + droppedBooks.length + '名います</b><ul>' +
+      droppedBooks.map(function (b) { return '<li>' + esc(b.user.name) + ' 様: ' + esc(droppedBy[b.user.id].join('')) + '</li>'; }).join('') + '</ul>' +
+      '<span>ご家族に伝えたいときは、その方の連絡帳の入力画面で書き足して保存してから印刷してください。</span></div>'
+    : '';
   var tools =
     '<div class="notebook-batch-tools no-print">' +
     '<label class="card-label" for="batch-date">印刷する日</label>' +
@@ -6150,11 +6298,13 @@ function drawNotebookBatch(app) {
     (books.length ? '<span>未入力 ' + missing.length + '名 · 写真なし ' + noPhoto.length + '名</span>' : '') + '</div>' +
     (books.length ? '<ul class="notebook-batch-list">' + listHtml + '</ul>'
       : '<div class="empty-note">' + (allBooks.length ? 'この日の' + NOTEBOOK_PART_LABELS[part] + 'に来所した方はいません' : 'この日の来所記録がありません') + '</div>') +
-    (books.length ? (notebookUsesPdf()
-      ? '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + who + books.length + '名分をPDFにして印刷</button>' +
-        '<p class="section-note">PDFは' + NOTEBOOK_PDF_GROUP_SIZE + '名ずつに分かれます(1回の印刷を小さくして、途中で止まらないようにするため)。できたら上から順に「印刷する」→「プリント」を選びます。PDFには「片面・A5」の設定が入っています。プリント画面で「両面」がオフ、用紙が「A5」になっているかだけ確かめてください。</p>' +
+    (books.length ? droppedNote + (notebookUsesPdf()
+      ? notebookPaperNoteHtml(books.length) +
+        '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + who + books.length + '名分をPDFにして印刷</button>' +
+        '<p class="section-note">全員分が1つのPDFになります。できたら「印刷する」を押し、出てきたメニューから「プリント」(または「カンタン入出力」)を選びます。PDFには「片面・A5」の設定が入っています。プリント画面で「両面」がオフ、用紙が「A5」になっているかだけ確かめてください。</p>' +
         '<p class="section-note">iPadで「AirPrintプリンタが見つかりません」と出るときは、同じメニューの「ファイルに保存」やメールで事務所のパソコンへ送るか、事務所のパソコンでこの画面(受付 →「本日の連絡帳をまとめて印刷」)を開いて印刷してください。</p>'
-      : '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + who + books.length + '名分をA5横で印刷</button>' +
+      : notebookPaperNoteHtml(books.length) +
+        '<button class="btn-primary" id="batch-print" onclick="Actions.printNotebookBatch()">🖨 ' + who + books.length + '名分をA5横で印刷</button>' +
         '<button class="btn-outline" id="batch-pdf" onclick="Actions.printNotebookBatch(true)">📄 PDFにする(保存・送る)</button>' +
         '<p class="section-note">印刷画面で「用紙サイズ A5」「横」「片面(両面印刷をオフ)」になっているか確認してください。倍率は「100%」がおすすめです。このパソコンのプリンタの設定で「片面・A5」を既定にしておくと、毎回選ばずに済みます。</p>') : '') +
     '</div>';
@@ -7714,9 +7864,13 @@ var Actions = {
     if (!S.notebook.data) return;
     // 押すたびに言い回しを変えて作り直す(編集した文章は破棄される)
     S.notebook.variant = (S.notebook.variant || 0) + 1;
-    S.notebook.comment = fitNotebookComment(defaultNotebookComment(S.notebook.data, S.notebook.variant));
+    var dropped = [];
+    S.notebook.comment = fitNotebookComment(defaultNotebookComment(S.notebook.data, S.notebook.variant, dropped));
+    S.notebook.autoDropped = dropped;
     S.notebook.baseComment = S.notebook.comment;
     Actions.syncNotebookCommentBox(true);
+    var note = document.getElementById('notebook-dropped');
+    if (note) note.outerHTML = notebookDroppedHtml(S.notebook.autoDropped);
   },
   notebookPhoto: function (file, input) {
     if (!file) return;
@@ -7767,8 +7921,8 @@ var Actions = {
     var btn = document.getElementById('notebook-save');
     var err = document.getElementById('notebook-error');
     var tooLong = S.notebook.comment.trim().length - NOTEBOOK_COMMENT_MAX;
-    if (tooLong > 0) {
-      // 上限(100字)を超えた文章は保存しない(2026-11-25 原山さん決定)
+    if (tooLong > 0 && !notebookCommentUnchanged()) {
+      // 上限を超えた文章は保存しない(2026-11-25 原山さん決定)。保存済みの長い文章を変えずに写真だけ直すときは通す(2026-11-27)
       var longMessage = '「弐番館より」が' + tooLong + '字多いため保存していません。' + NOTEBOOK_COMMENT_MAX + '字以内に短くしてください。';
       if (err) err.textContent = longMessage; else showSaveError(longMessage);
       var countEl = document.getElementById('notebook-count');
@@ -7818,7 +7972,7 @@ var Actions = {
     // 直した文章が100字を超えているときは印刷しない(印刷のあとの保存が止まり、紙とシートが食い違い「印刷済み」も付かないため。
     // 2026-11-25 点検の指摘)。直していない保存済みの長い文章は、今までどおりそのまま印刷する
     var over = S.notebook.comment.trim().length - NOTEBOOK_COMMENT_MAX;
-    if (S.notebook.dirty && over > 0) {
+    if (S.notebook.dirty && over > 0 && !notebookCommentUnchanged()) {
       var count = document.getElementById('notebook-count');
       if (count) { count.textContent = notebookCountText(S.notebook.comment.trim()); count.classList.add('warn'); }
       showSaveError('「弐番館より」が' + over + '字多いため、印刷していません。' + NOTEBOOK_COMMENT_MAX + '字以内に短くしてから、もう一度印刷してください。');
@@ -7940,12 +8094,15 @@ var Actions = {
     // 1枚ずつ、文章が欄に収まるいちばん大きな文字に(2026-11-17。印刷・PDFのどちらも)
     var fit = fitNotebookSheets(document.querySelectorAll('.notebook-batch-sheets .communication-sheet'));
     if (!confirmNotebookOverflow(fit.overflow, true)) return;
+    if (!confirmNotebookDropped(S.notebookBatchDropped)) return;
     if (asPdf === true || notebookUsesPdf()) {
       var sheets = Array.prototype.slice.call(document.querySelectorAll('.notebook-batch-sheets .communication-sheet'));
       var button = document.getElementById(asPdf === true ? 'batch-pdf' : 'batch-print');
-      // 印刷するときは5名ずつのPDFに分ける(パソコンの「PDFにする(保存・送る)」は1つのまま)
+      // 全員分を1つのPDFにする(2026-11-27 現場「5枚ずつなど分けず、一括で印刷したい」)。
+      // 11/18 から iPad・iPhone は5名ずつに分けていたが、5枚でも途中で止まり(複合機の A5 切れの疑い)、
+      // 分けても直らないうえに「印刷する」を何回も押す手間だけが増えていた
       makeNotebookPdf(sheets, '連絡帳_' + partName + '_' + date + '.pdf', button, {
-        groupSize: asPdf === true ? 0 : NOTEBOOK_PDF_GROUP_SIZE,
+        groupSize: 0,
         labels: books.map(function (b) { return b.user.name; }),
       }).then(function (ok) { if (ok) markDone(); });
       return;
